@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   style:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
 
     steps:
       - name: Checkout code
