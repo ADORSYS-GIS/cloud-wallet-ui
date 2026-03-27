@@ -22,7 +22,8 @@ export function HomePage() {
           />
 
           <p className="mt-24 max-w-[830px] text-center leading-tight text-slate-900">
-            Scan the QR code and fill your EUDI Cloud Wallet with proof of your digital identity.
+            Scan the QR code and fill your EUDI Cloud Wallet with proof of your digital
+            identity.
           </p>
 
           <img src={line} alt="" className="mb-2 mt-24 h-[100px]" />

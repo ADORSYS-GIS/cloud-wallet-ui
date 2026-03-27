@@ -15,7 +15,7 @@ export function ScanPage() {
   const [scanStatus, setScanStatus] = useState<ScanStatus>('idle')
   const [decodedValue, setDecodedValue] = useState('')
   const [feedbackMessage, setFeedbackMessage] = useState(
-    'Point your camera at a credential offer QR code.',
+    'Point your camera at a credential offer QR code.'
   )
   const [isScannerActive, setIsScannerActive] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
@@ -43,7 +43,9 @@ export function ScanPage() {
     const parsedOffer = parseCredentialOfferInput(value)
     if (!parsedOffer) {
       setScanStatus('invalid')
-      setFeedbackMessage('Invalid credential offer QR content. Please scan a valid OpenID4VCI offer.')
+      setFeedbackMessage(
+        'Invalid credential offer QR content. Please scan a valid OpenID4VCI offer.'
+      )
       scanInProgressRef.current = false
       return
     }
@@ -85,7 +87,9 @@ export function ScanPage() {
       stream.getTracks().forEach((track) => track.stop())
     } catch {
       setScanStatus('error')
-      setFeedbackMessage('Camera permission denied. Please allow camera access and retry.')
+      setFeedbackMessage(
+        'Camera permission denied. Please allow camera access and retry.'
+      )
       return
     }
 
@@ -107,7 +111,7 @@ export function ScanPage() {
           if (result) {
             void handleDecodedValue(result.getText().trim())
           }
-        },
+        }
       )
     } catch {
       setScanStatus('error')
@@ -150,10 +154,12 @@ export function ScanPage() {
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-      <div className="flex items-center justify-between bg-[#499c9d] px-4 py-2 text-black">
-        <span>To access the app from your phone, install now</span>
-        <button className="rounded-lg bg-[#99e827] px-24 py-1 text-black">Install</button>
-      </div>
+        <div className="flex items-center justify-between bg-[#499c9d] px-4 py-2 text-black">
+          <span>To access the app from your phone, install now</span>
+          <button className="rounded-lg bg-[#99e827] px-24 py-1 text-black">
+            Install
+          </button>
+        </div>
 
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
           <button

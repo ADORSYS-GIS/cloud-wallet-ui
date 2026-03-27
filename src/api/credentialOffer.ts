@@ -6,7 +6,7 @@ export type SubmitCredentialOfferResponse = {
 }
 
 export function submitCredentialOfferUri(
-  credentialOfferUri: string,
+  credentialOfferUri: string
 ): Promise<SubmitCredentialOfferResponse> {
   const query = new URLSearchParams({
     credential_offer_uri: credentialOfferUri,

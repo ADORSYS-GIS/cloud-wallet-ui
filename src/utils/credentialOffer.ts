@@ -25,14 +25,19 @@ function parseCredentialOfferObject(encodedValue: string): CredentialOfferObject
       return null
     }
 
-    if (typeof parsed.credential_issuer !== 'string' || !isHttpsUrl(parsed.credential_issuer)) {
+    if (
+      typeof parsed.credential_issuer !== 'string' ||
+      !isHttpsUrl(parsed.credential_issuer)
+    ) {
       return null
     }
 
     if (
       !Array.isArray(parsed.credential_configuration_ids) ||
       parsed.credential_configuration_ids.length === 0 ||
-      parsed.credential_configuration_ids.some((id) => typeof id !== 'string' || id.length === 0)
+      parsed.credential_configuration_ids.some(
+        (id) => typeof id !== 'string' || id.length === 0
+      )
     ) {
       return null
     }
@@ -48,13 +53,16 @@ function parseCredentialOfferObject(encodedValue: string): CredentialOfferObject
 
 function parseOfferParams(
   params: URLSearchParams,
-  rawValue: string,
+  rawValue: string
 ): ParsedCredentialOfferInput | null {
   const credentialOffer = params.get('credential_offer')
   const credentialOfferUri = params.get('credential_offer_uri')
 
   // OpenID4VCI requires exactly one of these parameters.
-  if ((!credentialOffer && !credentialOfferUri) || (credentialOffer && credentialOfferUri)) {
+  if (
+    (!credentialOffer && !credentialOfferUri) ||
+    (credentialOffer && credentialOfferUri)
+  ) {
     return null
   }
 
@@ -81,12 +89,14 @@ function parseOfferParams(
   return {
     rawValue,
     normalizedUri: `openid-credential-offer://?credential_offer=${encodeURIComponent(
-      decodeURIComponent(credentialOffer),
+      decodeURIComponent(credentialOffer)
     )}`,
   }
 }
 
-export function parseCredentialOfferInput(input: string): ParsedCredentialOfferInput | null {
+export function parseCredentialOfferInput(
+  input: string
+): ParsedCredentialOfferInput | null {
   const value = input.trim()
   if (!value) {
     return null

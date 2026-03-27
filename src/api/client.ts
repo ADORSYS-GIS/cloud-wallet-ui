@@ -10,7 +10,10 @@ export async function apiGet<T>(path: string): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function apiPost<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+export async function apiPost<TResponse, TBody>(
+  path: string,
+  body: TBody
+): Promise<TResponse> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: 'POST',
     headers: {
