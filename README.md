@@ -41,12 +41,17 @@ src/
 ## Environment variables
 
 - `VITE_API_BASE_URL`: backend base URL (defaults to `http://localhost:8080`)
+- `VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS` (optional): comma-separated allowlist of `host[:port]` values for accepting *plain https* QR payloads as credential-offer URLs. If not set, the app only accepts plain `https` payloads whose path contains `credential-offer` (conservative default). `openid-credential-offer://...` links are accepted regardless.
 
 Create a `.env` file in project root:
 
 ```bash
 VITE_API_BASE_URL=http://localhost:8080
+# Optional:
+# VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS=issuer.example.com,wallet.example.org
 ```
+
+You can also copy `.env.example` to `.env` (or `.env.local`) and adjust values.
 
 ## GitFlow
 

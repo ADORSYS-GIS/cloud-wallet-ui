@@ -8,6 +8,18 @@ export type ParsedCredentialOfferInput = {
   normalizedUri: string
 }
 
+function getAllowedCredentialOfferHosts(): string[] {
+  const raw = import.meta.env.VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS
+  if (typeof raw !== 'string') {
+    return []
+  }
+
+  return raw
+    .split(',')
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean)
+}
+
 function isHttpsUrl(value: string): boolean {
   try {
     const parsed = new URL(value)
@@ -108,8 +120,23 @@ export function parseCredentialOfferInput(
       return parseOfferParams(url.searchParams, value)
     }
 
-    // Accept plain https credential_offer_uri as a practical fallback for QR payloads.
     if (url.protocol === 'https:') {
+      // Fallback: allow scanning plain https URLs only when they look like a credential offer URI.
+      // If an allowlist is configured, enforce it strictly.
+      const allowedHosts = getAllowedCredentialOfferHosts()
+      const host = url.host.toLowerCase()
+
+      if (allowedHosts.length > 0 && !allowedHosts.includes(host)) {
+        return null
+      }
+
+      // Conservative default: only accept URLs that look like offer endpoints.
+      // This reduces accidental submission of arbitrary HTTPS QR codes.
+      const pathLooksLikeOffer = url.pathname.toLowerCase().includes('credential-offer')
+      if (allowedHosts.length === 0 && !pathLooksLikeOffer) {
+        return null
+      }
+
       return {
         rawValue: value,
         normalizedUri: `openid-credential-offer://?credential_offer_uri=${encodeURIComponent(value)}`,
