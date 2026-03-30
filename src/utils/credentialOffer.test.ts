@@ -14,7 +14,9 @@ describe('parseCredentialOfferInput', () => {
 
     const parsed = parseCredentialOfferInput(input)
     expect(parsed).not.toBeNull()
-    expect(parsed?.normalizedUri).toContain('openid-credential-offer://?credential_offer_uri=')
+    expect(parsed?.normalizedUri).toContain(
+      'openid-credential-offer://?credential_offer_uri='
+    )
   })
 
   it('rejects openid-credential-offer when both credential_offer and credential_offer_uri are present', () => {
@@ -43,7 +45,9 @@ describe('parseCredentialOfferInput', () => {
 
     const parsed = parseCredentialOfferInput(input)
     expect(parsed).not.toBeNull()
-    expect(parsed?.normalizedUri).toContain('openid-credential-offer://?credential_offer=')
+    expect(parsed?.normalizedUri).toContain(
+      'openid-credential-offer://?credential_offer='
+    )
   })
 
   it('rejects non-url input', () => {
@@ -65,12 +69,18 @@ describe('parseCredentialOfferInput', () => {
   })
 
   it('enforces allowlisted hosts when configured', () => {
-    vi.stubEnv('VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS', 'issuer.example.com, wallet.example.org')
+    vi.stubEnv(
+      'VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS',
+      'issuer.example.com, wallet.example.org'
+    )
 
-    expect(parseCredentialOfferInput('https://evil.example.com/credential-offer/123')).toBeNull()
+    expect(
+      parseCredentialOfferInput('https://evil.example.com/credential-offer/123')
+    ).toBeNull()
 
-    const parsed = parseCredentialOfferInput('https://issuer.example.com/credential-offer/123')
+    const parsed = parseCredentialOfferInput(
+      'https://issuer.example.com/credential-offer/123'
+    )
     expect(parsed).not.toBeNull()
   })
 })
-
