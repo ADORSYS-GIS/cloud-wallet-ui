@@ -20,6 +20,7 @@ export function ScanPage() {
   const [isScannerActive, setIsScannerActive] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
+  const [isSwapping, setIsSwapping] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const readerRef = useRef<BrowserQRCodeReader | null>(null)
@@ -150,10 +151,19 @@ export function ScanPage() {
   }, [])
 
   const swapCamera = async () => {
+    if (isSwapping) {
+      return
+    }
+
+    setIsSwapping(true)
     const nextMode: FacingMode = facingMode === 'environment' ? 'user' : 'environment'
     setFacingMode(nextMode)
     stopScanner()
-    await startScan(nextMode)
+    try {
+      await startScan(nextMode)
+    } finally {
+      setIsSwapping(false)
+    }
   }
 
   return (
@@ -204,7 +214,11 @@ export function ScanPage() {
           {isScannerActive && scanStatus === 'scanning' && (
             <button
               onClick={() => void swapCamera()}
-              className="absolute bottom-4 left-1/2 z-10 h-9 w-9 -translate-x-1/2 rounded-full bg-white text-lg text-slate-700 shadow"
+              disabled={isSwapping}
+              className={[
+                'absolute bottom-4 left-1/2 z-10 h-9 w-9 -translate-x-1/2 rounded-full bg-white text-lg text-slate-700 shadow',
+                isSwapping ? 'cursor-not-allowed opacity-60' : '',
+              ].join(' ')}
               aria-label="Swap camera"
             >
               ↻
