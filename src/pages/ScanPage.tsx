@@ -120,17 +120,22 @@ export function ScanPage() {
   }
 
   useEffect(() => {
+    let mounted = true
     const isFreshScan = searchParams.get('fresh') === 'true'
     if (isFreshScan) {
       navigate(routes.scan, { replace: true })
     }
 
     const timer = window.setTimeout(() => {
+      if (!mounted) {
+        return
+      }
       setIsInitializing(false)
       void startScan()
     }, 220)
 
     return () => {
+      mounted = false
       window.clearTimeout(timer)
     }
     // We intentionally run this once on page entry.

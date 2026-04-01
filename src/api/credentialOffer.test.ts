@@ -98,4 +98,3 @@ describe('submitCredentialOfferUri', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
-
