@@ -24,4 +24,3 @@ export type BackendErrorEnvelope = {
     details?: unknown
   }
 }
-

@@ -59,10 +59,14 @@ export function OfferDialog({ open, offer, onClose }: OfferDialogProps) {
             </div>
           </div>
 
-          <div className="mt-4 text-sm font-medium text-slate-900">Available credential types</div>
+          <div className="mt-4 text-sm font-medium text-slate-900">
+            Available credential types
+          </div>
 
           {options.length === 0 ? (
-            <div className="mt-2 text-sm text-slate-600">No credential options were returned.</div>
+            <div className="mt-2 text-sm text-slate-600">
+              No credential options were returned.
+            </div>
           ) : (
             <ul className="mt-2 space-y-2">
               {options.map((o) => (
@@ -89,4 +93,3 @@ export function OfferDialog({ open, offer, onClose }: OfferDialogProps) {
     </div>
   )
 }
-

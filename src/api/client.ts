@@ -50,7 +50,11 @@ export async function apiPost<TResponse, TBody>(
 
   if (!response.ok) {
     const responseBody = await readJsonBodySafe(response)
-    throw new ApiError(`Request failed with ${response.status}`, response.status, responseBody)
+    throw new ApiError(
+      `Request failed with ${response.status}`,
+      response.status,
+      responseBody
+    )
   }
 
   if (response.status === 204) {

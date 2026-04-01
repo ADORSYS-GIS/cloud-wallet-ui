@@ -21,11 +21,16 @@ function mapApiErrorToUiError(e: ApiError<BackendErrorEnvelope>) {
   const messageFromBackend = e.body?.error?.message
 
   // Conservative defaults until backend codes are finalized.
-  if (code === 'EXPIRED_PRE_AUTH_CODE' || code === 'EXPIRED_PRE_AUTH' || code === 'invalid_grant') {
+  if (
+    code === 'EXPIRED_PRE_AUTH_CODE' ||
+    code === 'EXPIRED_PRE_AUTH' ||
+    code === 'invalid_grant'
+  ) {
     return {
       kind: 'expired_pre_auth_code' as const,
       code,
-      message: messageFromBackend || 'This pre-authorized code has expired. Please scan again.',
+      message:
+        messageFromBackend || 'This pre-authorized code has expired. Please scan again.',
       retryable: false,
     }
   }
@@ -34,7 +39,8 @@ function mapApiErrorToUiError(e: ApiError<BackendErrorEnvelope>) {
     return {
       kind: 'invalid_offer' as const,
       code,
-      message: messageFromBackend || 'The credential offer is invalid. Please scan a new one.',
+      message:
+        messageFromBackend || 'The credential offer is invalid. Please scan a new one.',
       retryable: false,
     }
   }
@@ -239,7 +245,8 @@ export function ScanPage() {
   }
 
   const showFullscreenStatus =
-    offerState.status === 'loading' || (offerState.status === 'error' && !!offerState.error)
+    offerState.status === 'loading' ||
+    (offerState.status === 'error' && !!offerState.error)
 
   return (
     <PageContainer fullWidth>
@@ -358,13 +365,13 @@ export function ScanPage() {
           {(scanStatus === 'invalid' || scanStatus === 'error') &&
             offerState.status !== 'loading' &&
             offerState.status !== 'error' && (
-            <button
-              onClick={() => void startScan()}
-              className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
-            >
-              Retry scan
-            </button>
-          )}
+              <button
+                onClick={() => void startScan()}
+                className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
+              >
+                Retry scan
+              </button>
+            )}
         </section>
       </div>
     </PageContainer>

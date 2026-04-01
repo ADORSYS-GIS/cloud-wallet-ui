@@ -66,7 +66,11 @@ export function CredentialOfferProvider({ children }: { children: React.ReactNod
     [error, offer, status]
   )
 
-  return <CredentialOfferContext.Provider value={value}>{children}</CredentialOfferContext.Provider>
+  return (
+    <CredentialOfferContext.Provider value={value}>
+      {children}
+    </CredentialOfferContext.Provider>
+  )
 }
 
 export function useCredentialOfferState(): CredentialOfferState {
@@ -76,4 +80,3 @@ export function useCredentialOfferState(): CredentialOfferState {
   }
   return ctx
 }
-

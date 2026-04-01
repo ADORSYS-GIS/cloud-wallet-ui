@@ -17,6 +17,8 @@ export function resolveCredentialOfferUri(
       credential_offer_uri: credentialOfferUri,
     })
 
-    return apiGet<CredentialOfferResolutionResponse>(`/credential-offer?${query.toString()}`)
+    return apiGet<CredentialOfferResolutionResponse>(
+      `/credential-offer?${query.toString()}`
+    )
   })
 }
