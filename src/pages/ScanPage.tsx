@@ -1,17 +1,65 @@
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { submitCredentialOfferUri } from '../api/credentialOffer'
+import { resolveCredentialOfferUri } from '../api/credentialOffer'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
+import { useCredentialOfferState } from '../state/credentialOffer'
+import { ApiError } from '../api/client'
+import type { BackendErrorEnvelope } from '../types/credentialOffer'
+import { OfferDialog } from '../components/OfferDialog'
+import illuWallet from '../assets/illu-wallet.png'
 
 type ScanStatus = 'idle' | 'scanning' | 'success' | 'invalid' | 'error'
 type FacingMode = 'environment' | 'user'
 
+// TODO(#93-backend-integration): Align error-code mapping with backend error taxonomy.
+// Once backend is finalized, map status+code to stable UI kinds and messages.
+function mapApiErrorToUiError(e: ApiError<BackendErrorEnvelope>) {
+  const code = e.body?.error?.code
+  const messageFromBackend = e.body?.error?.message
+
+  // Conservative defaults until backend codes are finalized.
+  if (code === 'EXPIRED_PRE_AUTH_CODE' || code === 'EXPIRED_PRE_AUTH' || code === 'invalid_grant') {
+    return {
+      kind: 'expired_pre_auth_code' as const,
+      code,
+      message: messageFromBackend || 'This pre-authorized code has expired. Please scan again.',
+      retryable: false,
+    }
+  }
+
+  if (code === 'INVALID_OFFER' || code === 'INVALID_CREDENTIAL_OFFER') {
+    return {
+      kind: 'invalid_offer' as const,
+      code,
+      message: messageFromBackend || 'The credential offer is invalid. Please scan a new one.',
+      retryable: false,
+    }
+  }
+
+  if (e.status >= 500) {
+    return {
+      kind: 'server' as const,
+      code,
+      message: messageFromBackend || 'The server returned an error. Please try again.',
+      retryable: true,
+    }
+  }
+
+  return {
+    kind: 'unknown' as const,
+    code,
+    message: messageFromBackend || `Request failed with ${e.status}.`,
+    retryable: e.status >= 500,
+  }
+}
+
 export function ScanPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const offerState = useCredentialOfferState()
   const [scanStatus, setScanStatus] = useState<ScanStatus>('idle')
   const [decodedValue, setDecodedValue] = useState('')
   const [feedbackMessage, setFeedbackMessage] = useState(
@@ -38,7 +86,9 @@ export function ScanPage() {
 
     scanInProgressRef.current = true
     stopScanner()
+    setIsScannerActive(false)
     setDecodedValue(value)
+    offerState.clear()
 
     const parsedOffer = parseCredentialOfferInput(value)
     if (!parsedOffer) {
@@ -46,23 +96,39 @@ export function ScanPage() {
       setFeedbackMessage(
         'Invalid credential offer QR content. Please scan a valid OpenID4VCI offer.'
       )
+      offerState.setError({
+        kind: 'invalid_offer',
+        code: 'E0020',
+        message: 'We could not parse the QR code you have scanned.',
+        retryable: false,
+      })
       scanInProgressRef.current = false
       return
     }
 
     try {
-      const response = await submitCredentialOfferUri(parsedOffer.normalizedUri)
-      if (!response.accepted) {
-        setScanStatus('error')
-        setFeedbackMessage(response.message || 'Credential offer rejected by backend.')
-        return
-      }
-
+      offerState.setLoading()
+      setFeedbackMessage('Just a moment while we make a secure connection...')
+      // TODO(#93-backend-integration): This depends on backend /credential-offer being available.
+      // Until the backend is implemented, failures here will trigger the full-screen error state.
+      const response = await resolveCredentialOfferUri(parsedOffer.normalizedUri)
+      offerState.setOffer(response)
       setScanStatus('success')
-      setFeedbackMessage('Credential offer validated and sent to backend successfully.')
-    } catch {
+      setFeedbackMessage('Credential offer resolved successfully.')
+    } catch (e) {
       setScanStatus('error')
-      setFeedbackMessage('Credential offer validated, but backend submission failed.')
+      if (e instanceof ApiError) {
+        const uiError = mapApiErrorToUiError(e as ApiError<BackendErrorEnvelope>)
+        offerState.setError(uiError)
+        setFeedbackMessage(uiError.message)
+      } else {
+        offerState.setError({
+          kind: 'network',
+          message: 'Network error while contacting backend. Please try again.',
+          retryable: true,
+        })
+        setFeedbackMessage('Network error while contacting backend.')
+      }
     } finally {
       scanInProgressRef.current = false
     }
@@ -73,10 +139,16 @@ export function ScanPage() {
     setFeedbackMessage('Requesting camera permission...')
     setDecodedValue('')
     setScanStatus('idle')
+    offerState.clear()
 
     if (!navigator?.mediaDevices?.getUserMedia) {
       setScanStatus('error')
       setFeedbackMessage('No camera device is available on this browser.')
+      offerState.setError({
+        kind: 'unknown',
+        message: 'No camera device is available on this browser.',
+        retryable: false,
+      })
       return
     }
 
@@ -90,12 +162,22 @@ export function ScanPage() {
       setFeedbackMessage(
         'Camera permission denied. Please allow camera access and retry.'
       )
+      offerState.setError({
+        kind: 'unknown',
+        message: 'Camera permission denied. Please allow camera access and retry.',
+        retryable: false,
+      })
       return
     }
 
     if (!videoRef.current) {
       setScanStatus('error')
       setFeedbackMessage('Video preview unavailable. Please reload and try again.')
+      offerState.setError({
+        kind: 'unknown',
+        message: 'Video preview unavailable. Please reload and try again.',
+        retryable: false,
+      })
       return
     }
 
@@ -116,6 +198,11 @@ export function ScanPage() {
     } catch {
       setScanStatus('error')
       setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
+      offerState.setError({
+        kind: 'unknown',
+        message: 'Unable to start QR scanner. Check camera availability.',
+        retryable: false,
+      })
     }
   }
 
@@ -151,31 +238,93 @@ export function ScanPage() {
     await startScan(nextMode)
   }
 
+  const showFullscreenStatus =
+    offerState.status === 'loading' || (offerState.status === 'error' && !!offerState.error)
+
   return (
-    <PageContainer>
+    <PageContainer fullWidth>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        <div className="flex items-center justify-between bg-[#499c9d] px-4 py-2 text-black">
-          <span>To access the app from your phone, install now</span>
-          <button className="rounded-lg bg-[#99e827] px-24 py-1 text-black">
-            Install
-          </button>
-        </div>
+        {showFullscreenStatus && offerState.status === 'loading' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+            <div className="flex flex-col items-center px-6 text-center">
+              <div className="relative mb-16 h-52 w-52">
+                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+                <img
+                  src={illuWallet}
+                  alt=""
+                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+                />
+              </div>
+              <div className="text-base text-slate-700">
+                Just a moment while we make a secure connection...
+              </div>
+            </div>
+          </div>
+        )}
 
-        <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
-          <button
-            onClick={() => navigate(routes.home)}
-            className="h-7 w-7 rounded-full text-xl leading-none text-white"
-            aria-label="Back"
-          >
-            ‹
-          </button>
-          <div />
-          <div className="w-7" />
-        </div>
+        {showFullscreenStatus && offerState.status === 'error' && offerState.error && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+            <div className="flex flex-col items-center px-6 text-center">
+              <div className="relative mb-16 h-52 w-52">
+                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+                <img
+                  src={illuWallet}
+                  alt=""
+                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+                />
+              </div>
+              <div className="text-base text-slate-700">{offerState.error.message}</div>
+              <button
+                onClick={() => void startScan()}
+                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
+              >
+                Scan again
+              </button>
+            </div>
+          </div>
+        )}
 
-        <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700">
-          {isInitializing ? '◉ Initializing scanner...' : `◉ ${feedbackMessage}`}
-        </div>
+        {!showFullscreenStatus && (
+          <div className="flex items-center justify-between bg-[#499c9d] px-4 py-2 text-black">
+            <span>To access the app from your phone, install now</span>
+            <button className="rounded-lg bg-[#99e827] px-24 py-1 text-black">
+              Install
+            </button>
+          </div>
+        )}
+
+        {offerState.offer && (
+          <OfferDialog
+            open={!!offerState.offer}
+            offer={offerState.offer}
+            onClose={() => {
+              offerState.clear()
+              void startScan()
+            }}
+          />
+        )}
+
+        {!showFullscreenStatus && (
+          <>
+            <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
+              <button
+                onClick={() => navigate(routes.home)}
+                className="h-7 w-7 rounded-full text-xl leading-none text-white"
+                aria-label="Back"
+              >
+                ‹
+              </button>
+              <div />
+              <div className="w-7" />
+            </div>
+
+            <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700">
+              {isInitializing ? '◉ Initializing scanner...' : `◉ ${feedbackMessage}`}
+            </div>
+          </>
+        )}
 
         <section className="relative flex-1 bg-[#E9ECEF]">
           {isScannerActive && (
@@ -206,7 +355,9 @@ export function ScanPage() {
             </button>
           )}
 
-          {(scanStatus === 'invalid' || scanStatus === 'error') && (
+          {(scanStatus === 'invalid' || scanStatus === 'error') &&
+            offerState.status !== 'loading' &&
+            offerState.status !== 'error' && (
             <button
               onClick={() => void startScan()}
               className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"

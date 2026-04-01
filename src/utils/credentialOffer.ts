@@ -121,6 +121,10 @@ export function parseCredentialOfferInput(
     }
 
     if (url.protocol === 'https:') {
+      // TODO(#93-backend-integration/security): Confirm whether scanning plain https QR codes
+      // should be allowed long-term, or only the openid-credential-offer scheme.
+      // If allowed, set VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS in each environment to prevent
+      // accidental submission of arbitrary URLs.
       // Fallback: allow scanning plain https URLs only when they look like a credential offer URI.
       // If an allowlist is configured, enforce it strictly.
       const allowedHosts = getAllowedCredentialOfferHosts()
