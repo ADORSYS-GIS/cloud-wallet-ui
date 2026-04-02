@@ -12,7 +12,10 @@ function App() {
         <Route path={routes.home} element={<HomePage />} />
         <Route path={routes.scan} element={<ScanPage />} />
         <Route path={routes.credentials} element={<CredentialsPage />} />
-        <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
+        <Route
+          path={`${routes.credentials}/:credentialId`}
+          element={<CredentialDetailPage />}
+        />
         <Route path="*" element={<Navigate to={routes.home} replace />} />
       </Routes>
     </Router>

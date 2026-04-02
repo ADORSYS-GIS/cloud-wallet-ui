@@ -5,7 +5,12 @@ function normalizeListPayload(data: unknown): CredentialsListResponse {
   if (Array.isArray(data)) {
     return { items: data as CredentialsListResponse['items'] }
   }
-  if (data && typeof data === 'object' && 'items' in data && Array.isArray((data as CredentialsListResponse).items)) {
+  if (
+    data &&
+    typeof data === 'object' &&
+    'items' in data &&
+    Array.isArray((data as CredentialsListResponse).items)
+  ) {
     return data as CredentialsListResponse
   }
   return { items: [] }

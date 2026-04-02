@@ -20,7 +20,8 @@ export function Footer({
   activeTab,
 }: FooterProps) {
   const location = useLocation()
-  const credsActive = activeTab === 'creds' || location.pathname.startsWith(routes.credentials)
+  const credsActive =
+    activeTab === 'creds' || location.pathname.startsWith(routes.credentials)
 
   const tabClass = (active: boolean) =>
     `flex flex-col items-center gap-1 ${active ? 'text-slate-900' : 'text-slate-500'}`
@@ -29,10 +30,7 @@ export function Footer({
     <nav className="relative mt-auto grid grid-cols-3 items-end bg-[#FFFFFF] px-8 pb-7 pt-2 text-slate-900">
       <div className="absolute -top-4 left-1/2 h-8 w-16 -translate-x-1/2 rounded-t-full bg-[#E9ECEF]" />
 
-      <div
-        className={tabClass(false)}
-        aria-label="Activity — coming soon"
-      >
+      <div className={tabClass(false)} aria-label="Activity — coming soon">
         <img src={activityIcon} alt="" className="h-6 w-6" />
         {showLabels && <span className="text-xs leading-none">Activity</span>}
       </div>

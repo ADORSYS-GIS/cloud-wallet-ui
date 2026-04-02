@@ -25,7 +25,9 @@ describe('credentialDisplayName', () => {
 
 describe('issuerDisplayLabel', () => {
   it('returns host for https issuer URL', () => {
-    expect(issuerDisplayLabel('https://wallet-issuer.example.com/path')).toBe('wallet-issuer.example.com')
+    expect(issuerDisplayLabel('https://wallet-issuer.example.com/path')).toBe(
+      'wallet-issuer.example.com'
+    )
   })
 
   it('returns raw string when not a URL', () => {

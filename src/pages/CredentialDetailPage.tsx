@@ -55,20 +55,30 @@ function CredentialDetailBody({ credentialId }: { credentialId: string }) {
               <dl className="grid gap-4 text-sm">
                 <div>
                   <dt className="text-slate-500">Name</dt>
-                  <dd className="font-medium text-slate-900">{credentialDisplayName(credential)}</dd>
+                  <dd className="font-medium text-slate-900">
+                    {credentialDisplayName(credential)}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Issuer</dt>
-                  <dd className="break-all text-slate-900">{issuerDisplayLabel(credential.issuer)}</dd>
-                  <dd className="mt-1 break-all text-xs text-slate-600">{credential.issuer}</dd>
+                  <dd className="break-all text-slate-900">
+                    {issuerDisplayLabel(credential.issuer)}
+                  </dd>
+                  <dd className="mt-1 break-all text-xs text-slate-600">
+                    {credential.issuer}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Type</dt>
-                  <dd className="break-all font-medium text-slate-900">{credential.credential_type}</dd>
+                  <dd className="break-all font-medium text-slate-900">
+                    {credential.credential_type}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-slate-500">Identifier</dt>
-                  <dd className="break-all font-mono text-xs text-slate-800">{credential.id}</dd>
+                  <dd className="break-all font-mono text-xs text-slate-800">
+                    {credential.id}
+                  </dd>
                 </div>
                 {credential.issued_at && (
                   <div>
