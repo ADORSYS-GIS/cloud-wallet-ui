@@ -7,7 +7,8 @@ type HeaderProps = {
 }
 
 export function Header({ showMainHeader = true }: HeaderProps) {
-  const { installApp, isInstallable, isInstalling, isInstalled, isIosInstallable } = usePWA()
+  const { installApp, isInstallable, isInstalling, isInstalled, isIosInstallable } =
+    usePWA()
   const [showIosInstructions, setShowIosInstructions] = useState(false)
   const [showInstallUnavailableHint, setShowInstallUnavailableHint] = useState(false)
 
@@ -50,8 +51,8 @@ export function Header({ showMainHeader = true }: HeaderProps) {
       )}
       {showInstallUnavailableHint && (
         <div className="bg-[#3f6f7e] px-4 py-2 text-sm text-slate-100">
-          Install prompt is unavailable right now. This is expected if the app is
-          already installed on this device/browser profile.
+          Install prompt is unavailable right now. This is expected if the app is already
+          installed on this device/browser profile.
         </div>
       )}
 

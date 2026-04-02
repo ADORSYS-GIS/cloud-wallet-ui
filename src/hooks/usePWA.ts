@@ -13,12 +13,16 @@ function isIosDevice(): boolean {
 function isStandaloneMode(): boolean {
   const standaloneMedia = window.matchMedia('(display-mode: standalone)').matches
   const minimalUiMedia = window.matchMedia('(display-mode: minimal-ui)').matches
-  const iosStandalone = Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
+  const iosStandalone = Boolean(
+    (window.navigator as Navigator & { standalone?: boolean }).standalone
+  )
   return standaloneMedia || minimalUiMedia || iosStandalone
 }
 
 export function usePWA() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
+    null
+  )
   const [isInstalled, setIsInstalled] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
 
