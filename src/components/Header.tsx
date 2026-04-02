@@ -1,12 +1,21 @@
+import type { ReactNode } from 'react'
 import gearIcon from '../assets/icon-gear.svg'
 import { useState } from 'react'
 import { usePWA } from '../hooks/usePWA'
 
+const DEFAULT_TITLE = 'DATEV Cloud Wallet'
+
 type HeaderProps = {
   showMainHeader?: boolean
+  title?: string
+  leftSlot?: ReactNode
 }
 
-export function Header({ showMainHeader = true }: HeaderProps) {
+export function Header({
+  showMainHeader = true,
+  title = DEFAULT_TITLE,
+  leftSlot,
+}: HeaderProps) {
   const { installApp, isInstallable, isInstalling, isInstalled, isIosInstallable } =
     usePWA()
   const [showIosInstructions, setShowIosInstructions] = useState(false)
@@ -57,12 +66,14 @@ export function Header({ showMainHeader = true }: HeaderProps) {
       )}
 
       {showMainHeader && (
-        <header className="grid grid-cols-[1fr_auto_1fr] items-center bg-[#4b7c8c] px-4 py-6">
-          <div />
-          <h1 className="whitespace-nowrap text-center font-semibold leading-none text-slate-100 md:text-[34px]">
-            DATEV Cloud Wallet
+        <header className="grid grid-cols-[auto_1fr_auto] items-center gap-2 bg-[#4b7c8c] px-4 py-6">
+          <div className="flex w-8 shrink-0 justify-start">
+            {leftSlot ?? <span className="inline-block w-6" aria-hidden />}
+          </div>
+          <h1 className="min-w-0 truncate text-center font-semibold leading-none text-slate-100 md:text-[28px]">
+            {title}
           </h1>
-          <div className="flex justify-end">
+          <div className="flex w-8 shrink-0 justify-end">
             <img src={gearIcon} alt="Settings" className="h-6 w-6" />
           </div>
         </header>
