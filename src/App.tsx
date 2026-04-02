@@ -1,4 +1,3 @@
-import { ActivityPlaceholderPage } from './pages/ActivityPlaceholderPage'
 import { CredentialDetailPage } from './pages/CredentialDetailPage'
 import { CredentialsPage } from './pages/CredentialsPage'
 import { HomePage } from './pages/HomePage'
@@ -14,7 +13,6 @@ function App() {
         <Route path={routes.scan} element={<ScanPage />} />
         <Route path={routes.credentials} element={<CredentialsPage />} />
         <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
-        <Route path={routes.activity} element={<ActivityPlaceholderPage />} />
         <Route path="*" element={<Navigate to={routes.home} replace />} />
       </Routes>
     </Router>

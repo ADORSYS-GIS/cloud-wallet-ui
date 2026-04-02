@@ -14,15 +14,13 @@ export function CredentialsEmptyState() {
           className="h-[240px] w-[139px] max-w-full object-contain"
         />
         <p className="text-center text-slate-900">Your wallet is empty.</p>
-        <div className="flex w-full justify-center overflow-x-auto px-1">
-          <p className="whitespace-nowrap text-center text-xs leading-snug text-slate-900 sm:text-sm">
-            Scan the QR code and fill your EUDI-Wallet with proof of your digital identity.
-          </p>
-        </div>
+        <p className="max-w-[830px] text-center leading-snug text-slate-900">
+          Scan the QR code and fill your EUDI-Wallet with proof of your digital identity.
+        </p>
         <button
           type="button"
           onClick={() => navigate(`${routes.scan}?fresh=true`)}
-          className="w-full rounded-md bg-[#99e827] py-3 text-center text-base font-semibold text-slate-900 shadow-sm"
+          className="w-full rounded-md bg-[#99e827] py-3 text-center text-base font-semibold text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
         >
           Add your first Credential
         </button>
