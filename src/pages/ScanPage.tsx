@@ -2,6 +2,7 @@ import { BrowserQRCodeReader } from '@zxing/browser'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { submitCredentialOfferUri } from '../api/credentialOffer'
+import { Header } from '../components/Header'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
@@ -169,15 +170,11 @@ export function ScanPage() {
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        <div className="flex items-center justify-between bg-[#499c9d] px-4 py-2 text-black">
-          <span>To access the app from your phone, install now</span>
-          <button className="rounded-lg bg-[#99e827] px-24 py-1 text-black">
-            Install
-          </button>
-        </div>
+        <Header showMainHeader={false} />
 
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
           <button
+            type="button"
             onClick={() => navigate(routes.home)}
             className="h-7 w-7 rounded-full text-xl leading-none text-white"
             aria-label="Back"
@@ -213,6 +210,7 @@ export function ScanPage() {
 
           {isScannerActive && scanStatus === 'scanning' && (
             <button
+              type="button"
               onClick={() => void swapCamera()}
               disabled={isSwapping}
               className={[
@@ -227,6 +225,7 @@ export function ScanPage() {
 
           {(scanStatus === 'invalid' || scanStatus === 'error') && (
             <button
+              type="button"
               onClick={() => void startScan()}
               className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
             >

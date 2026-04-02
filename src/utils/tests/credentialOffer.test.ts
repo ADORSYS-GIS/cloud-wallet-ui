@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { parseCredentialOfferInput } from './credentialOffer'
+import { parseCredentialOfferInput } from '../credentialOffer'
 
 describe('parseCredentialOfferInput', () => {
   it('returns null for empty/whitespace input', () => {
@@ -48,6 +48,31 @@ describe('parseCredentialOfferInput', () => {
     expect(parsed?.normalizedUri).toContain(
       'openid-credential-offer://?credential_offer='
     )
+  })
+
+  it('accepts localhost HTTP credential_issuer for dev', () => {
+    const offer = encodeURIComponent(
+      JSON.stringify({
+        credential_issuer: 'http://localhost:8080',
+        credential_configuration_ids: ['MyCredential'],
+      })
+    )
+    const input = `openid-credential-offer://?credential_offer=${offer}`
+
+    const parsed = parseCredentialOfferInput(input)
+    expect(parsed).not.toBeNull()
+  })
+
+  it('still rejects non-localhost HTTP credential_issuer', () => {
+    const offer = encodeURIComponent(
+      JSON.stringify({
+        credential_issuer: 'http://issuer.example.com',
+        credential_configuration_ids: ['MyCredential'],
+      })
+    )
+    const input = `openid-credential-offer://?credential_offer=${offer}`
+
+    expect(parseCredentialOfferInput(input)).toBeNull()
   })
 
   it('rejects non-url input', () => {

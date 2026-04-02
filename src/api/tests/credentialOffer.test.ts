@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { submitCredentialOfferUri } from './credentialOffer'
+import { submitCredentialOfferUri } from '../credentialOffer'
 
 type MockFetchResponse = {
   ok: boolean
