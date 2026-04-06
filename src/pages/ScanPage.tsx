@@ -77,25 +77,14 @@ export function ScanPage() {
     setScanStatus('idle')
 
     if (!navigator?.mediaDevices?.getUserMedia) {
+      setIsScannerActive(false)
       setScanStatus('error')
       setFeedbackMessage('No camera device is available on this browser.')
       return
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: mode } },
-      })
-      stream.getTracks().forEach((track) => track.stop())
-    } catch {
-      setScanStatus('error')
-      setFeedbackMessage(
-        'Camera permission denied. Please allow camera access and retry.'
-      )
-      return
-    }
-
     if (!videoRef.current) {
+      setIsScannerActive(false)
       setScanStatus('error')
       setFeedbackMessage('Video preview unavailable. Please reload and try again.')
       return
@@ -115,8 +104,15 @@ export function ScanPage() {
           }
         }
       )
-    } catch {
+    } catch (error: unknown) {
+      setIsScannerActive(false)
       setScanStatus('error')
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        setFeedbackMessage(
+          'Camera permission denied. Please allow camera access and retry.'
+        )
+        return
+      }
       setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
     }
   }
@@ -190,15 +186,16 @@ export function ScanPage() {
         </div>
 
         <section className="relative flex-1 bg-[#E9ECEF]">
-          {isScannerActive && (
-            <video
-              ref={videoRef}
-              className="absolute inset-0 h-full w-full object-cover"
-              autoPlay
-              muted
-              playsInline
-            />
-          )}
+          <video
+            ref={videoRef}
+            className={[
+              'absolute inset-0 h-full w-full object-cover',
+              isScannerActive ? '' : 'opacity-0',
+            ].join(' ')}
+            autoPlay
+            muted
+            playsInline
+          />
 
           {!isScannerActive && <div className="h-full w-full bg-[#E9ECEF]" />}
 

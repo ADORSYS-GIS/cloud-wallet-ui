@@ -113,9 +113,7 @@ function parseOfferParams(
 
   return {
     rawValue,
-    normalizedUri: `openid-credential-offer://?credential_offer=${encodeURIComponent(
-      decodeURIComponent(credentialOffer)
-    )}`,
+    normalizedUri: `openid-credential-offer://?credential_offer=${encodeURIComponent(credentialOffer)}`,
   }
 }
 
