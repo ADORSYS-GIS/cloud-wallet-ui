@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { resolveCredentialOfferUri } from './credentialOffer'
-import type { CredentialOfferResolutionResponse } from '../types/credentialOffer'
+import { resolveCredentialOfferUri } from '../credentialOffer'
+import type { CredentialOfferResolutionResponse } from '../../types/credentialOffer'
 
 type MockFetchResponse = {
   ok: boolean

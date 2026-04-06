@@ -29,6 +29,18 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
+function isLocalhostHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value)
+    return (
+      parsed.protocol === 'http:' &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
+    )
+  } catch {
+    return false
+  }
+}
+
 function parseCredentialOfferObject(encodedValue: string): CredentialOfferObject | null {
   try {
     const decoded = decodeURIComponent(encodedValue)
@@ -39,7 +51,8 @@ function parseCredentialOfferObject(encodedValue: string): CredentialOfferObject
 
     if (
       typeof parsed.credential_issuer !== 'string' ||
-      !isHttpsUrl(parsed.credential_issuer)
+      (!isHttpsUrl(parsed.credential_issuer) &&
+        !isLocalhostHttpUrl(parsed.credential_issuer))
     ) {
       return null
     }
@@ -100,9 +113,7 @@ function parseOfferParams(
 
   return {
     rawValue,
-    normalizedUri: `openid-credential-offer://?credential_offer=${encodeURIComponent(
-      decodeURIComponent(credentialOffer)
-    )}`,
+    normalizedUri: `openid-credential-offer://?credential_offer=${encodeURIComponent(credentialOffer)}`,
   }
 }
 

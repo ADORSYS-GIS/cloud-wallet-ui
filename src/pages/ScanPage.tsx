@@ -2,6 +2,7 @@ import { BrowserQRCodeReader } from '@zxing/browser'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { resolveCredentialOfferUri } from '../api/credentialOffer'
+import { Header } from '../components/Header'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
@@ -149,6 +150,7 @@ export function ScanPage() {
     offerState.clear()
 
     if (!navigator?.mediaDevices?.getUserMedia) {
+      setIsScannerActive(false)
       setScanStatus('error')
       setFeedbackMessage('No camera device is available on this browser.')
       offerState.setError({
@@ -159,25 +161,8 @@ export function ScanPage() {
       return
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: mode } },
-      })
-      stream.getTracks().forEach((track) => track.stop())
-    } catch {
-      setScanStatus('error')
-      setFeedbackMessage(
-        'Camera permission denied. Please allow camera access and retry.'
-      )
-      offerState.setError({
-        kind: 'unknown',
-        message: 'Camera permission denied. Please allow camera access and retry.',
-        retryable: false,
-      })
-      return
-    }
-
     if (!videoRef.current) {
+      setIsScannerActive(false)
       setScanStatus('error')
       setFeedbackMessage('Video preview unavailable. Please reload and try again.')
       offerState.setError({
@@ -202,8 +187,15 @@ export function ScanPage() {
           }
         }
       )
-    } catch {
+    } catch (error: unknown) {
+      setIsScannerActive(false)
       setScanStatus('error')
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        setFeedbackMessage(
+          'Camera permission denied. Please allow camera access and retry.'
+        )
+        return
+      }
       setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
       offerState.setError({
         kind: 'unknown',
@@ -284,7 +276,6 @@ export function ScanPage() {
             </div>
           </div>
         )}
-
         {showFullscreenStatus && offerState.status === 'error' && offerState.error && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <div className="flex flex-col items-center px-6 text-center">
@@ -308,14 +299,7 @@ export function ScanPage() {
           </div>
         )}
 
-        {!showFullscreenStatus && (
-          <div className="flex items-center justify-between bg-[#499c9d] px-4 py-2 text-black">
-            <span>To access the app from your phone, install now</span>
-            <button className="rounded-lg bg-[#99e827] px-24 py-1 text-black">
-              Install
-            </button>
-          </div>
-        )}
+        <Header showMainHeader={false} />
 
         {offerState.offer && (
           <OfferDialog
@@ -349,15 +333,16 @@ export function ScanPage() {
         )}
 
         <section className="relative flex-1 bg-[#E9ECEF]">
-          {isScannerActive && (
-            <video
-              ref={videoRef}
-              className="absolute inset-0 h-full w-full object-cover"
-              autoPlay
-              muted
-              playsInline
-            />
-          )}
+          <video
+            ref={videoRef}
+            className={[
+              'absolute inset-0 h-full w-full object-cover',
+              isScannerActive ? '' : 'opacity-0',
+            ].join(' ')}
+            autoPlay
+            muted
+            playsInline
+          />
 
           {!isScannerActive && <div className="h-full w-full bg-[#E9ECEF]" />}
 
@@ -369,6 +354,7 @@ export function ScanPage() {
 
           {isScannerActive && scanStatus === 'scanning' && (
             <button
+              type="button"
               onClick={() => void swapCamera()}
               disabled={isSwapping}
               className={[
@@ -385,6 +371,7 @@ export function ScanPage() {
             offerState.status !== 'loading' &&
             offerState.status !== 'error' && (
               <button
+                type="button"
                 onClick={() => void startScan()}
                 className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
               >
