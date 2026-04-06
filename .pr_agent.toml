@@ -1,0 +1,18 @@
+[config]
+response_language = "en"
+max_model_tokens = 32000
+large_patch_policy = "clip"
+
+[pr_reviewer]
+require_score = true
+require_security = true
+require_maintainability = true
+
+additional_instructions = """
+- Follow the project's coding style and conventions
+- Flag potential security issues (hardcoded secrets, unsafe practices)
+- Suggest performance improvements where relevant
+- Check for missing tests or edge cases
+- Keep feedback concise, actionable, and constructive
+- Prioritize critical issues over minor style suggestions
+"""
