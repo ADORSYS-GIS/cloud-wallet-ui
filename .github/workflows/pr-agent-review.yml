@@ -21,17 +21,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # Local Model Configuration
+          # === Model Configuration (100% local & free) ===
           config.model: "ollama/qwen2.5-coder:7b"
           config.fallback_models: '["ollama/qwen2.5-coder:7b"]'
+          config.custom_model_max_tokens: "128000"
 
-          # Ollama connection
+          # Ollama connection - important for your machine
           OLLAMA.API_BASE: "http://localhost:11434"
 
-          # Enable automatic review
+          # Automatic actions
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
 
-          # Tuning for work laptop
-          config.ai_timeout: "300"
+          # Tuning for work laptop (more stable)
+          config.ai_timeout: "360"          
           config.verbosity_level: "1"
+          config.max_model_tokens: "32000"
+
+          # Reduce load on your CPU
+          OLLAMA_NUM_PARALLEL: "2"
+          
