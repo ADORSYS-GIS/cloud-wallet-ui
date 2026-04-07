@@ -9,7 +9,6 @@ import { parseCredentialOfferInput } from '../utils/credentialOffer'
 import { useCredentialOfferState } from '../state/credentialOffer'
 import { ApiError } from '../api/client'
 import type { BackendErrorEnvelope } from '../types/credentialOffer'
-import { OfferDialog } from '../components/OfferDialog'
 import illuWallet from '../assets/illu-wallet.png'
 
 type ScanStatus = 'idle' | 'scanning' | 'success' | 'invalid' | 'error'
@@ -123,6 +122,7 @@ export function ScanPage() {
       offerState.setOffer(response)
       setScanStatus('success')
       setFeedbackMessage('Credential offer resolved successfully.')
+      navigate(routes.credentialTypes)
     } catch (e) {
       setScanStatus('error')
       if (e instanceof ApiError) {
@@ -191,9 +191,13 @@ export function ScanPage() {
       setIsScannerActive(false)
       setScanStatus('error')
       if (error instanceof DOMException && error.name === 'NotAllowedError') {
-        setFeedbackMessage(
-          'Camera permission denied. Please allow camera access and retry.'
-        )
+        const message = 'Camera permission denied. Please allow camera access and retry.'
+        setFeedbackMessage(message)
+        offerState.setError({
+          kind: 'unknown',
+          message,
+          retryable: true,
+        })
         return
       }
       setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
@@ -208,8 +212,27 @@ export function ScanPage() {
   useEffect(() => {
     let mounted = true
     const isFreshScan = searchParams.get('fresh') === 'true'
+    const isPreviewOffer = searchParams.get('previewOffer') === 'true'
     if (isFreshScan) {
       navigate(routes.scan, { replace: true })
+    }
+    if (isPreviewOffer) {
+      // TODO(#94-cleanup): Remove previewOffer mock path once backend issuance APIs are ready.
+      setIsInitializing(false)
+      setIsScannerActive(false)
+      setScanStatus('success')
+      setFeedbackMessage('Credential offer resolved successfully.')
+      offerState.setOffer({
+        issuer: {
+          name: 'Keycloak-demo',
+          url: 'https://issuer.example.org',
+        },
+        credentialTypes: ['Identity Credential', 'Address Credential'],
+      })
+      navigate(routes.credentialTypes)
+      return () => {
+        mounted = false
+      }
     }
 
     const timer = window.setTimeout(() => {
@@ -256,7 +279,7 @@ export function ScanPage() {
     (offerState.status === 'error' && !!offerState.error)
 
   return (
-    <PageContainer fullWidth>
+    <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
         {showFullscreenStatus && offerState.status === 'loading' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
@@ -301,23 +324,12 @@ export function ScanPage() {
 
         <Header showMainHeader={false} />
 
-        {offerState.offer && (
-          <OfferDialog
-            open={!!offerState.offer}
-            offer={offerState.offer}
-            onClose={() => {
-              offerState.clear()
-              void startScan()
-            }}
-          />
-        )}
-
         {!showFullscreenStatus && (
           <>
             <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
               <button
                 onClick={() => navigate(routes.home)}
-                className="h-7 w-7 rounded-full text-xl leading-none text-white"
+                className="h-10 w-10 rounded-full text-3xl leading-none text-white"
                 aria-label="Back"
               >
                 ‹
@@ -366,18 +378,6 @@ export function ScanPage() {
               ↻
             </button>
           )}
-
-          {(scanStatus === 'invalid' || scanStatus === 'error') &&
-            offerState.status !== 'loading' &&
-            offerState.status !== 'error' && (
-              <button
-                type="button"
-                onClick={() => void startScan()}
-                className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
-              >
-                Retry scan
-              </button>
-            )}
         </section>
       </div>
     </PageContainer>

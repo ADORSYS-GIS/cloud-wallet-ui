@@ -3,6 +3,7 @@ import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-d
 import { ScanPage } from './pages/ScanPage'
 import { routes } from './constants/routes'
 import { CredentialOfferProvider } from './state/credentialOffer'
+import { CredentialTypesPage } from './pages/CredentialTypesPage'
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <Routes>
           <Route path={routes.home} element={<HomePage />} />
           <Route path={routes.scan} element={<ScanPage />} />
+          <Route path={routes.credentialTypes} element={<CredentialTypesPage />} />
           <Route path="*" element={<Navigate to={routes.home} replace />} />
         </Routes>
       </Router>
