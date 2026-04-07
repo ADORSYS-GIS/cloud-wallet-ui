@@ -51,7 +51,7 @@ describe('CredentialsPage', () => {
     expect(screen.getByText('Your wallet is empty.')).toBeDefined()
     expect(
       screen.getByText(
-        'Scan the QR code and fill your EUDI-Wallet with proof of your digital identity.'
+        'Scan the QR code and fill your EUDI Cloud Wallet with proof of your digital identity.'
       )
     ).toBeDefined()
     expect(

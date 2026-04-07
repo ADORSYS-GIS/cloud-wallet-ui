@@ -15,7 +15,8 @@ export function CredentialsEmptyState() {
         />
         <p className="text-center text-slate-900">Your wallet is empty.</p>
         <p className="max-w-[830px] text-center leading-snug text-slate-900">
-          Scan the QR code and fill your EUDI-Wallet with proof of your digital identity.
+          Scan the QR code and fill your EUDI Cloud Wallet with proof of your digital
+          identity.
         </p>
         <button
           type="button"
