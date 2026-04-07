@@ -256,8 +256,8 @@ export function ScanPage() {
     (offerState.status === 'error' && !!offerState.error)
 
   return (
-    <PageContainer fullWidth>
-      <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
+    <PageContainer>
+      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
         {showFullscreenStatus && offerState.status === 'loading' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <div className="flex flex-col items-center px-6 text-center">
