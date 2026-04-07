@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { CredentialSummary } from '../types/credential'
-import { credentialDisplayName, issuerDisplayLabel } from './credentialDisplay'
+import type { CredentialSummary } from '../../types/credential'
+import { credentialDisplayName, issuerDisplayLabel } from '../credentialDisplay'
 
 describe('credentialDisplayName', () => {
   it('prefers display_name when set', () => {
