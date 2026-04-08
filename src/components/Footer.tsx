@@ -1,26 +1,39 @@
+import { Link, useLocation } from 'react-router-dom'
 import activityIcon from '../assets/icon-activity.svg'
 import credsIcon from '../assets/icon-creds.svg'
 import qrIcon from '../assets/icon-qr.svg'
+import { routes } from '../constants/routes'
+
+export type FooterActiveTab = 'creds' | 'home'
 
 type FooterProps = {
   onScanClick: () => void
   scanDisabled: boolean
   showLabels?: boolean
+  activeTab?: FooterActiveTab
 }
 
-export function Footer({ onScanClick, scanDisabled, showLabels = true }: FooterProps) {
+export function Footer({
+  onScanClick,
+  scanDisabled,
+  showLabels = true,
+  activeTab,
+}: FooterProps) {
+  const location = useLocation()
+  const credsActive =
+    activeTab === 'creds' || location.pathname.startsWith(routes.credentials)
+
+  const tabClass = (active: boolean) =>
+    `flex flex-col items-center gap-1 ${active ? 'text-slate-900' : 'text-slate-500'}`
+
   return (
     <nav className="relative mt-auto grid grid-cols-3 items-end bg-[#FFFFFF] px-8 pb-7 pt-2 text-slate-900">
       <div className="absolute -top-4 left-1/2 h-8 w-16 -translate-x-1/2 rounded-t-full bg-[#E9ECEF]" />
 
-      <button
-        type="button"
-        className="flex flex-col items-center gap-1"
-        aria-label={!showLabels ? 'Activity' : undefined}
-      >
+      <div className={tabClass(false)} aria-label="Activity — coming soon">
         <img src={activityIcon} alt="" className="h-6 w-6" />
         {showLabels && <span className="text-xs leading-none">Activity</span>}
-      </button>
+      </div>
 
       <div className="flex justify-center">
         <button
@@ -34,14 +47,15 @@ export function Footer({ onScanClick, scanDisabled, showLabels = true }: FooterP
         </button>
       </div>
 
-      <button
-        type="button"
-        className="flex flex-col items-center gap-1"
+      <Link
+        to={routes.credentials}
+        className={tabClass(credsActive)}
+        aria-current={credsActive ? 'page' : undefined}
         aria-label={!showLabels ? 'Creds' : undefined}
       >
         <img src={credsIcon} alt="" className="h-6 w-6" />
         {showLabels && <span className="text-xs leading-none">Creds</span>}
-      </button>
+      </Link>
     </nav>
   )
 }
