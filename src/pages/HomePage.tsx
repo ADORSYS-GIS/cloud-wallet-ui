@@ -30,6 +30,7 @@ export function HomePage() {
         </section>
 
         <Footer
+          activeTab="home"
           onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
           scanDisabled={false}
         />
