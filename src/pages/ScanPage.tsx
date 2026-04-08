@@ -213,8 +213,21 @@ export function ScanPage() {
     let mounted = true
     const isFreshScan = searchParams.get('fresh') === 'true'
     const isPreviewOffer = searchParams.get('previewOffer') === 'true'
+    const errorReason = searchParams.get('error')
     if (isFreshScan) {
       navigate(routes.scan, { replace: true })
+    }
+    if (errorReason === 'empty-options') {
+      setIsInitializing(false)
+      setIsScannerActive(false)
+      setScanStatus('error')
+      setFeedbackMessage(
+        'No credential options were returned for this offer. Please scan again.'
+      )
+      offerState.clear()
+      return () => {
+        mounted = false
+      }
     }
     if (isPreviewOffer) {
       // TODO(#94-cleanup): Remove previewOffer mock path once backend issuance APIs are ready.
@@ -313,6 +326,7 @@ export function ScanPage() {
               </div>
               <div className="text-base text-slate-700">{offerState.error.message}</div>
               <button
+                type="button"
                 onClick={() => void startScan()}
                 className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
               >
@@ -328,6 +342,7 @@ export function ScanPage() {
           <>
             <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
               <button
+                type="button"
                 onClick={() => navigate(routes.home)}
                 className="h-10 w-10 rounded-full text-3xl leading-none text-white"
                 aria-label="Back"

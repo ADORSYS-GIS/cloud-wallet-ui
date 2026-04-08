@@ -36,6 +36,16 @@ export function CredentialTypesPage() {
     }
   }, [navigate, offerState.offer])
 
+  useEffect(() => {
+    if (!offerState.offer) {
+      return
+    }
+
+    if (options.length === 0) {
+      navigate(`${routes.scan}?error=empty-options`, { replace: true })
+    }
+  }, [navigate, offerState.offer, options.length])
+
   if (!offerState.offer) return null
 
   return (
@@ -43,6 +53,7 @@ export function CredentialTypesPage() {
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
           <button
+            type="button"
             onClick={() => navigate(routes.scan)}
             className="h-10 w-10 rounded-full text-3xl leading-none text-white"
             aria-label="Back"
@@ -56,54 +67,48 @@ export function CredentialTypesPage() {
         </div>
 
         <section className="flex-1 px-2 pt-3">
-          {options.length === 0 ? (
-            <div className="rounded-2xl bg-white p-4 text-sm text-slate-600">
-              No credential options were returned.
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {options.map((option) => {
-                const isSelected = option.id === effectiveSelectedOptionId
-                return (
-                  <li key={option.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedOptionId(option.id)}
-                      aria-pressed={isSelected}
-                      className={[
-                        'flex w-full flex-col items-start gap-2 rounded-2xl bg-white px-5 py-4 text-left ring-1 transition-colors duration-300',
-                        isSelected
-                          ? 'bg-[#f4f8fa] text-slate-900 ring-slate-200 shadow-sm'
-                          : 'ring-slate-200 hover:bg-[#e6f4e6]',
-                      ].join(' ')}
-                    >
-                      {offerState.offer?.issuer?.logoUrl ? (
-                        <img
-                          src={offerState.offer.issuer.logoUrl}
-                          alt={
-                            offerState.offer?.issuer?.name
-                              ? `${offerState.offer.issuer.name} logo`
-                              : 'Issuer logo'
-                          }
-                          className="h-14 w-14 shrink-0 rounded-full object-contain ring-1 ring-slate-200"
-                        />
-                      ) : (
-                        <div className="h-14 w-14 shrink-0 rounded-full bg-slate-100 ring-1 ring-slate-200" />
-                      )}
-                      <div className="min-w-0 w-full">
-                        <div className="truncate text-[24px] leading-tight text-slate-900">
-                          {option.label}
-                        </div>
-                        <div className="truncate text-[20px] leading-tight text-slate-500">
-                          {offerState.offer?.issuer?.name || 'Unknown issuer'}
-                        </div>
+          <ul className="space-y-2">
+            {options.map((option) => {
+              const isSelected = option.id === effectiveSelectedOptionId
+              return (
+                <li key={option.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOptionId(option.id)}
+                    aria-pressed={isSelected}
+                    className={[
+                      'flex w-full flex-col items-start gap-2 rounded-2xl bg-white px-5 py-4 text-left ring-1 transition-colors duration-300',
+                      isSelected
+                        ? 'bg-[#f4f8fa] text-slate-900 ring-slate-200 shadow-sm'
+                        : 'ring-slate-200 hover:bg-[#e6f4e6]',
+                    ].join(' ')}
+                  >
+                    {offerState.offer?.issuer?.logoUrl ? (
+                      <img
+                        src={offerState.offer.issuer.logoUrl}
+                        alt={
+                          offerState.offer?.issuer?.name
+                            ? `${offerState.offer.issuer.name} logo`
+                            : 'Issuer logo'
+                        }
+                        className="h-14 w-14 shrink-0 rounded-full object-contain ring-1 ring-slate-200"
+                      />
+                    ) : (
+                      <div className="h-14 w-14 shrink-0 rounded-full bg-slate-100 ring-1 ring-slate-200" />
+                    )}
+                    <div className="min-w-0 w-full">
+                      <div className="truncate text-[24px] leading-tight text-slate-900">
+                        {option.label}
                       </div>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+                      <div className="truncate text-[20px] leading-tight text-slate-500">
+                        {offerState.offer?.issuer?.name || 'Unknown issuer'}
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </section>
 
         <Footer
