@@ -9,7 +9,6 @@ import { parseCredentialOfferInput } from '../utils/credentialOffer'
 import { useCredentialOfferState } from '../state/credentialOffer'
 import { ApiError } from '../api/client'
 import type { BackendErrorEnvelope } from '../types/credentialOffer'
-import { OfferDialog } from '../components/OfferDialog'
 import illuWallet from '../assets/illu-wallet.png'
 
 type ScanStatus = 'idle' | 'scanning' | 'success' | 'invalid' | 'error'
@@ -300,17 +299,6 @@ export function ScanPage() {
         )}
 
         <Header showMainHeader={false} />
-
-        {offerState.offer && (
-          <OfferDialog
-            open={!!offerState.offer}
-            offer={offerState.offer}
-            onClose={() => {
-              offerState.clear()
-              void startScan()
-            }}
-          />
-        )}
 
         {!showFullscreenStatus && (
           <>
