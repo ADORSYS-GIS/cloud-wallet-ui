@@ -77,7 +77,7 @@ export function CredentialTypesPage() {
                     onClick={() => setSelectedOptionId(option.id)}
                     aria-pressed={isSelected}
                     className={[
-                      'flex w-full flex-col items-start gap-2 rounded-2xl bg-white px-5 py-4 text-left ring-1 transition-colors duration-300',
+                      'flex w-full flex-col items-start gap-2 rounded-2xl bg-white px-5 py-4 text-left font-bold ring-1 transition-colors duration-300',
                       isSelected
                         ? 'bg-[#f4f8fa] text-slate-900 ring-slate-200 shadow-sm'
                         : 'ring-slate-200 hover:bg-[#e6f4e6]',
@@ -97,10 +97,10 @@ export function CredentialTypesPage() {
                       <div className="h-14 w-14 shrink-0 rounded-full bg-slate-100 ring-1 ring-slate-200" />
                     )}
                     <div className="min-w-0 w-full">
-                      <div className="truncate text-[24px] leading-tight text-slate-900">
+                      <div className="truncate text-[19px] leading-tight text-slate-900">
                         {option.label}
                       </div>
-                      <div className="truncate text-[20px] leading-tight text-slate-500">
+                      <div className="truncate text-[16px] leading-tight text-slate-500">
                         {offerState.offer?.issuer?.name || 'Unknown issuer'}
                       </div>
                     </div>
