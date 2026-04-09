@@ -60,7 +60,7 @@ export function CredentialTypesPage() {
           >
             ‹
           </button>
-          <div className="text-center text-[24px] leading-none text-white">
+          <div className="text-center text-[24px] font-semibold leading-none text-white">
             Credential Types
           </div>
           <div className="w-7" />
@@ -77,7 +77,7 @@ export function CredentialTypesPage() {
                     onClick={() => setSelectedOptionId(option.id)}
                     aria-pressed={isSelected}
                     className={[
-                      'flex w-full flex-col items-start gap-2 rounded-2xl bg-white px-5 py-4 text-left font-bold ring-1 transition-colors duration-300',
+                      'flex w-full flex-col items-start gap-2 rounded-2xl bg-white px-5 py-4 text-left font-semibold ring-1 transition-colors duration-300',
                       isSelected
                         ? 'bg-[#f4f8fa] text-slate-900 ring-slate-200 shadow-sm'
                         : 'ring-slate-200 hover:bg-[#e6f4e6]',
