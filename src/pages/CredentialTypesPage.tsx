@@ -3,30 +3,32 @@ import { useNavigate } from 'react-router-dom'
 import { Footer } from '../components/Footer'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
-import { useCredentialOfferState } from '../state/credentialOffer'
+import { useCredentialOfferState } from '../state/issuance.state'
+import type { CredentialTypeOption } from '../types/issuance.types'
+
+type CredentialOptionRow = {
+  id: string
+  label: string
+}
 
 export function CredentialTypesPage() {
   const navigate = useNavigate()
   const offerState = useCredentialOfferState()
-  const options = useMemo(() => {
+  const options = useMemo<CredentialOptionRow[]>(() => {
     const offer = offerState.offer
     if (!offer) {
       return []
     }
 
-    if (offer.options && offer.options.length > 0) {
-      return offer.options.map((o) => ({
-        id: o.id,
-        label: o.displayName || o.id,
-      }))
-    }
-
-    return (offer.credentialTypes ?? []).map((t) => ({ id: t, label: t }))
+    return offer.credential_types.map((t: CredentialTypeOption) => ({
+      id: t.credential_configuration_id,
+      label: t.display.name,
+    }))
   }, [offerState.offer])
 
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
   const effectiveSelectedOptionId =
-    selectedOptionId && options.some((option) => option.id === selectedOptionId)
+    selectedOptionId && options.some((option: CredentialOptionRow) => option.id === selectedOptionId)
       ? selectedOptionId
       : null
 
@@ -48,6 +50,9 @@ export function CredentialTypesPage() {
 
   if (!offerState.offer) return null
 
+  const issuerName =
+    offerState.offer.issuer.display_name ?? offerState.offer.issuer.credential_issuer
+
   return (
     <PageContainer fullWidth>
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
@@ -68,7 +73,7 @@ export function CredentialTypesPage() {
 
         <section className="flex-1 px-2 pt-3">
           <ul className="space-y-2">
-            {options.map((option) => {
+            {options.map((option: CredentialOptionRow) => {
               const isSelected = option.id === effectiveSelectedOptionId
               return (
                 <li key={option.id}>
@@ -83,14 +88,10 @@ export function CredentialTypesPage() {
                         : 'ring-slate-200 hover:bg-[#e6f4e6]',
                     ].join(' ')}
                   >
-                    {offerState.offer?.issuer?.logoUrl ? (
+                    {offerState.offer?.issuer.logo_uri ? (
                       <img
-                        src={offerState.offer.issuer.logoUrl}
-                        alt={
-                          offerState.offer?.issuer?.name
-                            ? `${offerState.offer.issuer.name} logo`
-                            : 'Issuer logo'
-                        }
+                        src={offerState.offer.issuer.logo_uri}
+                        alt={issuerName ? `${issuerName} logo` : 'Issuer logo'}
                         className="h-14 w-14 shrink-0 rounded-full object-contain ring-1 ring-slate-200"
                       />
                     ) : (
@@ -101,7 +102,7 @@ export function CredentialTypesPage() {
                         {option.label}
                       </div>
                       <div className="truncate text-[16px] leading-tight text-slate-500">
-                        {offerState.offer?.issuer?.name || 'Unknown issuer'}
+                        {issuerName || 'Unknown issuer'}
                       </div>
                     </div>
                   </button>

@@ -5,11 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { CredentialTypesPage } from '../CredentialTypesPage'
 import { routes } from '../../constants/routes'
-import type { CredentialOfferResolutionResponse } from '../../types/credentialOffer'
+import type { CredentialOfferResolutionResponse } from '../../types/issuance.types'
 import type {
   CredentialOfferStatus,
   CredentialOfferUiError,
-} from '../../state/credentialOffer'
+} from '../../state/issuance.state'
 
 const mockNavigate = vi.fn()
 
@@ -33,6 +33,36 @@ const mockOfferState: MockState = {
   clear: vi.fn(),
 }
 
+function baseOffer(
+  overrides: Partial<CredentialOfferResolutionResponse> = {}
+): CredentialOfferResolutionResponse {
+  return {
+    session_id: 'ses_test',
+    expires_at: '2026-04-08T14:35:00Z',
+    issuer: {
+      credential_issuer: 'https://issuer.example.org',
+      display_name: 'Keycloak-demo',
+      logo_uri: 'https://issuer.example.org/logo.png',
+    },
+    credential_types: [
+      {
+        credential_configuration_id: 'pid',
+        format: 'vc+sd-jwt',
+        display: { name: 'Personal ID' },
+      },
+      {
+        credential_configuration_id: 'address',
+        format: 'vc+sd-jwt',
+        display: { name: 'Address Credential' },
+      },
+    ],
+    flow: 'pre_authorized_code',
+    tx_code_required: false,
+    tx_code: null,
+    ...overrides,
+  }
+}
+
 vi.mock('react-router-dom', async () => {
   const actual =
     await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -42,7 +72,7 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-vi.mock('../../state/credentialOffer', () => ({
+vi.mock('../../state/issuance.state', () => ({
   useCredentialOfferState: () => mockOfferState,
 }))
 
@@ -67,40 +97,14 @@ describe('CredentialTypesPage', () => {
     mockNavigate.mockReset()
     mockOfferState.status = 'success'
     mockOfferState.error = undefined
-    mockOfferState.offer = {
-      issuer: {
-        name: 'Keycloak-demo',
-        logoUrl: 'https://issuer.example.org/logo.png',
-        url: 'https://issuer.example.org',
-      },
-      credentialTypes: ['Identity Credential', 'Address Credential'],
-      options: [
-        { id: 'pid', displayName: 'Personal ID' },
-        { id: 'address', displayName: 'Address Credential' },
-      ],
-    }
+    mockOfferState.offer = baseOffer()
   })
 
-  it('renders credential options from offer.options', () => {
+  it('renders credential options from credential_types', () => {
     renderPage()
 
     expect(screen.getByText('Personal ID')).toBeTruthy()
     expect(screen.getByText('Address Credential')).toBeTruthy()
-    expect(screen.queryByText('Identity Credential')).toBeNull()
-  })
-
-  it('falls back to credentialTypes when options are not returned', () => {
-    mockOfferState.offer = {
-      issuer: {
-        name: 'Issuer A',
-      },
-      credentialTypes: ['Type A', 'Type B'],
-    }
-
-    renderPage()
-
-    expect(screen.getByText('Type A')).toBeTruthy()
-    expect(screen.getByText('Type B')).toBeTruthy()
   })
 
   it('allows selecting exactly one credential option visually', async () => {
@@ -137,13 +141,23 @@ describe('CredentialTypesPage', () => {
   })
 
   it('shows safe fallback when issuer logo is missing', () => {
-    mockOfferState.offer = {
-      issuer: {},
-      credentialTypes: ['Type A'],
-    }
+    mockOfferState.offer = baseOffer({
+      issuer: {
+        credential_issuer: 'https://issuer.example.org',
+        display_name: null,
+        logo_uri: null,
+      },
+      credential_types: [
+        {
+          credential_configuration_id: 'a',
+          format: 'vc+sd-jwt',
+          display: { name: 'Type A' },
+        },
+      ],
+    })
 
     const { container } = renderPage()
-    expect(screen.getByText('Unknown issuer')).toBeTruthy()
+    expect(screen.getByText('https://issuer.example.org')).toBeTruthy()
     expect(screen.queryAllByRole('img', { name: /logo/i }).length).toBe(0)
     expect(container.querySelector('.bg-slate-100')).toBeTruthy()
   })

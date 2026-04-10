@@ -1,31 +1,25 @@
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { resolveCredentialOfferUri } from '../api/credentialOffer'
+import { startIssuanceSession } from '../api/issuance.api'
 import { Header } from '../components/Header'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
-import { useCredentialOfferState } from '../state/credentialOffer'
+import { useCredentialOfferState } from '../state/issuance.state'
 import { ApiError } from '../api/client'
-import type { BackendErrorEnvelope } from '../types/credentialOffer'
+
+import type { BackendErrorEnvelope } from '../types/issuance.types'
 import illuWallet from '../assets/illu-wallet.png'
 
 type ScanStatus = 'idle' | 'scanning' | 'success' | 'invalid' | 'error'
 type FacingMode = 'environment' | 'user'
 
-// TODO(#93-backend-integration): Align error-code mapping with backend error taxonomy.
-// Once backend is finalized, map status+code to stable UI kinds and messages.
 function mapApiErrorToUiError(e: ApiError<BackendErrorEnvelope>) {
-  const code = e.body?.error?.code
-  const messageFromBackend = e.body?.error?.message
+  const code = e.body?.error
+  const messageFromBackend = e.body?.error_description
 
-  // Conservative defaults until backend codes are finalized.
-  if (
-    code === 'EXPIRED_PRE_AUTH_CODE' ||
-    code === 'EXPIRED_PRE_AUTH' ||
-    code === 'invalid_grant'
-  ) {
+  if (code === 'invalid_grant') {
     return {
       kind: 'expired_pre_auth_code' as const,
       code,
@@ -35,7 +29,7 @@ function mapApiErrorToUiError(e: ApiError<BackendErrorEnvelope>) {
     }
   }
 
-  if (code === 'INVALID_OFFER' || code === 'INVALID_CREDENTIAL_OFFER') {
+  if (code === 'invalid_credential_offer') {
     return {
       kind: 'invalid_offer' as const,
       code,
@@ -116,9 +110,7 @@ export function ScanPage() {
     try {
       offerState.setLoading()
       setFeedbackMessage('Just a moment while we make a secure connection...')
-      // TODO(#93-backend-integration): This depends on backend /credential-offer being available.
-      // Until the backend is implemented, failures here will trigger the full-screen error state.
-      const response = await resolveCredentialOfferUri(parsedOffer.normalizedUri)
+      const response = await startIssuanceSession(parsedOffer.normalizedUri)
       offerState.setOffer(response)
       setScanStatus('success')
       setFeedbackMessage('Credential offer resolved successfully.')
@@ -236,11 +228,28 @@ export function ScanPage() {
       setScanStatus('success')
       setFeedbackMessage('Credential offer resolved successfully.')
       offerState.setOffer({
+        session_id: 'preview_ses',
+        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         issuer: {
-          name: 'Keycloak-demo',
-          url: 'https://issuer.example.org',
+          credential_issuer: 'https://issuer.example.org',
+          display_name: 'Keycloak-demo',
+          logo_uri: null,
         },
-        credentialTypes: ['Identity Credential', 'Address Credential'],
+        credential_types: [
+          {
+            credential_configuration_id: 'identity_credential',
+            format: 'vc+sd-jwt',
+            display: { name: 'Identity Credential' },
+          },
+          {
+            credential_configuration_id: 'address_credential',
+            format: 'vc+sd-jwt',
+            display: { name: 'Address Credential' },
+          },
+        ],
+        flow: 'pre_authorized_code',
+        tx_code_required: false,
+        tx_code: null,
       })
       navigate(routes.credentialTypes)
       return () => {
