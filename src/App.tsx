@@ -4,7 +4,7 @@ import { HomePage } from './pages/HomePage'
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 import { ScanPage } from './pages/ScanPage'
 import { routes } from './constants/routes'
-import { CredentialOfferProvider } from './state/credentialOffer'
+import { CredentialOfferProvider } from './state/issuance.state'
 
 function App() {
   return (

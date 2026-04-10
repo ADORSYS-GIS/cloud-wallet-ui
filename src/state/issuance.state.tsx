@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo, useState } from 'react'
-import type { CredentialOfferResolutionResponse } from '../types/credentialOffer'
+import type { CredentialOfferResolutionResponse } from '../types/issuance.types'
 
 export type CredentialOfferErrorKind =
   | 'invalid_offer'
