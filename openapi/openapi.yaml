@@ -31,7 +31,6 @@ security:
 # Paths
 # ---------------------------------------------------------------------------
 paths:
-
   # -------------------------------------------------------------------------
   # 1. Tenant Registration
   # -------------------------------------------------------------------------
@@ -54,23 +53,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TenantRegistrationRequest"
+              $ref: '#/components/schemas/TenantRegistrationRequest'
             example:
               name: adorsys GmbH
       responses:
-        "201":
+        '201':
           description: Tenant successfully registered.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TenantRegistrationResponse"
+                $ref: '#/components/schemas/TenantRegistrationResponse'
               example:
                 tenant_id: f47ac10b-58cc-4372-a567-0e02b2c3d479
                 name: adorsys GmbH
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   # -------------------------------------------------------------------------
   # 2. Start Issuance Session
@@ -92,29 +91,29 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/StartIssuanceRequest"
+              $ref: '#/components/schemas/StartIssuanceRequest'
             examples:
               offer_uri:
                 summary: Credential offer URI (credential_offer_uri)
                 value:
-                  offer: "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example.eu%2Foffer%2Fabc123"
+                  offer: 'openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example.eu%2Foffer%2Fabc123'
               offer_inline:
                 summary: Inline credential offer URI (credential_offer)
                 value:
-                  offer: "openid-credential-offer://?credential_offer=%7B%22credential_issuer%22%3A%22https%3A%2F%2Fissuer.example.eu%22%7D"
+                  offer: 'openid-credential-offer://?credential_offer=%7B%22credential_issuer%22%3A%22https%3A%2F%2Fissuer.example.eu%22%7D'
       responses:
-        "201":
+        '201':
           description: Session created. Returns session details and credential types for user consent.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StartIssuanceResponse"
+                $ref: '#/components/schemas/StartIssuanceResponse'
               examples:
                 authorization_code_flow:
                   summary: Authorization Code Flow
                   value:
                     session_id: ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni
-                    expires_at: "2026-04-08T14:35:00Z"
+                    expires_at: '2026-04-08T14:35:00Z'
                     issuer:
                       credential_issuer: https://issuer.example.eu
                       display_name: Example EU Identity Authority
@@ -125,8 +124,8 @@ paths:
                         display:
                           name: EU Personal ID
                           description: Official EU personal identity document
-                          background_color: "#12107c"
-                          text_color: "#ffffff"
+                          background_color: '#12107c'
+                          text_color: '#ffffff'
                           logo:
                             uri: https://issuer.example.eu/assets/pid-logo.svg
                             alt_text: EU PID Logo
@@ -137,7 +136,7 @@ paths:
                   summary: Pre-Authorized Code Flow with Transaction Code
                   value:
                     session_id: ses_9aKpR1xWqNmLvYcZbTsE4dBfUhOo2Gj
-                    expires_at: "2026-04-08T14:35:00Z"
+                    expires_at: '2026-04-08T14:35:00Z'
                     issuer:
                       credential_issuer: https://issuer.example.eu
                       display_name: Example EU Identity Authority
@@ -148,8 +147,8 @@ paths:
                         display:
                           name: EU Legal Person ID
                           description: Official EU legal entity identity credential
-                          background_color: "#1a4f2e"
-                          text_color: "#ffffff"
+                          background_color: '#1a4f2e'
+                          text_color: '#ffffff'
                           logo: null
                     flow: pre_authorized_code
                     tx_code_required: true
@@ -157,28 +156,28 @@ paths:
                       input_mode: numeric
                       length: 6
                       description: Please provide the one-time code sent to your registered email address.
-        "400":
+        '400':
           description: Offer is missing, malformed, or unparsable.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: invalid_credential_offer
                 error_description: The credential offer URI could not be parsed.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "502":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
           description: Backend could not reach the issuer or authorization server metadata endpoint.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               examples:
                 issuer_metadata_failed:
                   value:
                     error: issuer_metadata_fetch_failed
-                    error_description: "Could not reach https://issuer.example.eu/.well-known/openid-credential-issuer"
+                    error_description: 'Could not reach https://issuer.example.eu/.well-known/openid-credential-issuer'
                 auth_server_metadata_failed:
                   value:
                     error: auth_server_metadata_fetch_failed
@@ -210,13 +209,13 @@ paths:
       tags:
         - Issuance
       parameters:
-        - $ref: "#/components/parameters/SessionId"
+        - $ref: '#/components/parameters/SessionId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ConsentRequest"
+              $ref: '#/components/schemas/ConsentRequest'
             examples:
               accept_all:
                 summary: User accepts all offered credentials
@@ -234,19 +233,19 @@ paths:
                 value:
                   accepted: false
       responses:
-        "200":
+        '200':
           description: Consent recorded. Inspect `next_action` to determine the frontend's next step.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ConsentResponse"
+                $ref: '#/components/schemas/ConsentResponse'
               examples:
                 redirect:
                   summary: Authorization code flow — redirect user to issuer AS
                   value:
                     session_id: ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni
                     next_action: redirect
-                    authorization_url: "https://as.issuer.example.eu/authorize?response_type=code&client_id=wallet.example.eu&..."
+                    authorization_url: 'https://as.issuer.example.eu/authorize?response_type=code&client_id=wallet.example.eu&...'
                 provide_tx_code:
                   summary: Pre-authorized code flow — transaction code required
                   value:
@@ -262,28 +261,28 @@ paths:
                   value:
                     session_id: ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni
                     next_action: rejected
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Session not found or has expired.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: session_not_found
                 error_description: No active session found for the given session_id.
-        "409":
+        '409':
           description: Session is not in `awaiting_consent` state.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: invalid_session_state
-                error_description: "Session is not awaiting consent (current state: processing)."
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+                error_description: 'Session is not awaiting consent (current state: processing).'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   # -------------------------------------------------------------------------
   # 4. SSE — Real-Time Session Updates
@@ -319,9 +318,9 @@ paths:
       tags:
         - Issuance
       parameters:
-        - $ref: "#/components/parameters/SessionId"
+        - $ref: '#/components/parameters/SessionId'
       responses:
-        "200":
+        '200':
           description: SSE stream opened successfully.
           headers:
             Cache-Control:
@@ -341,9 +340,9 @@ paths:
                   and their payloads are described in the `SseEvent` union
                   schema below.
                 oneOf:
-                  - $ref: "#/components/schemas/SseProcessingEvent"
-                  - $ref: "#/components/schemas/SseCompletedEvent"
-                  - $ref: "#/components/schemas/SseFailedEvent"
+                  - $ref: '#/components/schemas/SseProcessingEvent'
+                  - $ref: '#/components/schemas/SseCompletedEvent'
+                  - $ref: '#/components/schemas/SseFailedEvent'
               examples:
                 processing:
                   summary: processing event
@@ -360,14 +359,14 @@ paths:
                   value: |
                     event: failed
                     data: {"session_id":"ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni","state":"failed","error":"access_denied","error_description":"The user denied authorization at the issuer's authorization server.","step":"authorization"}
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Session not found or has expired.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: session_not_found
                 error_description: No active session found for the given session_id.
@@ -436,7 +435,7 @@ paths:
           schema:
             type: string
       responses:
-        "302":
+        '302':
           description: |
             Redirect to the frontend's registered deep link URI.
             - Success: `<app_deep_link>?session_id=<id>&result=success`
@@ -449,24 +448,24 @@ paths:
                 format: uri
               examples:
                 success:
-                  value: "wallet://issuance/callback?session_id=ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni&result=success"
+                  value: 'wallet://issuance/callback?session_id=ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni&result=success'
                 error:
-                  value: "wallet://issuance/callback?session_id=ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni&result=error&error=access_denied"
-        "400":
+                  value: 'wallet://issuance/callback?session_id=ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni&result=error&error=access_denied'
+        '400':
           description: Missing or invalid `state` parameter.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: invalid_request
                 error_description: Missing required `state` query parameter.
-        "404":
+        '404':
           description: No active session found matching the given `state`.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: session_not_found
                 error_description: No active session found for the given state value.
@@ -493,17 +492,17 @@ paths:
       tags:
         - Issuance
       parameters:
-        - $ref: "#/components/parameters/SessionId"
+        - $ref: '#/components/parameters/SessionId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TxCodeRequest"
+              $ref: '#/components/schemas/TxCodeRequest'
             example:
-              tx_code: "493821"
+              tx_code: '493821'
       responses:
-        "202":
+        '202':
           description: |
             Transaction code accepted. Token exchange and credential request
             have been started in the background. Listen on the SSE stream for
@@ -511,40 +510,40 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TxCodeResponse"
+                $ref: '#/components/schemas/TxCodeResponse'
               example:
                 session_id: ses_9aKpR1xWqNmLvYcZbTsE4dBfUhOo2Gj
-        "400":
-          description: "`tx_code` is missing, wrong length, or contains invalid characters."
+        '400':
+          description: '`tx_code` is missing, wrong length, or contains invalid characters.'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: invalid_tx_code
-                error_description: "Transaction code must be exactly 6 numeric digits."
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+                error_description: 'Transaction code must be exactly 6 numeric digits.'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Session not found or has expired.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: session_not_found
                 error_description: No active session found for the given session_id.
-        "409":
+        '409':
           description: Session is not in `awaiting_tx_code` state.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: invalid_session_state
-                error_description: "Session is not awaiting a transaction code (current state: processing)."
-        "500":
-          $ref: "#/components/responses/InternalServerError"
+                error_description: 'Session is not awaiting a transaction code (current state: processing).'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   # -------------------------------------------------------------------------
   # 7. Cancel Session
@@ -562,7 +561,7 @@ paths:
       tags:
         - Issuance
       parameters:
-        - $ref: "#/components/parameters/SessionId"
+        - $ref: '#/components/parameters/SessionId'
       requestBody:
         required: false
         content:
@@ -571,25 +570,25 @@ paths:
               type: object
               description: Empty body — no fields required.
       responses:
-        "204":
+        '204':
           description: Session successfully cancelled. No response body.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Session not found or has already expired.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: session_not_found
                 error_description: No active session found for the given session_id.
-        "409":
+        '409':
           description: Session is already in a terminal state.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: invalid_session_state
                 error_description: Session is already in a terminal state and cannot be cancelled.
@@ -672,8 +671,8 @@ paths:
                     format: dc+sd-jwt
                     issuer: https://issuer.example.eu
                     status: active
-                    issued_at: "2026-04-08T14:35:00Z"
-                    expires_at: "2027-04-08T14:35:00Z"
+                    issued_at: '2026-04-08T14:35:00Z'
+                    expires_at: '2027-04-08T14:35:00Z'
                     claims:
                       given_name: Jane
                       family_name: Doe
@@ -710,8 +709,8 @@ paths:
                 format: dc+sd-jwt
                 issuer: https://issuer.example.eu
                 status: active
-                issued_at: "2026-04-08T14:35:00Z"
-                expires_at: "2027-04-08T14:35:00Z"
+                issued_at: '2026-04-08T14:35:00Z'
+                expires_at: '2027-04-08T14:35:00Z'
                 claims:
                   given_name: Jane
                   family_name: Doe
@@ -733,7 +732,6 @@ paths:
 # Components
 # ---------------------------------------------------------------------------
 components:
-
   # -------------------------------------------------------------------------
   # Security Schemes
   # -------------------------------------------------------------------------
@@ -795,7 +793,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
           example:
             error: unauthorized
             error_description: Missing or invalid bearer token.
@@ -805,7 +803,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
           example:
             error: invalid_request
             error_description: Request body is missing required fields.
@@ -815,7 +813,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
           example:
             error: internal_error
             error_description: An unexpected error occurred. Please try again later.
@@ -824,7 +822,6 @@ components:
   # Schemas
   # -------------------------------------------------------------------------
   schemas:
-
     # -----------------------------------------------------------------------
     # Error
     # -----------------------------------------------------------------------
@@ -904,7 +901,7 @@ components:
             - A full `openid-credential-offer://` URI with `credential_offer`
               or `credential_offer_uri` as a query parameter.
             - The raw JSON of a credential offer object as a string.
-          example: "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example.eu%2Foffer%2Fabc123"
+          example: 'openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example.eu%2Foffer%2Fabc123'
 
     StartIssuanceResponse:
       type: object
@@ -931,9 +928,9 @@ components:
             ISO 8601 session expiry timestamp (15 minutes from creation). The
             frontend MUST discard the session and inform the user if this time
             is reached.
-          example: "2026-04-08T14:35:00Z"
+          example: '2026-04-08T14:35:00Z'
         issuer:
-          $ref: "#/components/schemas/IssuerSummary"
+          $ref: '#/components/schemas/IssuerSummary'
         credential_types:
           type: array
           description: |
@@ -941,7 +938,7 @@ components:
             metadata from the issuer's `credential_configurations_supported`.
           minItems: 1
           items:
-            $ref: "#/components/schemas/CredentialTypeDisplay"
+            $ref: '#/components/schemas/CredentialTypeDisplay'
         flow:
           type: string
           enum:
@@ -961,8 +958,8 @@ components:
             frontend MUST use this metadata to render the transaction code
             input UI.
           oneOf:
-            - $ref: "#/components/schemas/TxCodeSpec"
-            - type: "null"
+            - $ref: '#/components/schemas/TxCodeSpec'
+            - type: 'null'
 
     IssuerSummary:
       type: object
@@ -983,7 +980,7 @@ components:
             `null` if not present in the issuer metadata.
           oneOf:
             - type: string
-            - type: "null"
+            - type: 'null'
           example: Example EU Identity Authority
         logo_uri:
           description: |
@@ -992,7 +989,7 @@ components:
           oneOf:
             - type: string
               format: uri
-            - type: "null"
+            - type: 'null'
           example: null
 
     CredentialTypeDisplay:
@@ -1016,7 +1013,7 @@ components:
           description: Credential format (e.g. `vc+sd-jwt`, `mso_mdoc`).
           example: vc+sd-jwt
         display:
-          $ref: "#/components/schemas/CredentialDisplay"
+          $ref: '#/components/schemas/CredentialDisplay'
 
     CredentialDisplay:
       type: object
@@ -1035,18 +1032,18 @@ components:
         background_color:
           type: string
           description: Background color for the credential card (CSS hex color).
-          pattern: "^#[0-9a-fA-F]{6}$"
-          example: "#12107c"
+          pattern: '^#[0-9a-fA-F]{6}$'
+          example: '#12107c'
         text_color:
           type: string
           description: Text color for the credential card (CSS hex color).
-          pattern: "^#[0-9a-fA-F]{6}$"
-          example: "#ffffff"
+          pattern: '^#[0-9a-fA-F]{6}$'
+          example: '#ffffff'
         logo:
           description: Logo image metadata. `null` if no logo is available.
           oneOf:
-            - $ref: "#/components/schemas/CredentialLogo"
-            - type: "null"
+            - $ref: '#/components/schemas/CredentialLogo'
+            - type: 'null'
 
     CredentialLogo:
       type: object
@@ -1093,7 +1090,7 @@ components:
           oneOf:
             - type: integer
               minimum: 1
-            - type: "null"
+            - type: 'null'
           example: 6
         description:
           description: |
@@ -1104,7 +1101,7 @@ components:
           oneOf:
             - type: string
               maxLength: 300
-            - type: "null"
+            - type: 'null'
           example: Please provide the one-time code sent to your registered email address.
 
     # -----------------------------------------------------------------------
@@ -1165,7 +1162,7 @@ components:
             Present only when `next_action` is `"redirect"`. The full
             authorization URL (including PKCE `code_challenge`, or PAR
             `request_uri`) to open in the system browser.
-          example: "https://as.issuer.example.eu/authorize?response_type=code&client_id=wallet.example.eu&..."
+          example: 'https://as.issuer.example.eu/authorize?response_type=code&client_id=wallet.example.eu&...'
 
     # -----------------------------------------------------------------------
     # Transaction Code
@@ -1182,7 +1179,7 @@ components:
             - If `tx_code.input_mode` is `"numeric"`, MUST contain only ASCII
               digits (`[0-9]`).
             - If `tx_code.length` is set, length MUST exactly match that value.
-          example: "493821"
+          example: '493821'
 
     TxCodeResponse:
       type: object
@@ -1322,7 +1319,7 @@ components:
           description: Human-readable description of the failure. `null` if not available.
           oneOf:
             - type: string
-            - type: "null"
+            - type: 'null'
           example: The user denied authorization at the issuer's authorization server.
         step:
           type: string
@@ -1397,7 +1394,7 @@ components:
           type: string
           format: date-time
           description: ISO 8601 timestamp when the credential was issued.
-          example: "2026-04-08T14:35:00Z"
+          example: '2026-04-08T14:35:00Z'
         expires_at:
           description: |
             ISO 8601 timestamp when the credential expires. `null` if the
@@ -1406,7 +1403,7 @@ components:
             - type: string
               format: date-time
             - type: 'null'
-          example: "2027-04-08T14:35:00Z"
+          example: '2027-04-08T14:35:00Z'
         claims:
           type: object
           description: |
