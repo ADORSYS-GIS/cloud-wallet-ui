@@ -28,7 +28,8 @@ export function CredentialTypesPage() {
 
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
   const effectiveSelectedOptionId =
-    selectedOptionId && options.some((option: CredentialOptionRow) => option.id === selectedOptionId)
+    selectedOptionId &&
+    options.some((option: CredentialOptionRow) => option.id === selectedOptionId)
       ? selectedOptionId
       : null
 
