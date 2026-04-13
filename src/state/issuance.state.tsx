@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo, useState } from 'react'
-import type { CredentialOfferResolutionResponse } from '../types/issuance.types'
+import type { StartIssuanceResponse } from '../types/issuance'
 
 export type CredentialOfferErrorKind =
   | 'invalid_offer'
@@ -20,10 +20,10 @@ export type CredentialOfferStatus = 'idle' | 'loading' | 'success' | 'error'
 
 type CredentialOfferState = {
   status: CredentialOfferStatus
-  offer?: CredentialOfferResolutionResponse
+  offer?: StartIssuanceResponse
   error?: CredentialOfferUiError
   setLoading: () => void
-  setOffer: (offer: CredentialOfferResolutionResponse) => void
+  setOffer: (offer: StartIssuanceResponse) => void
   setError: (error: CredentialOfferUiError) => void
   clear: () => void
 }
@@ -32,9 +32,7 @@ const CredentialOfferContext = createContext<CredentialOfferState | null>(null)
 
 export function CredentialOfferProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<CredentialOfferStatus>('idle')
-  const [offer, setOfferState] = useState<CredentialOfferResolutionResponse | undefined>(
-    undefined
-  )
+  const [offer, setOfferState] = useState<StartIssuanceResponse | undefined>(undefined)
   const [error, setErrorState] = useState<CredentialOfferUiError | undefined>(undefined)
 
   const value = useMemo<CredentialOfferState>(
