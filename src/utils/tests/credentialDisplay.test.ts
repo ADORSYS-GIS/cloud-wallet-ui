@@ -1,36 +1,75 @@
 import { describe, expect, it } from 'vitest'
-import type { CredentialSummary } from '../../types/credential'
+import type { CredentialRecord } from '../../types/credential'
 import { credentialDisplayName, issuerDisplayLabel } from '../credentialDisplay'
 
+// ---------------------------------------------------------------------------
+// Minimal valid CredentialRecord fixture
+// ---------------------------------------------------------------------------
+
+function makeCredential(overrides: Partial<CredentialRecord> = {}): CredentialRecord {
+  return {
+    id: 'cred-1',
+    credential_configuration_id: 'https://credentials.example.com/identity/mDL',
+    format: 'dc+sd-jwt',
+    issuer: 'https://issuer.example.com',
+    status: 'active',
+    issued_at: '2026-04-08T14:35:00Z',
+    expires_at: null,
+    claims: {},
+    ...overrides,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// credentialDisplayName
+// ---------------------------------------------------------------------------
+
 describe('credentialDisplayName', () => {
-  it('prefers display_name when set', () => {
-    const c: CredentialSummary = {
-      id: '1',
-      issuer: 'https://issuer.example',
-      credential_type: 'https://example/vct/PID',
-      display_name: 'Personal ID',
-    }
-    expect(credentialDisplayName(c)).toBe('Personal ID')
+  it('returns the last path segment of a URL-style credential_configuration_id', () => {
+    const c = makeCredential({
+      credential_configuration_id: 'https://credentials.example.com/identity/mDL',
+    })
+    expect(credentialDisplayName(c)).toBe('mDL')
   })
 
-  it('uses last path segment of credential_type when no display name', () => {
-    const c: CredentialSummary = {
-      id: '1',
-      issuer: 'https://issuer.example',
-      credential_type: 'https://credentials.example.com/identity/mDL',
-    }
+  it('returns the whole value when the id has no path segments', () => {
+    const c = makeCredential({
+      credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
+    })
+    expect(credentialDisplayName(c)).toBe('eu.europa.ec.eudi.pid.1')
+  })
+
+  it('strips trailing slashes before extracting the segment', () => {
+    const c = makeCredential({
+      credential_configuration_id: 'https://credentials.example.com/identity/mDL/',
+    })
     expect(credentialDisplayName(c)).toBe('mDL')
+  })
+
+  it('falls back to "Credential" when the id is an empty string', () => {
+    const c = makeCredential({ credential_configuration_id: '' })
+    expect(credentialDisplayName(c)).toBe('Credential')
   })
 })
 
+// ---------------------------------------------------------------------------
+// issuerDisplayLabel
+// ---------------------------------------------------------------------------
+
 describe('issuerDisplayLabel', () => {
-  it('returns host for https issuer URL', () => {
+  it('returns host for an https issuer URL', () => {
     expect(issuerDisplayLabel('https://wallet-issuer.example.com/path')).toBe(
       'wallet-issuer.example.com'
     )
   })
 
-  it('returns raw string when not a URL', () => {
+  it('returns raw string when not a valid URL', () => {
     expect(issuerDisplayLabel('did:example:123')).toBe('did:example:123')
+  })
+
+  it('returns host including port when present', () => {
+    expect(issuerDisplayLabel('https://issuer.example.com:8443/oid4vci')).toBe(
+      'issuer.example.com:8443'
+    )
   })
 })

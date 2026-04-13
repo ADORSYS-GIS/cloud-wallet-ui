@@ -1,10 +1,11 @@
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { startIssuanceSession } from '../api/issuance.api'
+import { startIssuanceSession } from '../api/issuance'
 import { Header } from '../components/Header'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
+import type { StartIssuanceResponse } from '../types/issuance'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
 import { useCredentialOfferState } from '../state/issuance.state'
 import { ApiError } from '../api/client'
@@ -68,6 +69,9 @@ export function ScanPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
+  const [issuanceSession, setIssuanceSession] = useState<StartIssuanceResponse | null>(
+    null
+  )
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const readerRef = useRef<BrowserQRCodeReader | null>(null)
@@ -107,26 +111,13 @@ export function ScanPage() {
     }
 
     try {
-      offerState.setLoading()
-      setFeedbackMessage('Just a moment while we make a secure connection...')
-      const response = await startIssuanceSession(parsedOffer.normalizedUri)
-      offerState.setOffer(response)
+      const session = await startIssuanceSession(parsedOffer.normalizedUri)
+      setIssuanceSession(session)
       setScanStatus('success')
-      setFeedbackMessage('Credential offer resolved successfully.')
-    } catch (e) {
+      setFeedbackMessage('Credential offer accepted. Review the details below.')
+    } catch {
       setScanStatus('error')
-      if (e instanceof ApiError) {
-        const uiError = mapApiErrorToUiError(e as ApiError<BackendErrorEnvelope>)
-        offerState.setError(uiError)
-        setFeedbackMessage(uiError.message)
-      } else {
-        offerState.setError({
-          kind: 'network',
-          message: 'Network error while contacting backend. Please try again.',
-          retryable: true,
-        })
-        setFeedbackMessage('Network error while contacting backend.')
-      }
+      setFeedbackMessage('Failed to start issuance session. Please try again.')
     } finally {
       scanInProgressRef.current = false
     }
@@ -134,6 +125,7 @@ export function ScanPage() {
 
   const startScan = async (mode: FacingMode = facingMode) => {
     setIsScannerActive(true)
+    setIssuanceSession(null)
     setFeedbackMessage('Requesting camera permission...')
     setDecodedValue('')
     setScanStatus('idle')
@@ -325,7 +317,63 @@ export function ScanPage() {
 
           {!isScannerActive && <div className="h-full w-full bg-[#E9ECEF]" />}
 
-          {decodedValue && scanStatus === 'success' && (
+          {/* ----------------------------------------------------------------
+              Success overlay — show session details returned by /issuance/start
+          ---------------------------------------------------------------- */}
+          {scanStatus === 'success' && issuanceSession && (
+            <div className="absolute inset-x-4 top-4 z-10 rounded-lg bg-white/95 p-4 shadow-md">
+              <p className="mb-2 text-sm font-semibold text-slate-900">
+                Issuance session started
+              </p>
+
+              <dl className="grid gap-1 text-xs text-slate-700">
+                <div className="flex gap-2">
+                  <dt className="shrink-0 text-slate-500">Session</dt>
+                  <dd className="truncate font-mono">{issuanceSession.session_id}</dd>
+                </div>
+
+                <div className="flex gap-2">
+                  <dt className="shrink-0 text-slate-500">Issuer</dt>
+                  <dd>
+                    {issuanceSession.issuer.display_name ??
+                      issuanceSession.issuer.credential_issuer}
+                  </dd>
+                </div>
+
+                <div className="flex gap-2">
+                  <dt className="shrink-0 text-slate-500">Credentials offered</dt>
+                  <dd>
+                    {issuanceSession.credential_types
+                      .map((ct) => ct.display.name)
+                      .join(', ')}
+                  </dd>
+                </div>
+
+                <div className="flex gap-2">
+                  <dt className="shrink-0 text-slate-500">Flow</dt>
+                  <dd>{issuanceSession.flow}</dd>
+                </div>
+
+                {issuanceSession.tx_code_required && issuanceSession.tx_code && (
+                  <div className="flex gap-2">
+                    <dt className="shrink-0 text-slate-500">Transaction code</dt>
+                    <dd>Required ({issuanceSession.tx_code.input_mode})</dd>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <dt className="shrink-0 text-slate-500">Expires</dt>
+                  <dd>{new Date(issuanceSession.expires_at).toLocaleTimeString()}</dd>
+                </div>
+              </dl>
+
+              <p className="mt-3 text-xs text-slate-500">
+                Consent and credential delivery are handled in the next step.
+              </p>
+            </div>
+          )}
+
+          {decodedValue && scanStatus !== 'success' && (
             <div className="absolute top-4 left-1/2 w-[90%] -translate-x-1/2 overflow-hidden text-ellipsis whitespace-nowrap rounded-lg bg-white/90 px-3 py-2 text-xs text-slate-700">
               {decodedValue}
             </div>
