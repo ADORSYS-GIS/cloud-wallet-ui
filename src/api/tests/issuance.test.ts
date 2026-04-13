@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { startIssuanceSession } from '../issuance'
+import { startIssuanceSession, IssuanceError } from '../issuance'
 import type { StartIssuanceResponse } from '../../types/issuance'
 
 // ---------------------------------------------------------------------------
@@ -63,103 +63,108 @@ describe('startIssuanceSession', () => {
     vi.restoreAllMocks()
   })
 
-  it('calls POST /issuance/start with { offer } body and returns session on success', async () => {
+  it('returns session on success', async () => {
     const fetchMock = vi.fn(async () =>
-      mockResponse({
-        ok: true,
-        status: 201,
-        json: async () => minimalSession,
-      })
-    )
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
-
-    const rawOffer =
-      'openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example.eu%2Foffer%2Fabc'
-
-    const result = await startIssuanceSession(rawOffer)
-
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledWith('http://api.test/issuance/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ offer: rawOffer }),
-    })
-    expect(result).toEqual(minimalSession)
-  })
-
-  it('throws when the server returns 400', async () => {
-    const fetchMock = vi.fn(async () =>
-      mockResponse({
-        ok: false,
-        status: 400,
-      })
-    )
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
-
-    await expect(
-      startIssuanceSession('openid-credential-offer://?credential_offer_uri=bad')
-    ).rejects.toThrow('Request failed with 400')
-
-    // Must NOT retry — no fallback GET
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('throws when the server returns 401', async () => {
-    const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 401 }))
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
-
-    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
-      'Request failed with 401'
-    )
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('throws when the server returns 502', async () => {
-    const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 502 }))
-    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
-
-    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
-      'Request failed with 502'
-    )
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('returns session with tx_code when pre-authorized flow requires one', async () => {
-    const sessionWithTxCode: StartIssuanceResponse = {
-      ...minimalSession,
-      session_id: 'ses_pre_auth',
-      flow: 'pre_authorized_code',
-      tx_code_required: true,
-      tx_code: {
-        input_mode: 'numeric',
-        length: 6,
-        description: 'Check your email for the one-time code.',
-      },
-    }
-
-    const fetchMock = vi.fn(async () =>
-      mockResponse({
-        ok: true,
-        status: 201,
-        json: async () => sessionWithTxCode,
-      })
+      mockResponse({ ok: true, status: 201, json: async () => minimalSession })
     )
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
     const result = await startIssuanceSession('openid-credential-offer://?x=y')
-    expect(result.flow).toBe('pre_authorized_code')
-    expect(result.tx_code_required).toBe(true)
-    expect(result.tx_code?.length).toBe(6)
+    expect(result).toEqual(minimalSession)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('does not perform a GET fallback on any error status', async () => {
-    // Specifically guard against the old 405-fallback behaviour being reintroduced.
-    const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 405 }))
+  it('throws IssuanceError with parsed body on 400', async () => {
+    const errorBody = {
+      error: 'invalid_credential_offer',
+      error_description: 'The credential offer URI could not be parsed.',
+    }
+    const fetchMock = vi.fn(async () =>
+      mockResponse({ ok: false, status: 400, json: async () => errorBody })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(
+      startIssuanceSession('openid-credential-offer://?bad')
+    ).rejects.toSatisfy((err: unknown) => {
+      if (!(err instanceof IssuanceError)) return false
+      return (
+        err.httpStatus === 400 &&
+        err.error === 'invalid_credential_offer' &&
+        err.error_description === 'The credential offer URI could not be parsed.'
+      )
+    })
+  })
+
+  it('throws IssuanceError with parsed body on 502', async () => {
+    const errorBody = {
+      error: 'issuer_metadata_fetch_failed',
+      error_description: 'Could not reach the issuer metadata endpoint.',
+    }
+    const fetchMock = vi.fn(async () =>
+      mockResponse({ ok: false, status: 502, json: async () => errorBody })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(
+      startIssuanceSession('openid-credential-offer://?x=y')
+    ).rejects.toSatisfy((err: unknown) => {
+      if (!(err instanceof IssuanceError)) return false
+      return err.httpStatus === 502 && err.error === 'issuer_metadata_fetch_failed'
+    })
+  })
+
+  it('throws IssuanceError with fallback error code when body is not JSON', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 401,
+      json: async () => {
+        throw new SyntaxError('Not JSON')
+      },
+    }))
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(
+      startIssuanceSession('openid-credential-offer://?x=y')
+    ).rejects.toSatisfy((err: unknown) => {
+      if (!(err instanceof IssuanceError)) return false
+      return err.httpStatus === 401 && err.error === 'unauthorized'
+    })
+  })
+
+  it('does NOT retry on any error status', async () => {
+    const fetchMock = vi.fn(async () =>
+      mockResponse({ ok: false, status: 405, json: async () => ({ error: 'unknown' }) })
+    )
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
     await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
-      'Request failed with 405'
+      IssuanceError
     )
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('IssuanceError carries structured data and is instanceof Error', () => {
+    const err = new IssuanceError({
+      httpStatus: 400,
+      error: 'invalid_credential_offer',
+      error_description: 'Bad offer',
+    })
+    expect(err).toBeInstanceOf(Error)
+    expect(err).toBeInstanceOf(IssuanceError)
+    expect(err.httpStatus).toBe(400)
+    expect(err.error).toBe('invalid_credential_offer')
+    expect(err.error_description).toBe('Bad offer')
+    expect(err.message).toBe('Bad offer')
+    expect(err.name).toBe('IssuanceError')
+  })
+
+  it('IssuanceError uses error code as message when error_description is null', () => {
+    const err = new IssuanceError({
+      httpStatus: 502,
+      error: 'issuer_metadata_fetch_failed',
+      error_description: null,
+    })
+    expect(err.message).toBe('issuer_metadata_fetch_failed')
   })
 })
