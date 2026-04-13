@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { startIssuanceSession } from '../issuance'
 import type { StartIssuanceResponse } from '../../types/issuance'
+import * as tenant from '../../auth/tenant'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -55,6 +56,7 @@ const minimalSession: StartIssuanceResponse = {
 describe('startIssuanceSession', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_API_BASE_URL', 'http://api.test')
+    vi.spyOn(tenant, 'getAuthorizationHeader').mockResolvedValue('Bearer some-token')
   })
 
   afterEach(() => {
@@ -81,7 +83,10 @@ describe('startIssuanceSession', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledWith('http://api.test/issuance/start', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer some-token',
+      },
       body: JSON.stringify({ offer: rawOffer }),
     })
     expect(result).toEqual(minimalSession)
