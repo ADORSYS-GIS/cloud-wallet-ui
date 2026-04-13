@@ -105,9 +105,7 @@ describe('startIssuanceSession', () => {
   })
 
   it('throws when the server returns 401', async () => {
-    const fetchMock = vi.fn(async () =>
-      mockResponse({ ok: false, status: 401 })
-    )
+    const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 401 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
     await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
@@ -117,9 +115,7 @@ describe('startIssuanceSession', () => {
   })
 
   it('throws when the server returns 502', async () => {
-    const fetchMock = vi.fn(async () =>
-      mockResponse({ ok: false, status: 502 })
-    )
+    const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 502 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
     await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
@@ -158,9 +154,7 @@ describe('startIssuanceSession', () => {
 
   it('does not perform a GET fallback on any error status', async () => {
     // Specifically guard against the old 405-fallback behaviour being reintroduced.
-    const fetchMock = vi.fn(async () =>
-      mockResponse({ ok: false, status: 405 })
-    )
+    const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 405 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
     await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
