@@ -162,7 +162,11 @@ describe('useIssuanceSession', () => {
 
   it('handles 401 unauthorized with appropriate message', async () => {
     mockStart.mockRejectedValueOnce(
-      new IssuanceError({ httpStatus: 401, error: 'unauthorized', error_description: null })
+      new IssuanceError({
+        httpStatus: 401,
+        error: 'unauthorized',
+        error_description: null,
+      })
     )
 
     const { result } = renderHook(() => useIssuanceSession())
