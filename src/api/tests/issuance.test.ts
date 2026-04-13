@@ -1,0 +1,171 @@
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { startIssuanceSession } from '../issuance'
+import type { StartIssuanceResponse } from '../../types/issuance'
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+type MockFetchResponse = {
+  ok: boolean
+  status: number
+  json: () => Promise<unknown>
+}
+
+function mockResponse(
+  partial: Partial<MockFetchResponse> & Pick<MockFetchResponse, 'ok' | 'status'>
+): MockFetchResponse {
+  return {
+    ok: partial.ok,
+    status: partial.status,
+    json: partial.json ?? (async () => ({})),
+  }
+}
+
+const minimalSession: StartIssuanceResponse = {
+  session_id: 'ses_abc123',
+  expires_at: '2026-04-08T14:35:00Z',
+  issuer: {
+    credential_issuer: 'https://issuer.example.eu',
+    display_name: 'Example Issuer',
+    logo_uri: null,
+  },
+  credential_types: [
+    {
+      credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
+      format: 'vc+sd-jwt',
+      display: {
+        name: 'EU Personal ID',
+        description: 'Official EU personal identity document',
+        background_color: '#12107c',
+        text_color: '#ffffff',
+        logo: null,
+      },
+    },
+  ],
+  flow: 'authorization_code',
+  tx_code_required: false,
+  tx_code: null,
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('startIssuanceSession', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_API_BASE_URL', 'http://api.test')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
+  })
+
+  it('calls POST /issuance/start with { offer } body and returns session on success', async () => {
+    const fetchMock = vi.fn(async () =>
+      mockResponse({
+        ok: true,
+        status: 201,
+        json: async () => minimalSession,
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    const rawOffer =
+      'openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example.eu%2Foffer%2Fabc'
+
+    const result = await startIssuanceSession(rawOffer)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/issuance/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offer: rawOffer }),
+    })
+    expect(result).toEqual(minimalSession)
+  })
+
+  it('throws when the server returns 400', async () => {
+    const fetchMock = vi.fn(async () =>
+      mockResponse({
+        ok: false,
+        status: 400,
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(
+      startIssuanceSession('openid-credential-offer://?credential_offer_uri=bad')
+    ).rejects.toThrow('Request failed with 400')
+
+    // Must NOT retry — no fallback GET
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws when the server returns 401', async () => {
+    const fetchMock = vi.fn(async () =>
+      mockResponse({ ok: false, status: 401 })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
+      'Request failed with 401'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws when the server returns 502', async () => {
+    const fetchMock = vi.fn(async () =>
+      mockResponse({ ok: false, status: 502 })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
+      'Request failed with 502'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns session with tx_code when pre-authorized flow requires one', async () => {
+    const sessionWithTxCode: StartIssuanceResponse = {
+      ...minimalSession,
+      session_id: 'ses_pre_auth',
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: {
+        input_mode: 'numeric',
+        length: 6,
+        description: 'Check your email for the one-time code.',
+      },
+    }
+
+    const fetchMock = vi.fn(async () =>
+      mockResponse({
+        ok: true,
+        status: 201,
+        json: async () => sessionWithTxCode,
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    const result = await startIssuanceSession('openid-credential-offer://?x=y')
+    expect(result.flow).toBe('pre_authorized_code')
+    expect(result.tx_code_required).toBe(true)
+    expect(result.tx_code?.length).toBe(6)
+  })
+
+  it('does not perform a GET fallback on any error status', async () => {
+    // Specifically guard against the old 405-fallback behaviour being reintroduced.
+    const fetchMock = vi.fn(async () =>
+      mockResponse({ ok: false, status: 405 })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
+      'Request failed with 405'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
