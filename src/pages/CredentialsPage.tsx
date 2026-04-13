@@ -9,7 +9,7 @@ import { useCredentials } from '../hooks/useCredentials'
 
 export function CredentialsPage() {
   const navigate = useNavigate()
-  const { items, loading } = useCredentials()
+  const { credentials, loading } = useCredentials()
 
   return (
     <PageContainer>
@@ -22,12 +22,12 @@ export function CredentialsPage() {
           </section>
         )}
 
-        {!loading && items.length === 0 && <CredentialsEmptyState />}
+        {!loading && credentials.length === 0 && <CredentialsEmptyState />}
 
-        {!loading && items.length > 0 && (
+        {!loading && credentials.length > 0 && (
           <section className="min-h-0 flex-1 overflow-y-auto bg-[#E9ECEF] px-3 py-3">
             <div className="mx-auto flex max-w-lg flex-col gap-3">
-              {items.map((c) => (
+              {credentials.map((c) => (
                 <CredentialSummaryCard key={c.id} credential={c} />
               ))}
             </div>

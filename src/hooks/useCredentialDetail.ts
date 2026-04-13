@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getCredentialById } from '../api/credentials'
-import type { CredentialDetail } from '../types/credential'
+import type { CredentialRecord } from '../types/credential'
 
 type DetailState = {
-  credential: CredentialDetail | null
+  credential: CredentialRecord | null
   loading: boolean
   error: Error | null
 }
@@ -21,11 +21,7 @@ export function useCredentialDetail(id: string): DetailState {
     getCredentialById(id)
       .then((data) => {
         if (!cancelled) {
-          setState({
-            credential: data,
-            loading: false,
-            error: null,
-          })
+          setState({ credential: data, loading: false, error: null })
         }
       })
       .catch((err: unknown) => {
