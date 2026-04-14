@@ -42,15 +42,16 @@ function mockFetchFailure(status: number) {
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
-let localStorageGetItem: MockInstance
 let localStorageSetItem: MockInstance
 let localStorageRemoveItem: MockInstance
 
 beforeEach(() => {
   localStorage.clear()
+  // Set a base URL that does NOT include /api/v1 so the test confirms
+  // tenant.ts appends /tenants directly to the base URL, matching the
+  // same convention used by apiGet / apiPost.
   vi.stubEnv('VITE_API_BASE_URL', 'http://api.test')
 
-  localStorageGetItem = vi.spyOn(Storage.prototype, 'getItem')
   localStorageSetItem = vi.spyOn(Storage.prototype, 'setItem')
   localStorageRemoveItem = vi.spyOn(Storage.prototype, 'removeItem')
 })
@@ -67,12 +68,22 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('initializeTenant — fresh device (nothing in storage)', () => {
-  it('calls POST /api/v1/tenants and persists tenant_id + keys', async () => {
-    vi.stubGlobal('fetch', mockFetchSuccess('uuid-fresh-1'))
-    const { initializeTenant } = await freshTenantModule()
+  it('calls POST /tenants (not /api/v1/tenants) and persists tenant_id + keys', async () => {
+    const fetchMock = mockFetchSuccess('uuid-fresh-1')
+    vi.stubGlobal('fetch', fetchMock)
 
+    const { initializeTenant } = await freshTenantModule()
     await initializeTenant()
 
+    // Verify the exact URL — must use getApiBaseUrl() + '/tenants'
+    // not a hardcoded /api/v1 prefix
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [calledUrl, calledInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(calledUrl).toBe('http://api.test/tenants')
+    expect(calledInit.method).toBe('POST')
+    expect(JSON.parse(calledInit.body as string)).toEqual({ name: 'DATEV Cloud Wallet' })
+
+    // Keys and tenant_id must be persisted
     expect(localStorageSetItem).toHaveBeenCalledWith('cw:tenant_id', 'uuid-fresh-1')
     expect(localStorageSetItem).toHaveBeenCalledWith(
       'cw:public_key_jwk',
@@ -84,16 +95,28 @@ describe('initializeTenant — fresh device (nothing in storage)', () => {
     )
   })
 
-  it('throws when POST /api/v1/tenants returns an error status', async () => {
+  it('throws when POST /tenants returns an error status', async () => {
     vi.stubGlobal('fetch', mockFetchFailure(500))
     const { initializeTenant } = await freshTenantModule()
 
     await expect(initializeTenant()).rejects.toThrow('Tenant registration failed')
   })
+
+  it('does NOT include an Authorization header on the registration call', async () => {
+    const fetchMock = mockFetchSuccess('uuid-no-auth')
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { initializeTenant } = await freshTenantModule()
+    await initializeTenant()
+
+    const [, calledInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const headers = calledInit.headers as Record<string, string> | undefined
+    expect(headers?.['Authorization']).toBeUndefined()
+  })
 })
 
 describe('initializeTenant — returning device (data in storage)', () => {
-  it('skips POST /api/v1/tenants and reuses the stored tenant_id', async () => {
+  it('skips POST /tenants and reuses the stored tenant_id', async () => {
     // First init to populate localStorage
     vi.stubGlobal('fetch', mockFetchSuccess('uuid-stored-1'))
     const moduleA = await freshTenantModule()
@@ -133,6 +156,25 @@ describe('getAuthorizationHeader', () => {
     const header = await getAuthorizationHeader()
 
     expect(header).toMatch(/^Bearer [\w-]+\.[\w-]+\.[\w-]+$/)
+  })
+
+  it('the JWT sub claim equals the registered tenant_id', async () => {
+    vi.stubGlobal('fetch', mockFetchSuccess('my-specific-tenant-id'))
+    const { initializeTenant, getAuthorizationHeader } = await freshTenantModule()
+
+    await initializeTenant()
+    const header = await getAuthorizationHeader()
+
+    // Decode the JWT payload (second segment)
+    const token = header.replace('Bearer ', '')
+    const [, payloadB64] = token.split('.')
+    const padded = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
+    const json = atob(padded.padEnd(padded.length + ((4 - (padded.length % 4)) % 4), '='))
+    const payload = JSON.parse(json) as Record<string, unknown>
+
+    expect(payload['sub']).toBe('my-specific-tenant-id')
+    expect(typeof payload['iat']).toBe('number')
+    expect(typeof payload['exp']).toBe('number')
   })
 
   it('throws when called before initializeTenant()', async () => {

@@ -11,11 +11,8 @@
  */
 
 import { STORAGE_KEYS } from '../constants/storageKeys'
-import {
-  createBearerToken,
-  generateKeyPair,
-  importPrivateKey,
-} from './crypto'
+import { getApiBaseUrl } from '../utils/env'
+import { createBearerToken, generateKeyPair, importPrivateKey } from './crypto'
 
 // ---------------------------------------------------------------------------
 // In-memory auth state
@@ -34,15 +31,22 @@ let _publicKeyJwk: JsonWebKey | null = null
 // Tenant registration API call (unauthenticated)
 // ---------------------------------------------------------------------------
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
-
 type TenantRegistrationResponse = {
   tenant_id: string
   name: string
 }
 
+/**
+ * Register a new tenant with the backend.
+ *
+ * Spec: POST /tenants  (security: [] — no Bearer token)
+ *
+ * Uses the same base URL as all other API calls so that the
+ * VITE_API_BASE_URL environment variable is the single source of truth
+ * for the server address and prefix.
+ */
 async function registerTenant(): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/tenants`, {
+  const response = await fetch(`${getApiBaseUrl()}/tenants`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     // The spec requires a `name` field (minLength 1, maxLength 255).

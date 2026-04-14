@@ -10,9 +10,13 @@
 // Internal constants
 // ---------------------------------------------------------------------------
 
-const ALGORITHM: EcKeyGenParams & EcdsaParams = {
+/**
+ * Parameters passed to SubtleCrypto.sign().
+ * Typed as EcdsaParams — the correct, narrow type for the sign operation.
+ * Key generation and import each use their own inline params objects.
+ */
+const SIGN_ALGORITHM: EcdsaParams = {
   name: 'ECDSA',
-  namedCurve: 'P-256',
   hash: 'SHA-256',
 }
 
@@ -32,7 +36,7 @@ export type ExportedKeyPair = {
  */
 export async function generateKeyPair(): Promise<ExportedKeyPair> {
   const keyPair = await crypto.subtle.generateKey(
-    { name: 'ECDSA', namedCurve: 'P-256' },
+    { name: 'ECDSA', namedCurve: 'P-256' } satisfies EcKeyGenParams,
     true, // extractable — we need to export to JWK for persistence
     ['sign', 'verify']
   )
@@ -52,7 +56,7 @@ export async function importPrivateKey(jwk: JsonWebKey): Promise<CryptoKey> {
   return crypto.subtle.importKey(
     'jwk',
     jwk,
-    { name: 'ECDSA', namedCurve: 'P-256' },
+    { name: 'ECDSA', namedCurve: 'P-256' } satisfies EcKeyImportParams,
     false, // not extractable after import
     ['sign']
   )
@@ -63,7 +67,7 @@ export async function importPrivateKey(jwk: JsonWebKey): Promise<CryptoKey> {
 // ---------------------------------------------------------------------------
 
 /**
- * Base64url-encode a Uint8Array (no padding, URL-safe alphabet).
+ * Base64url-encode an ArrayBuffer (no padding, URL-safe alphabet).
  */
 function base64url(bytes: ArrayBuffer): string {
   const uint8 = new Uint8Array(bytes)
@@ -80,7 +84,7 @@ function base64url(bytes: ArrayBuffer): string {
 function base64urlJson(obj: unknown): string {
   const json = JSON.stringify(obj)
   const bytes = new TextEncoder().encode(json)
-  return base64url(bytes)
+  return base64url(bytes.buffer!)
 }
 
 // ---------------------------------------------------------------------------
@@ -102,21 +106,24 @@ type JwtHeader = {
 }
 
 /**
- * The JWT claims set.
+ * The JWT claims set — mirrors the required claims from the spec BearerAuth scheme.
  */
 type JwtPayload = {
-  sub: string // tenant_id
-  iat: number // issued-at (Unix epoch seconds)
-  exp: number // expiry   (Unix epoch seconds)
+  /** The tenant_id returned by POST /tenants. */
+  sub: string
+  /** Issued-at timestamp (Unix epoch seconds). */
+  iat: number
+  /** Expiry timestamp (Unix epoch seconds). */
+  exp: number
 }
 
 /**
  * Create and sign a self-issued JWT Bearer token.
  *
- * @param tenantId   The UUID returned by POST /tenants — used as `sub`.
- * @param privateKey The CryptoKey to sign with.
- * @param publicKeyJwk The matching public key JWK embedded in the header.
- * @param ttlSeconds Token lifetime in seconds (default: 300 = 5 minutes).
+ * @param tenantId    The UUID returned by POST /tenants — used as `sub`.
+ * @param privateKey  The CryptoKey to sign with.
+ * @param publicKeyJwk The matching public key JWK embedded in the JOSE header.
+ * @param ttlSeconds  Token lifetime in seconds (default: 300 = 5 minutes).
  */
 export async function createBearerToken(
   tenantId: string,
@@ -141,11 +148,10 @@ export async function createBearerToken(
   const headerB64 = base64urlJson(header)
   const payloadB64 = base64urlJson(payload)
   const signingInput = `${headerB64}.${payloadB64}`
-
   const signingInputBytes = new TextEncoder().encode(signingInput)
 
   const signatureBuffer = await crypto.subtle.sign(
-    ALGORITHM,
+    SIGN_ALGORITHM,
     privateKey,
     signingInputBytes
   )

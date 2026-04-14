@@ -63,7 +63,6 @@ describe('createBearerToken', () => {
     const token = await createBearerToken('tenant-uuid-123', privateKey, publicKeyJwk)
     const [headerB64] = token.split('.')
 
-    // Decode base64url → JSON
     const padded = headerB64.replace(/-/g, '+').replace(/_/g, '/')
     const json = atob(padded.padEnd(padded.length + ((4 - (padded.length % 4)) % 4), '='))
     const header = JSON.parse(json) as Record<string, unknown>
@@ -77,9 +76,9 @@ describe('createBearerToken', () => {
     const { publicKeyJwk, privateKeyJwk } = await generateKeyPair()
     const privateKey = await importPrivateKey(privateKeyJwk)
 
-    const beforeMs = Math.floor(Date.now() / 1000)
+    const beforeSec = Math.floor(Date.now() / 1000)
     const token = await createBearerToken('my-tenant-id', privateKey, publicKeyJwk)
-    const afterMs = Math.floor(Date.now() / 1000)
+    const afterSec = Math.floor(Date.now() / 1000)
 
     const [, payloadB64] = token.split('.')
     const padded = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
@@ -89,8 +88,8 @@ describe('createBearerToken', () => {
     expect(payload['sub']).toBe('my-tenant-id')
     expect(typeof payload['iat']).toBe('number')
     expect(typeof payload['exp']).toBe('number')
-    expect(payload['iat'] as number).toBeGreaterThanOrEqual(beforeMs)
-    expect(payload['iat'] as number).toBeLessThanOrEqual(afterMs)
+    expect(payload['iat'] as number).toBeGreaterThanOrEqual(beforeSec)
+    expect(payload['iat'] as number).toBeLessThanOrEqual(afterSec)
     // Default TTL is 300 s
     expect((payload['exp'] as number) - (payload['iat'] as number)).toBe(300)
   })
@@ -122,7 +121,6 @@ describe('createBearerToken', () => {
     const token = await createBearerToken('tenant-id', privateKey, publicKeyJwk)
     const [headerB64, payloadB64, signatureB64] = token.split('.')
 
-    // Re-encode the signature from base64url to ArrayBuffer
     const sigPadded = signatureB64.replace(/-/g, '+').replace(/_/g, '/')
     const sigBinary = atob(
       sigPadded.padEnd(sigPadded.length + ((4 - (sigPadded.length % 4)) % 4), '=')
