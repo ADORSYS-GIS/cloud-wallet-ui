@@ -132,8 +132,6 @@ export function parseCredentialOfferInput(
     }
 
     if (url.protocol === 'https:') {
-      // Fallback: allow scanning plain https URLs only when they look like a credential offer URI.
-      // If an allowlist is configured, enforce it strictly.
       const allowedHosts = getAllowedCredentialOfferHosts()
       const host = url.host.toLowerCase()
 

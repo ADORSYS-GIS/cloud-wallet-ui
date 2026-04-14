@@ -1,21 +1,23 @@
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { startIssuanceSession } from '../api/issuance'
-import { Header } from '../components/Header'
+import { CredentialOfferCard } from '../components/issuance/CredentailOfferCard'
+import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
-import type { StartIssuanceResponse } from '../types/issuance'
+import { useIssuanceSession } from '../hooks/useIssuanceSession'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
+import illuWallet from '../assets/illu-wallet.png'
 
-type ScanStatus = 'idle' | 'scanning' | 'success' | 'invalid' | 'error'
+type ScanStatus = 'idle' | 'scanning' | 'processing' | 'done'
 type FacingMode = 'environment' | 'user'
 
 export function ScanPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+
+  // Camera / scanner state
   const [scanStatus, setScanStatus] = useState<ScanStatus>('idle')
-  const [decodedValue, setDecodedValue] = useState('')
   const [feedbackMessage, setFeedbackMessage] = useState(
     'Point your camera at a credential offer QR code.'
   )
@@ -23,14 +25,18 @@ export function ScanPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
-  const [issuanceSession, setIssuanceSession] = useState<StartIssuanceResponse | null>(
-    null
-  )
+
+  // Issuance offer state machine
+  const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const readerRef = useRef<BrowserQRCodeReader | null>(null)
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const scanInProgressRef = useRef(false)
+
+  // ---------------------------------------------------------------------------
+  // Scanner helpers
+  // ---------------------------------------------------------------------------
 
   const stopScanner = () => {
     controlsRef.current?.stop()
@@ -38,17 +44,14 @@ export function ScanPage() {
   }
 
   const handleDecodedValue = async (value: string) => {
-    if (scanInProgressRef.current) {
-      return
-    }
-
+    if (scanInProgressRef.current) return
     scanInProgressRef.current = true
+
     stopScanner()
-    setDecodedValue(value)
 
     const parsedOffer = parseCredentialOfferInput(value)
     if (!parsedOffer) {
-      setScanStatus('invalid')
+      setScanStatus('idle')
       setFeedbackMessage(
         'Invalid credential offer QR content. Please scan a valid OpenID4VCI offer.'
       )
@@ -56,42 +59,37 @@ export function ScanPage() {
       return
     }
 
-    try {
-      const session = await startIssuanceSession(parsedOffer.normalizedUri)
-      setIssuanceSession(session)
-      setScanStatus('success')
-      setFeedbackMessage('Credential offer accepted. Review the details below.')
-    } catch {
-      setScanStatus('error')
-      setFeedbackMessage('Failed to start issuance session. Please try again.')
-    } finally {
-      scanInProgressRef.current = false
-    }
+    setScanStatus('processing')
+    setFeedbackMessage('Contacting issuer…')
+
+    await submitOffer(parsedOffer.normalizedUri)
+
+    setScanStatus('done')
+    scanInProgressRef.current = false
   }
 
   const startScan = async (mode: FacingMode = facingMode) => {
     setIsScannerActive(true)
-    setIssuanceSession(null)
-    setFeedbackMessage('Requesting camera permission...')
-    setDecodedValue('')
+    resetOffer()
     setScanStatus('idle')
+    setFeedbackMessage('Requesting camera permission…')
 
     if (!navigator?.mediaDevices?.getUserMedia) {
       setIsScannerActive(false)
-      setScanStatus('error')
+      setScanStatus('idle')
       setFeedbackMessage('No camera device is available on this browser.')
       return
     }
 
     if (!videoRef.current) {
       setIsScannerActive(false)
-      setScanStatus('error')
+      setScanStatus('idle')
       setFeedbackMessage('Video preview unavailable. Please reload and try again.')
       return
     }
 
     setScanStatus('scanning')
-    setFeedbackMessage('Searching for QR code...')
+    setFeedbackMessage('Searching for QR code…')
 
     try {
       readerRef.current = new BrowserQRCodeReader()
@@ -106,7 +104,7 @@ export function ScanPage() {
       )
     } catch (error: unknown) {
       setIsScannerActive(false)
-      setScanStatus('error')
+      setScanStatus('idle')
       if (error instanceof DOMException && error.name === 'NotAllowedError') {
         setFeedbackMessage(
           'Camera permission denied. Please allow camera access and retry.'
@@ -117,6 +115,10 @@ export function ScanPage() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------------
+
   useEffect(() => {
     let mounted = true
     const isFreshScan = searchParams.get('fresh') === 'true'
@@ -125,9 +127,7 @@ export function ScanPage() {
     }
 
     const timer = window.setTimeout(() => {
-      if (!mounted) {
-        return
-      }
+      if (!mounted) return
       setIsInitializing(false)
       void startScan()
     }, 220)
@@ -136,7 +136,6 @@ export function ScanPage() {
       mounted = false
       window.clearTimeout(timer)
     }
-    // We intentionally run this once on page entry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -147,11 +146,12 @@ export function ScanPage() {
     }
   }, [])
 
-  const swapCamera = async () => {
-    if (isSwapping) {
-      return
-    }
+  // ---------------------------------------------------------------------------
+  // Camera swap
+  // ---------------------------------------------------------------------------
 
+  const swapCamera = async () => {
+    if (isSwapping) return
     setIsSwapping(true)
     const nextMode: FacingMode = facingMode === 'environment' ? 'user' : 'environment'
     setFacingMode(nextMode)
@@ -163,28 +163,122 @@ export function ScanPage() {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Overlay visibility
+  // ---------------------------------------------------------------------------
+
+  const showFullscreenStatus =
+    offerState.status === 'loading' ||
+    (offerState.status === 'error' && !!offerState.apiError)
+
+  const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
+  const showErrorCard = scanStatus === 'done' && offerState.status === 'error'
+  const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
+
+  // ---------------------------------------------------------------------------
+  // Handlers from offer card
+  // ---------------------------------------------------------------------------
+
+  const handleAccept = () => {
+    // Consent & next steps are handled in a future ticket.
+    // For now we navigate to credentials as a placeholder.
+    navigate(routes.credentials)
+  }
+
+  const handleDecline = () => {
+    resetOffer()
+    void startScan()
+  }
+
+  const handleErrorRetry = () => {
+    resetOffer()
+    void startScan()
+  }
+
+  const handleErrorBack = () => {
+    navigate(routes.home)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Feedback bar text
+  // ---------------------------------------------------------------------------
+
+  const statusBarText = isInitializing
+    ? '◉ Initializing scanner…'
+    : `◉ ${feedbackMessage}`
+
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        <Header showMainHeader={false} />
+        {/* Fullscreen loading and error overlays */}
+        {showFullscreenStatus && offerState.status === 'loading' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+            <div className="flex flex-col items-center px-6 text-center">
+              <div className="relative mb-16 h-52 w-52">
+                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+                <img
+                  src={illuWallet}
+                  alt=""
+                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+                />
+              </div>
+              <div className="text-base text-slate-700">
+                Just a moment while we make a secure connection...
+              </div>
+            </div>
+          </div>
+        )}
+        {showFullscreenStatus && offerState.status === 'error' && offerState.apiError && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+            <div className="flex flex-col items-center px-6 text-center">
+              <div className="relative mb-16 h-52 w-52">
+                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+                <img
+                  src={illuWallet}
+                  alt=""
+                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+                />
+              </div>
+              <div className="text-base text-slate-700">
+                {offerState.rawMessage || String(offerState.apiError)}
+              </div>
+              <button
+                type="button"
+                onClick={() => void startScan()}
+                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
+              >
+                Scan again
+              </button>
+            </div>
+          </div>
+        )}
 
-        <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
-          <button
-            type="button"
-            onClick={() => navigate(routes.home)}
-            className="h-7 w-7 rounded-full text-xl leading-none text-white"
-            aria-label="Back"
-          >
-            ‹
-          </button>
-          <div />
-          <div className="w-7" />
-        </div>
+        {/* Sub-header / nav bar */}
+        {!showFullscreenStatus && (
+          <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
+            <button
+              type="button"
+              onClick={() => navigate(routes.home)}
+              className="h-7 w-7 rounded-full text-xl leading-none text-white"
+              aria-label="Back"
+            >
+              ‹
+            </button>
+            <div />
+            <div className="w-7" />
+          </div>
+        )}
 
-        <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700">
-          {isInitializing ? '◉ Initializing scanner...' : `◉ ${feedbackMessage}`}
-        </div>
+        {/* Status bar */}
+        {!showFullscreenStatus && (
+          <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700">
+            {statusBarText}
+          </div>
+        )}
 
+        {/* Camera + overlays */}
         <section className="relative flex-1 bg-[#E9ECEF]">
           <video
             ref={videoRef}
@@ -196,71 +290,44 @@ export function ScanPage() {
             muted
             playsInline
           />
-
           {!isScannerActive && <div className="h-full w-full bg-[#E9ECEF]" />}
 
           {/* ----------------------------------------------------------------
-              Success overlay — show session details returned by /issuance/start
+              Processing spinner — shown while waiting for API response
           ---------------------------------------------------------------- */}
-          {scanStatus === 'success' && issuanceSession && (
-            <div className="absolute inset-x-4 top-4 z-10 rounded-lg bg-white/95 p-4 shadow-md">
-              <p className="mb-2 text-sm font-semibold text-slate-900">
-                Issuance session started
-              </p>
-
-              <dl className="grid gap-1 text-xs text-slate-700">
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-slate-500">Session</dt>
-                  <dd className="truncate font-mono">{issuanceSession.session_id}</dd>
-                </div>
-
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-slate-500">Issuer</dt>
-                  <dd>
-                    {issuanceSession.issuer.display_name ??
-                      issuanceSession.issuer.credential_issuer}
-                  </dd>
-                </div>
-
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-slate-500">Credentials offered</dt>
-                  <dd>
-                    {issuanceSession.credential_types
-                      .map((ct) => ct.display.name)
-                      .join(', ')}
-                  </dd>
-                </div>
-
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-slate-500">Flow</dt>
-                  <dd>{issuanceSession.flow}</dd>
-                </div>
-
-                {issuanceSession.tx_code_required && issuanceSession.tx_code && (
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 text-slate-500">Transaction code</dt>
-                    <dd>Required ({issuanceSession.tx_code.input_mode})</dd>
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <dt className="shrink-0 text-slate-500">Expires</dt>
-                  <dd>{new Date(issuanceSession.expires_at).toLocaleTimeString()}</dd>
-                </div>
-              </dl>
-
-              <p className="mt-3 text-xs text-slate-500">
-                Consent and credential delivery are handled in the next step.
-              </p>
+          {showSpinner && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/30">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
+              <p className="text-sm font-medium text-white">Contacting issuer…</p>
             </div>
           )}
 
-          {decodedValue && scanStatus !== 'success' && (
-            <div className="absolute top-4 left-1/2 w-[90%] -translate-x-1/2 overflow-hidden text-ellipsis whitespace-nowrap rounded-lg bg-white/90 px-3 py-2 text-xs text-slate-700">
-              {decodedValue}
-            </div>
+          {/* ----------------------------------------------------------------
+              Credential offer card — success state
+          ---------------------------------------------------------------- */}
+          {showOfferCard && offerState.status === 'success' && (
+            <CredentialOfferCard
+              session={offerState.session}
+              onAccept={handleAccept}
+              onDecline={handleDecline}
+            />
           )}
 
+          {/* ----------------------------------------------------------------
+              Error card — fallback error UI
+          ---------------------------------------------------------------- */}
+          {showErrorCard && offerState.status === 'error' && (
+            <IssuanceErrorCard
+              apiError={offerState.apiError}
+              userMessage={offerState.rawMessage}
+              onRetry={handleErrorRetry}
+              onBack={handleErrorBack}
+            />
+          )}
+
+          {/* ----------------------------------------------------------------
+              Camera swap button
+          ---------------------------------------------------------------- */}
           {isScannerActive && scanStatus === 'scanning' && (
             <button
               type="button"
@@ -276,15 +343,20 @@ export function ScanPage() {
             </button>
           )}
 
-          {(scanStatus === 'invalid' || scanStatus === 'error') && (
-            <button
-              type="button"
-              onClick={() => void startScan()}
-              className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
-            >
-              Retry scan
-            </button>
-          )}
+          {/* ----------------------------------------------------------------
+              Invalid QR retry — inline feedback when QR is malformed
+          ---------------------------------------------------------------- */}
+          {scanStatus === 'idle' &&
+            feedbackMessage.startsWith('Invalid') &&
+            !showErrorCard && (
+              <button
+                type="button"
+                onClick={() => void startScan()}
+                className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
+              >
+                Retry scan
+              </button>
+            )}
         </section>
       </div>
     </PageContainer>

@@ -42,7 +42,7 @@ src/
 
 ## Environment variables
 
-- `VITE_API_BASE_URL`: backend base URL (defaults to `http://localhost:3000`)
+- `VITE_API_BASE_URL`: backend host/base URL. The app automatically appends `/api/v1` when missing (defaults to `http://localhost:3000` -> `http://localhost:3000/api/v1`).
 - `VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS` (optional): comma-separated allowlist of `host[:port]` values for accepting _plain https_ QR payloads as credential-offer URLs. If not set, the app only accepts plain `https` payloads whose path contains `credential-offer` (conservative default). `openid-credential-offer://...` links are accepted regardless.
 
 Create a `.env` file in project root:
