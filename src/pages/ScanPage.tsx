@@ -3,11 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CredentialOfferCard } from '../components/issuance/CredentailOfferCard'
 import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
-import { Header } from '../components/Header'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { useIssuanceSession } from '../hooks/useIssuanceSession'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
+import illuWallet from '../assets/illu-wallet.png'
 
 type ScanStatus = 'idle' | 'scanning' | 'processing' | 'done'
 type FacingMode = 'environment' | 'user'
@@ -167,6 +167,10 @@ export function ScanPage() {
   // Overlay visibility
   // ---------------------------------------------------------------------------
 
+  const showFullscreenStatus =
+    offerState.status === 'loading' ||
+    (offerState.status === 'error' && !!offerState.apiError)
+
   const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
   const showErrorCard = scanStatus === 'done' && offerState.status === 'error'
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
@@ -206,41 +210,84 @@ export function ScanPage() {
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        <Header showMainHeader={false} />
+        {/* Fullscreen loading and error overlays */}
+        {showFullscreenStatus && offerState.status === 'loading' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+            <div className="flex flex-col items-center px-6 text-center">
+              <div className="relative mb-16 h-52 w-52">
+                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+                <img
+                  src={illuWallet}
+                  alt=""
+                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+                />
+              </div>
+              <div className="text-base text-slate-700">
+                Just a moment while we make a secure connection...
+              </div>
+            </div>
+          </div>
+        )}
+        {showFullscreenStatus && offerState.status === 'error' && offerState.apiError && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+            <div className="flex flex-col items-center px-6 text-center">
+              <div className="relative mb-16 h-52 w-52">
+                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+                <img
+                  src={illuWallet}
+                  alt=""
+                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+                />
+              </div>
+              <div className="text-base text-slate-700">{offerState.rawMessage || String(offerState.apiError)}</div>
+              <button
+                type="button"
+                onClick={() => void startScan()}
+                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
+              >
+                Scan again
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Sub-header / nav bar */}
-        <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
-          <button
-            type="button"
-            onClick={() => navigate(routes.home)}
-            className="h-7 w-7 rounded-full text-xl leading-none text-white"
-            aria-label="Back"
-          >
-            ‹
-          </button>
-          <div />
-          <div className="w-7" />
-        </div>
+        {!showFullscreenStatus && (
+          <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
+            <button
+              type="button"
+              onClick={() => navigate(routes.home)}
+              className="h-7 w-7 rounded-full text-xl leading-none text-white"
+              aria-label="Back"
+            >
+              ‹
+            </button>
+            <div />
+            <div className="w-7" />
+          </div>
+        )}
 
         {/* Status bar */}
-        <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700">
-          {statusBarText}
-        </div>
+        {!showFullscreenStatus && (
+          <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700">
+            {statusBarText}
+          </div>
+        )}
 
         {/* Camera + overlays */}
         <section className="relative flex-1 bg-[#E9ECEF]">
-          {/* Video element — always in DOM so the ref is stable */}
           <video
             ref={videoRef}
             className={[
               'absolute inset-0 h-full w-full object-cover',
-              isScannerActive && !showOfferCard && !showErrorCard ? '' : 'opacity-0',
+              isScannerActive ? '' : 'opacity-0',
             ].join(' ')}
             autoPlay
             muted
             playsInline
           />
-
           {!isScannerActive && <div className="h-full w-full bg-[#E9ECEF]" />}
 
           {/* ----------------------------------------------------------------
