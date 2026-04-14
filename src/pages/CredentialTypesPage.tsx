@@ -4,7 +4,7 @@ import { Footer } from '../components/Footer'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { useCredentialOfferState } from '../state/issuance.state'
-import type { CredentialTypeOption } from '../types/issuance.types'
+import type { CredentialTypeDisplay } from '../types/issuance'
 
 type CredentialOptionRow = {
   id: string
@@ -20,7 +20,7 @@ export function CredentialTypesPage() {
       return []
     }
 
-    return offer.credential_types.map((t: CredentialTypeOption) => ({
+    return offer.credential_types.map((t: CredentialTypeDisplay) => ({
       id: t.credential_configuration_id,
       label: t.display.name,
     }))

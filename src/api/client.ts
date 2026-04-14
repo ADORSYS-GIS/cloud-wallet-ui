@@ -1,27 +1,22 @@
 import { getApiBaseUrl } from '../utils/env'
 
-export class ApiError<TBody = unknown> extends Error {
-  readonly status: number
-  readonly body?: TBody
+/**
+ * Spec-compliant API client.
+ *
+ * Contract rules enforced here:
+ * - Only the HTTP methods defined in the OpenAPI spec are used (GET, POST).
+ * - Non-2xx responses always throw — no fallback, no retry, no method switching.
+ * - 204 No Content responses return `undefined` (used by DELETE/cancel endpoints).
+ * - Every successful response with a body is parsed as JSON.
+ * - No undocumented endpoints may be called through this module.
+ */
 
-  constructor(message: string, status: number, body?: TBody) {
+export class ApiError extends Error {
+  public readonly status: number
+  constructor(status: number, message: string) {
     super(message)
-    this.name = 'ApiError'
     this.status = status
-    this.body = body
-  }
-}
-
-async function readJsonBodySafe(response: Response): Promise<unknown | undefined> {
-  const contentType = response.headers.get('content-type') || ''
-  if (!contentType.toLowerCase().includes('application/json')) {
-    return undefined
-  }
-
-  try {
-    return await response.json()
-  } catch {
-    return undefined
+    this.name = 'ApiError'
   }
 }
 
@@ -29,8 +24,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`)
 
   if (!response.ok) {
-    const body = await readJsonBodySafe(response)
-    throw new ApiError(`Request failed with ${response.status}`, response.status, body)
+    throw new ApiError(response.status, `GET ${path} failed with ${response.status}`)
   }
 
   return (await response.json()) as T
@@ -49,14 +43,10 @@ export async function apiPost<TResponse, TBody>(
   })
 
   if (!response.ok) {
-    const responseBody = await readJsonBodySafe(response)
-    throw new ApiError(
-      `Request failed with ${response.status}`,
-      response.status,
-      responseBody
-    )
+    throw new ApiError(response.status, `POST ${path} failed with ${response.status}`)
   }
 
+  // 204 No Content — spec uses this for DELETE-like operations (e.g. cancel session).
   if (response.status === 204) {
     return undefined as TResponse
   }

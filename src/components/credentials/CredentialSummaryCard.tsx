@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { credentialDetailPath } from '../../constants/routes'
-import type { CredentialSummary } from '../../types/credential'
+import type { CredentialRecord } from '../../types/credential'
 import { credentialDisplayName, issuerDisplayLabel } from '../../utils/credentialDisplay'
 
 type CredentialSummaryCardProps = {
-  credential: CredentialSummary
+  credential: CredentialRecord
 }
 
 export function CredentialSummaryCard({ credential }: CredentialSummaryCardProps) {

@@ -1,26 +1,29 @@
 import { apiGet } from './client'
-import type { CredentialDetail, CredentialsListResponse } from '../types/credential'
+import type { CredentialListResponse, CredentialRecord } from '../types/credential'
+import { validateCredentialListResponse, validateCredentialRecord } from './validation'
 
-function normalizeListPayload(data: unknown): CredentialsListResponse {
-  if (Array.isArray(data)) {
-    return { items: data as CredentialsListResponse['items'] }
-  }
-  if (
-    data &&
-    typeof data === 'object' &&
-    'items' in data &&
-    Array.isArray((data as CredentialsListResponse).items)
-  ) {
-    return data as CredentialsListResponse
-  }
-  return { items: [] }
+/**
+ * Fetch all credentials for the authenticated tenant.
+ *
+ * Spec: GET /credentials
+ * Response: CredentialListResponse (200) → { credentials: CredentialRecord[] }
+ *
+ * The response is validated against the OpenAPI contract before being returned.
+ */
+export async function getCredentials(): Promise<CredentialListResponse> {
+  const raw = await apiGet<unknown>('/credentials')
+  return validateCredentialListResponse(raw)
 }
 
-export async function getCredentials(): Promise<CredentialsListResponse> {
-  const data = await apiGet<unknown>('/credentials')
-  return normalizeListPayload(data)
-}
-
-export async function getCredentialById(id: string): Promise<CredentialDetail> {
-  return apiGet<CredentialDetail>(`/credentials/${encodeURIComponent(id)}`)
+/**
+ * Fetch a single credential by its internal wallet UUID.
+ *
+ * Spec: GET /credentials/{id}
+ * Response: CredentialRecord (200)
+ *
+ * The response is validated against the OpenAPI contract before being returned.
+ */
+export async function getCredentialById(id: string): Promise<CredentialRecord> {
+  const raw = await apiGet<unknown>(`/credentials/${encodeURIComponent(id)}`)
+  return validateCredentialRecord(raw)
 }

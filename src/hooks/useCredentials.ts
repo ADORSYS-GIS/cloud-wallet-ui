@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { getCredentials } from '../api/credentials'
-import type { CredentialSummary } from '../types/credential'
+import type { CredentialRecord } from '../types/credential'
 
 type CredentialsState = {
-  items: CredentialSummary[]
+  credentials: CredentialRecord[]
   loading: boolean
 }
 
 export function useCredentials(): CredentialsState {
-  const [items, setItems] = useState<CredentialSummary[]>([])
+  const [credentials, setCredentials] = useState<CredentialRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -17,12 +17,12 @@ export function useCredentials(): CredentialsState {
     getCredentials()
       .then((res) => {
         if (!cancelled) {
-          setItems(res.items)
+          setCredentials(res.credentials)
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setItems([])
+          setCredentials([])
         }
       })
       .finally(() => {
@@ -36,5 +36,5 @@ export function useCredentials(): CredentialsState {
     }
   }, [])
 
-  return { items, loading }
+  return { credentials, loading }
 }
