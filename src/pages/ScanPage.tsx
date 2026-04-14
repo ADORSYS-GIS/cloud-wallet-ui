@@ -241,7 +241,9 @@ export function ScanPage() {
                   className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
                 />
               </div>
-              <div className="text-base text-slate-700">{offerState.rawMessage || String(offerState.apiError)}</div>
+              <div className="text-base text-slate-700">
+                {offerState.rawMessage || String(offerState.apiError)}
+              </div>
               <button
                 type="button"
                 onClick={() => void startScan()}
