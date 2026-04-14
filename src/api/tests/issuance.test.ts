@@ -1,5 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { startIssuanceSession } from '../issuance'
+import { ApiError } from '../client'
+import { ContractError } from '../validation'
 import type { StartIssuanceResponse } from '../../types/issuance'
 
 // ---------------------------------------------------------------------------
@@ -63,7 +65,7 @@ describe('startIssuanceSession', () => {
     vi.restoreAllMocks()
   })
 
-  it('calls POST /issuance/start with { offer } body and returns session on success', async () => {
+  it('calls POST /issuance/start with { offer } body and returns validated session on success', async () => {
     const fetchMock = vi.fn(async () =>
       mockResponse({
         ok: true,
@@ -87,40 +89,39 @@ describe('startIssuanceSession', () => {
     expect(result).toEqual(minimalSession)
   })
 
-  it('throws when the server returns 400', async () => {
-    const fetchMock = vi.fn(async () =>
-      mockResponse({
-        ok: false,
-        status: 400,
-      })
-    )
+  it('throws ApiError when the server returns 400', async () => {
+    const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 400 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
     await expect(
       startIssuanceSession('openid-credential-offer://?credential_offer_uri=bad')
-    ).rejects.toThrow('Request failed with 400')
+    ).rejects.toThrow(ApiError)
 
     // Must NOT retry — no fallback GET
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('throws when the server returns 401', async () => {
+  it('throws ApiError when the server returns 401', async () => {
     const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 401 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
-    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
-      'Request failed with 401'
+    const err = await startIssuanceSession('openid-credential-offer://?x=y').catch(
+      (e) => e
     )
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).status).toBe(401)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('throws when the server returns 502', async () => {
+  it('throws ApiError when the server returns 502', async () => {
     const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 502 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
-    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
-      'Request failed with 502'
+    const err = await startIssuanceSession('openid-credential-offer://?x=y').catch(
+      (e) => e
     )
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).status).toBe(502)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -153,13 +154,46 @@ describe('startIssuanceSession', () => {
   })
 
   it('does not perform a GET fallback on any error status', async () => {
-    // Specifically guard against the old 405-fallback behaviour being reintroduced.
+    // Guard against the old 405-fallback behaviour being reintroduced.
     const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 405 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
-    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
-      'Request failed with 405'
+    const err = await startIssuanceSession('openid-credential-offer://?x=y').catch(
+      (e) => e
     )
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).status).toBe(405)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws ContractError when backend returns a response missing required fields', async () => {
+    // Server responded 201 OK but body is contract-violating (missing session_id)
+    const fetchMock = vi.fn(async () =>
+      mockResponse({
+        ok: true,
+        status: 201,
+        json: async () => ({ ...minimalSession, session_id: undefined }),
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
+      ContractError
+    )
+  })
+
+  it('throws ContractError when backend returns an unknown flow', async () => {
+    const fetchMock = vi.fn(async () =>
+      mockResponse({
+        ok: true,
+        status: 201,
+        json: async () => ({ ...minimalSession, flow: 'device_code' }),
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
+      ContractError
+    )
   })
 })
