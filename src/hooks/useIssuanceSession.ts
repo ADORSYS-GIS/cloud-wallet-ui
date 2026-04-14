@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { IssuanceError, startIssuanceSession } from '../api/issuance'
 import type { IssuanceApiError, StartIssuanceResponse } from '../types/issuance'
+import { useCredentialOfferState } from '../state/issuance.state'
 
 // ---------------------------------------------------------------------------
 // State machine types
@@ -54,46 +55,53 @@ export type UseIssuanceSessionReturn = {
 export function useIssuanceSession(): UseIssuanceSessionReturn {
   const [offerState, setOfferState] = useState<IssuanceOfferState>({ status: 'idle' })
 
-  const submitOffer = useCallback(async (rawOffer: string) => {
-    setOfferState({ status: 'loading' })
+  // Push outcomes into the shared context so other pages (e.g. CredentialsPage)
+  // can react to the successful issuance without prop drilling.
+  const offerContext = useCredentialOfferState()
 
-    try {
-      const session = await startIssuanceSession(rawOffer)
-      setOfferState({ status: 'success', session })
-    } catch (err: unknown) {
-      if (err instanceof IssuanceError) {
-        setOfferState({
-          status: 'error',
-          apiError: {
+  const submitOffer = useCallback(
+    async (rawOffer: string) => {
+      setOfferState({ status: 'loading' })
+      offerContext.setLoading()
+
+      try {
+        const session = await startIssuanceSession(rawOffer)
+        setOfferState({ status: 'success', session })
+        offerContext.setOffer(session)
+      } catch (err: unknown) {
+        if (err instanceof IssuanceError) {
+          const apiError: IssuanceApiError = {
             httpStatus: err.httpStatus,
             error: err.error,
             error_description: err.error_description,
-          },
-          rawMessage: userFacingMessage({
-            httpStatus: err.httpStatus,
-            error: err.error,
-            error_description: err.error_description,
-          }),
-        })
-      } else {
-        // Network-level failure (offline, DNS, etc.)
-        const message =
-          err instanceof Error && err.message
-            ? err.message
-            : 'Network error. Please check your connection and try again.'
+          }
+          const message = userFacingMessage(apiError)
+          setOfferState({ status: 'error', apiError, rawMessage: message })
+          offerContext.setError(apiError, message)
+        } else {
+          // Network-level failure (offline, DNS, etc.)
+          const message =
+            err instanceof Error && err.message
+              ? err.message
+              : 'Network error. Please check your connection and try again.'
 
-        setOfferState({
-          status: 'error',
-          apiError: { httpStatus: 0, error: 'internal_error', error_description: null },
-          rawMessage: message,
-        })
+          const apiError: IssuanceApiError = {
+            httpStatus: 0,
+            error: 'internal_error',
+            error_description: null,
+          }
+          setOfferState({ status: 'error', apiError, rawMessage: message })
+          offerContext.setError(apiError, message)
+        }
       }
-    }
-  }, [])
+    },
+    [offerContext]
+  )
 
   const reset = useCallback(() => {
     setOfferState({ status: 'idle' })
-  }, [])
+    offerContext.clear()
+  }, [offerContext])
 
   return { offerState, submitOffer, reset }
 }

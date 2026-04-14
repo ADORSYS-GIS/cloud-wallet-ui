@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { startIssuanceSession } from '../issuance'
+import { startIssuanceSession, IssuanceError } from '../issuance'
 import { ApiError } from '../client'
 import { ContractError } from '../validation'
 import type { StartIssuanceResponse } from '../../types/issuance'
@@ -81,7 +81,7 @@ describe('startIssuanceSession', () => {
     const result = await startIssuanceSession(rawOffer)
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledWith('http://api.test/issuance/start', {
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/issuance/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ offer: rawOffer }),
@@ -148,7 +148,8 @@ describe('startIssuanceSession', () => {
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
     const result = await startIssuanceSession('openid-credential-offer://?x=y')
-    expect(result).toEqual(minimalSession)
+    // Must return the actual session returned by the server, not the minimal fixture
+    expect(result).toEqual(sessionWithTxCode)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -194,5 +195,30 @@ describe('startIssuanceSession', () => {
     await expect(startIssuanceSession('openid-credential-offer://?x=y')).rejects.toThrow(
       ContractError
     )
+  })
+
+  it('IssuanceError exposes structured fields from IssuanceApiError', () => {
+    const err = new IssuanceError({
+      httpStatus: 400,
+      error: 'invalid_credential_offer',
+      error_description: 'The credential offer URI could not be parsed.',
+    })
+
+    expect(err).toBeInstanceOf(IssuanceError)
+    expect(err.httpStatus).toBe(400)
+    expect(err.error).toBe('invalid_credential_offer')
+    expect(err.error_description).toBe('The credential offer URI could not be parsed.')
+    expect(err.message).toBe('The credential offer URI could not be parsed.')
+    expect(err.name).toBe('IssuanceError')
+  })
+
+  it('IssuanceError falls back to error code as message when description is null', () => {
+    const err = new IssuanceError({
+      httpStatus: 502,
+      error: 'issuer_metadata_fetch_failed',
+      error_description: null,
+    })
+
+    expect(err.message).toBe('issuer_metadata_fetch_failed')
   })
 })

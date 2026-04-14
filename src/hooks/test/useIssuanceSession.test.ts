@@ -1,8 +1,10 @@
+import * as React from 'react'
 import { renderHook, act } from '@testing-library/react'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { useIssuanceSession } from '../../hooks/useIssuanceSession'
 import { IssuanceError } from '../../api/issuance'
 import type { StartIssuanceResponse } from '../../types/issuance'
+import { CredentialOfferProvider } from '../../state/issuance.state'
 
 // ---------------------------------------------------------------------------
 // Fixture
@@ -49,6 +51,10 @@ vi.mock('../../api/issuance', async (importOriginal) => {
 import { startIssuanceSession } from '../../api/issuance'
 const mockStart = vi.mocked(startIssuanceSession)
 
+// Wrap every renderHook call in the required context provider.
+const wrapper = ({ children }: { children: React.ReactNode }) =>
+  React.createElement(CredentialOfferProvider, null, children)
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -63,14 +69,14 @@ describe('useIssuanceSession', () => {
   })
 
   it('starts idle', () => {
-    const { result } = renderHook(() => useIssuanceSession())
+    const { result } = renderHook(() => useIssuanceSession(), { wrapper })
     expect(result.current.offerState.status).toBe('idle')
   })
 
   it('transitions to success with session on valid offer', async () => {
     mockStart.mockResolvedValueOnce(minimalSession)
 
-    const { result } = renderHook(() => useIssuanceSession())
+    const { result } = renderHook(() => useIssuanceSession(), { wrapper })
 
     await act(async () => {
       await result.current.submitOffer('openid-credential-offer://?x=y')
@@ -91,7 +97,7 @@ describe('useIssuanceSession', () => {
       })
     )
 
-    const { result } = renderHook(() => useIssuanceSession())
+    const { result } = renderHook(() => useIssuanceSession(), { wrapper })
 
     await act(async () => {
       await result.current.submitOffer('openid-credential-offer://?x=y')
@@ -116,7 +122,7 @@ describe('useIssuanceSession', () => {
       })
     )
 
-    const { result } = renderHook(() => useIssuanceSession())
+    const { result } = renderHook(() => useIssuanceSession(), { wrapper })
 
     await act(async () => {
       await result.current.submitOffer('openid-credential-offer://?x=y')
@@ -131,7 +137,7 @@ describe('useIssuanceSession', () => {
   it('handles network error (non-IssuanceError) gracefully', async () => {
     mockStart.mockRejectedValueOnce(new TypeError('Failed to fetch'))
 
-    const { result } = renderHook(() => useIssuanceSession())
+    const { result } = renderHook(() => useIssuanceSession(), { wrapper })
 
     await act(async () => {
       await result.current.submitOffer('openid-credential-offer://?x=y')
@@ -147,7 +153,7 @@ describe('useIssuanceSession', () => {
   it('resets to idle after reset() is called', async () => {
     mockStart.mockResolvedValueOnce(minimalSession)
 
-    const { result } = renderHook(() => useIssuanceSession())
+    const { result } = renderHook(() => useIssuanceSession(), { wrapper })
 
     await act(async () => {
       await result.current.submitOffer('openid-credential-offer://?x=y')
@@ -169,7 +175,7 @@ describe('useIssuanceSession', () => {
       })
     )
 
-    const { result } = renderHook(() => useIssuanceSession())
+    const { result } = renderHook(() => useIssuanceSession(), { wrapper })
 
     await act(async () => {
       await result.current.submitOffer('openid-credential-offer://?x=y')
