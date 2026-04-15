@@ -4,9 +4,15 @@ import { registerTenant, storeTenantId, getStoredTenantId } from '../tenant'
 const store: Record<string, string> = {}
 const localStorageMock = {
   getItem: vi.fn((key: string) => store[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => { store[key] = value }),
-  removeItem: vi.fn((key: string) => { delete store[key] }),
-  clear: vi.fn(() => { for (const k of Object.keys(store)) delete store[k] }),
+  setItem: vi.fn((key: string, value: string) => {
+    store[key] = value
+  }),
+  removeItem: vi.fn((key: string) => {
+    delete store[key]
+  }),
+  clear: vi.fn(() => {
+    for (const k of Object.keys(store)) delete store[k]
+  }),
 }
 
 beforeEach(() => {
@@ -35,7 +41,10 @@ describe('storeTenantId / getStoredTenantId', () => {
 
 describe('registerTenant', () => {
   it('POSTs to /tenants with the given name and returns the response', async () => {
-    const mockResponse = { tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'DATEV Cloud Wallet' }
+    const mockResponse = {
+      tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      name: 'DATEV Cloud Wallet',
+    }
     const fetchMock = vi.fn(async () => ({
       ok: true,
       status: 201,
@@ -69,7 +78,11 @@ describe('registerTenant', () => {
   })
 
   it('throws on non-2xx response', async () => {
-    const fetchMock = vi.fn(async () => ({ ok: false, status: 400, json: async () => ({}) }))
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({}),
+    }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
     await expect(registerTenant('Test')).rejects.toThrow('400')

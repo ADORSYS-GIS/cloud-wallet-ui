@@ -89,10 +89,7 @@ export async function getBearerToken(): Promise<string> {
     return cachedToken.token
   }
 
-  const [tenantId, keyPair] = await Promise.all([
-    initAuth(),
-    ensureKeyPair(),
-  ])
+  const [tenantId, keyPair] = await Promise.all([initAuth(), ensureKeyPair()])
 
   const issuedAt = Math.floor(Date.now() / 1000)
   const token = await createJwt(tenantId, keyPair, TOKEN_TTL_SECONDS)
@@ -109,4 +106,4 @@ export function resetAuthState(): void {
   cachedToken = null
   initPromise = null
   keyPairPromise = null
-}       
+}

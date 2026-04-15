@@ -76,7 +76,9 @@ describe('createJwt', () => {
     const kp = await getOrCreateKeyPair()
     const token = await createJwt('tenant-abc', kp)
     const [headerB64] = token.split('.')
-    const header = JSON.parse(atob(headerB64.replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>
+    const header = JSON.parse(
+      atob(headerB64.replace(/-/g, '+').replace(/_/g, '/'))
+    ) as Record<string, unknown>
     expect(header.alg).toBe('ES256')
     expect(header.typ).toBe('JWT')
     expect(header.jwk).toMatchObject({ kty: 'EC', crv: 'P-256' })
@@ -89,7 +91,9 @@ describe('createJwt', () => {
     const before = Math.floor(Date.now() / 1000)
     const token = await createJwt('tenant-xyz', kp, 1800)
     const [, payloadB64] = token.split('.')
-    const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>
+    const payload = JSON.parse(
+      atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'))
+    ) as Record<string, unknown>
     expect(payload.sub).toBe('tenant-xyz')
     expect(typeof payload.iat).toBe('number')
     expect(typeof payload.exp).toBe('number')
@@ -104,7 +108,9 @@ describe('createJwt', () => {
     const signingInput = `${headerB64}.${payloadB64}`
 
     // Re-pad base64url to standard base64
-    const pad = (s: string) => s.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((s.length + 4) % 4 === 0 ? 4 : (s.length + 4) % 4)
+    const pad = (s: string) =>
+      s.replace(/-/g, '+').replace(/_/g, '/') +
+      '=='.slice((s.length + 4) % 4 === 0 ? 4 : (s.length + 4) % 4)
     const sigBytes = Uint8Array.from(atob(pad(sigB64)), (c) => c.charCodeAt(0))
 
     const pubKey = await crypto.subtle.importKey(

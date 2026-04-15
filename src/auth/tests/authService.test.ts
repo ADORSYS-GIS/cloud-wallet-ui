@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// Mock dependencies before importing authService
-// ---------------------------------------------------------------------------
-
 vi.mock('../crypto', () => ({
   getOrCreateKeyPair: vi.fn(async () => ({
     privateKeyJwk: { kty: 'EC' },
@@ -39,10 +35,6 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-// ---------------------------------------------------------------------------
-// initAuth
-// ---------------------------------------------------------------------------
-
 describe('initAuth', () => {
   it('registers a new tenant when no tenant_id is stored', async () => {
     mockGetStored.mockReturnValue(null)
@@ -73,10 +65,6 @@ describe('initAuth', () => {
     expect(mockRegister).toHaveBeenCalledOnce()
   })
 })
-
-// ---------------------------------------------------------------------------
-// getBearerToken
-// ---------------------------------------------------------------------------
 
 describe('getBearerToken', () => {
   it('returns a token string', async () => {
@@ -120,10 +108,6 @@ describe('getBearerToken', () => {
     expect(mockCreateJwt).toHaveBeenCalledTimes(2)
   })
 })
-
-// ---------------------------------------------------------------------------
-// resetAuthState
-// ---------------------------------------------------------------------------
 
 describe('resetAuthState', () => {
   it('forces re-registration on next initAuth call', async () => {
