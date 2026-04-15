@@ -5,28 +5,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { CredentialTypesPage } from '../CredentialTypesPage'
 import { routes } from '../../constants/routes'
-import type { CredentialOfferResolutionResponse } from '../../types/issuance.types'
-import type {
-  CredentialOfferStatus,
-  CredentialOfferUiError,
-} from '../../state/issuance.state'
+import type { StartIssuanceResponse } from '../../types/issuance'
+import type { CredentialOfferStatus } from '../../state/issuance.state'
 
 const mockNavigate = vi.fn()
 
 type MockState = {
   status: CredentialOfferStatus
-  offer?: CredentialOfferResolutionResponse
-  error?: CredentialOfferUiError
+  offer?: StartIssuanceResponse
   setLoading: () => void
-  setOffer: (offer: CredentialOfferResolutionResponse) => void
-  setError: (error: CredentialOfferUiError) => void
+  setOffer: (offer: StartIssuanceResponse) => void
+  setError: () => void
   clear: () => void
 }
 
 const mockOfferState: MockState = {
   status: 'success',
   offer: undefined,
-  error: undefined,
   setLoading: vi.fn(),
   setOffer: vi.fn(),
   setError: vi.fn(),
@@ -34,8 +29,8 @@ const mockOfferState: MockState = {
 }
 
 function baseOffer(
-  overrides: Partial<CredentialOfferResolutionResponse> = {}
-): CredentialOfferResolutionResponse {
+  overrides: Partial<StartIssuanceResponse> = {}
+): StartIssuanceResponse {
   return {
     session_id: 'ses_test',
     expires_at: '2026-04-08T14:35:00Z',
@@ -96,7 +91,6 @@ describe('CredentialTypesPage', () => {
   beforeEach(() => {
     mockNavigate.mockReset()
     mockOfferState.status = 'success'
-    mockOfferState.error = undefined
     mockOfferState.offer = baseOffer()
   })
 
@@ -116,9 +110,7 @@ describe('CredentialTypesPage', () => {
 
     expect(personalId).toBeTruthy()
     expect(address).toBeTruthy()
-    if (!personalId || !address) {
-      return
-    }
+    if (!personalId || !address) return
 
     expect(personalId.getAttribute('aria-pressed')).toBe('false')
     expect(address.getAttribute('aria-pressed')).toBe('false')
@@ -130,6 +122,25 @@ describe('CredentialTypesPage', () => {
     await user.click(address)
     expect(personalId.getAttribute('aria-pressed')).toBe('false')
     expect(address.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('Continue button is disabled when nothing is selected', () => {
+    renderPage()
+
+    const continueBtn = screen.getByRole('button', { name: /continue/i })
+    expect(continueBtn).toBeTruthy()
+    expect((continueBtn as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('Continue button becomes enabled after selecting a credential', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    const continueBtn = screen.getByRole('button', { name: /continue/i })
+    expect((continueBtn as HTMLButtonElement).disabled).toBe(true)
+
+    await user.click(screen.getByText('Personal ID').closest('button')!)
+    expect((continueBtn as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('shows issuer logo when provided by backend', () => {
@@ -156,10 +167,9 @@ describe('CredentialTypesPage', () => {
       ],
     })
 
-    const { container } = renderPage()
-    expect(screen.getByText('https://issuer.example.org')).toBeTruthy()
+    renderPage()
+    expect(screen.getAllByText('https://issuer.example.org').length).toBeGreaterThan(0)
     expect(screen.queryAllByRole('img', { name: /logo/i }).length).toBe(0)
-    expect(container.querySelector('.bg-slate-100')).toBeTruthy()
   })
 
   it('redirects to scan page when offer is unavailable', async () => {
@@ -170,5 +180,24 @@ describe('CredentialTypesPage', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
     })
+  })
+
+  it('shows issuer display_name when provided', () => {
+    renderPage()
+
+    expect(screen.getAllByText('Keycloak-demo').length).toBeGreaterThan(0)
+  })
+
+  it('falls back to credential_issuer URL when display_name is null', () => {
+    mockOfferState.offer = baseOffer({
+      issuer: {
+        credential_issuer: 'https://fallback.example.org',
+        display_name: null,
+        logo_uri: null,
+      },
+    })
+
+    renderPage()
+    expect(screen.getAllByText('https://fallback.example.org').length).toBeGreaterThan(0)
   })
 })

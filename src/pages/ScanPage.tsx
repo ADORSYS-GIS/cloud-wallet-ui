@@ -106,13 +106,9 @@ export function ScanPage() {
       setIsScannerActive(false)
       setScanStatus('idle')
       if (error instanceof DOMException && error.name === 'NotAllowedError') {
-        const message = 'Camera permission denied. Please allow camera access and retry.'
-        setFeedbackMessage(message)
-        offerState.setError({
-          kind: 'unknown',
-          message,
-          retryable: true,
-        })
+        setFeedbackMessage(
+          'Camera permission denied. Please allow camera access and retry.'
+        )
         return
       }
       setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
@@ -125,12 +121,8 @@ export function ScanPage() {
 
   useEffect(() => {
     let mounted = true
-    const isFreshScan = searchParams.get('fresh') === 'true'
-    const isPreviewOffer = searchParams.get('previewOffer') === 'true'
     const errorReason = searchParams.get('error')
-    if (isFreshScan) {
-      navigate(routes.scan, { replace: true })
-    }
+
     if (errorReason === 'empty-options') {
       setIsInitializing(false)
       setIsScannerActive(false)
@@ -139,41 +131,6 @@ export function ScanPage() {
         'No credential options were returned for this offer. Please scan again.'
       )
       resetOffer()
-      return () => {
-        mounted = false
-      }
-    }
-    if (isPreviewOffer) {
-      // TODO(#94-cleanup): Remove previewOffer mock path once backend issuance APIs are ready.
-      setIsInitializing(false)
-      setIsScannerActive(false)
-      setScanStatus('success')
-      setFeedbackMessage('Credential offer resolved successfully.')
-      offerState.setOffer({
-        session_id: 'preview_ses',
-        expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        issuer: {
-          credential_issuer: 'https://issuer.example.org',
-          display_name: 'Keycloak-demo',
-          logo_uri: null,
-        },
-        credential_types: [
-          {
-            credential_configuration_id: 'identity_credential',
-            format: 'vc+sd-jwt',
-            display: { name: 'Identity Credential' },
-          },
-          {
-            credential_configuration_id: 'address_credential',
-            format: 'vc+sd-jwt',
-            display: { name: 'Address Credential' },
-          },
-        ],
-        flow: 'pre_authorized_code',
-        tx_code_required: false,
-        tx_code: null,
-      })
-      navigate(routes.credentialTypes)
       return () => {
         mounted = false
       }
@@ -198,6 +155,13 @@ export function ScanPage() {
       readerRef.current = null
     }
   }, [])
+
+  // After a successful offer submission, navigate to credential types
+  useEffect(() => {
+    if (offerState.status === 'success' && scanStatus === 'done') {
+      navigate(routes.credentialTypes)
+    }
+  }, [offerState.status, scanStatus, navigate])
 
   // ---------------------------------------------------------------------------
   // Camera swap
@@ -233,9 +197,8 @@ export function ScanPage() {
   // ---------------------------------------------------------------------------
 
   const handleAccept = () => {
-    // Consent & next steps are handled in a future ticket.
-    // For now we navigate to credentials as a placeholder.
-    navigate(routes.credentials)
+    // Navigate to credential type selection — user picks which credential to accept.
+    navigate(routes.credentialTypes)
   }
 
   const handleDecline = () => {
@@ -263,7 +226,7 @@ export function ScanPage() {
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        {/* Fullscreen loading and error overlays */}
+        {/* Fullscreen loading overlay */}
         {showFullscreenStatus && offerState.status === 'loading' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <div className="flex flex-col items-center px-6 text-center">
@@ -282,6 +245,8 @@ export function ScanPage() {
             </div>
           </div>
         )}
+
+        {/* Fullscreen error overlay */}
         {showFullscreenStatus && offerState.status === 'error' && offerState.apiError && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <div className="flex flex-col items-center px-6 text-center">
@@ -345,9 +310,7 @@ export function ScanPage() {
           />
           {!isScannerActive && <div className="h-full w-full bg-[#E9ECEF]" />}
 
-          {/* ----------------------------------------------------------------
-              Processing spinner — shown while waiting for API response
-          ---------------------------------------------------------------- */}
+          {/* Processing spinner */}
           {showSpinner && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/30">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
@@ -355,9 +318,7 @@ export function ScanPage() {
             </div>
           )}
 
-          {/* ----------------------------------------------------------------
-              Credential offer card — success state
-          ---------------------------------------------------------------- */}
+          {/* Credential offer card — success state */}
           {showOfferCard && offerState.status === 'success' && (
             <CredentialOfferCard
               session={offerState.session}
@@ -366,9 +327,7 @@ export function ScanPage() {
             />
           )}
 
-          {/* ----------------------------------------------------------------
-              Error card — fallback error UI
-          ---------------------------------------------------------------- */}
+          {/* Error card — fallback error UI */}
           {showErrorCard && offerState.status === 'error' && (
             <IssuanceErrorCard
               apiError={offerState.apiError}
@@ -378,9 +337,7 @@ export function ScanPage() {
             />
           )}
 
-          {/* ----------------------------------------------------------------
-              Camera swap button
-          ---------------------------------------------------------------- */}
+          {/* Camera swap button */}
           {isScannerActive && scanStatus === 'scanning' && (
             <button
               type="button"
@@ -396,9 +353,7 @@ export function ScanPage() {
             </button>
           )}
 
-          {/* ----------------------------------------------------------------
-              Invalid QR retry — inline feedback when QR is malformed
-          ---------------------------------------------------------------- */}
+          {/* Invalid QR retry */}
           {scanStatus === 'idle' &&
             feedbackMessage.startsWith('Invalid') &&
             !showErrorCard && (
