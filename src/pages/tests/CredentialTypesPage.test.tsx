@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -61,10 +61,7 @@ function baseOffer(
 vi.mock('react-router-dom', async () => {
   const actual =
     await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  }
+  return { ...actual, useNavigate: () => mockNavigate }
 })
 
 vi.mock('../../state/issuance.state', () => ({
@@ -84,9 +81,7 @@ function renderPage() {
 }
 
 describe('CredentialTypesPage', () => {
-  afterEach(() => {
-    cleanup()
-  })
+  afterEach(() => cleanup())
 
   beforeEach(() => {
     mockNavigate.mockReset()
@@ -94,68 +89,124 @@ describe('CredentialTypesPage', () => {
     mockOfferState.offer = baseOffer()
   })
 
+  // ---------------------------------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------------------------------
+
   it('renders credential options from credential_types', () => {
     renderPage()
-
     expect(screen.getByText('Personal ID')).toBeTruthy()
     expect(screen.getByText('Address Credential')).toBeTruthy()
   })
 
-  it('allows selecting exactly one credential option visually', async () => {
+  it('renders backend-supplied background_color and text_color via CSS custom properties', () => {
+    mockOfferState.offer = baseOffer({
+      credential_types: [
+        {
+          credential_configuration_id: 'pid',
+          format: 'vc+sd-jwt',
+          display: {
+            name: 'Personal ID',
+            background_color: '#12107c',
+            text_color: '#ffffff',
+          },
+        },
+      ],
+    })
+
+    const { container } = renderPage()
+
+    // The pill div should carry --pill-bg and --pill-fg custom properties
+    const pillDiv = container.querySelector('[style*="--pill-bg"]')
+    expect(pillDiv).not.toBeNull()
+    const style = (pillDiv as HTMLElement).getAttribute('style') ?? ''
+    expect(style).toContain('--pill-bg: #12107c')
+    expect(style).toContain('--pill-fg: #ffffff')
+  })
+
+  it('renders the credential format badge', () => {
+    renderPage()
+    // Both cards render their format
+    const badges = screen.getAllByText('vc+sd-jwt')
+    expect(badges.length).toBe(2)
+  })
+
+  // ---------------------------------------------------------------------------
+  // Selection
+  // ---------------------------------------------------------------------------
+
+  it('allows selecting exactly one credential option', async () => {
     const user = userEvent.setup()
     renderPage()
 
     const personalId = screen.getByText('Personal ID').closest('button')
     const address = screen.getByText('Address Credential').closest('button')
 
-    expect(personalId).toBeTruthy()
-    expect(address).toBeTruthy()
-    if (!personalId || !address) return
+    expect(personalId?.getAttribute('aria-pressed')).toBe('false')
+    expect(address?.getAttribute('aria-pressed')).toBe('false')
 
-    expect(personalId.getAttribute('aria-pressed')).toBe('false')
-    expect(address.getAttribute('aria-pressed')).toBe('false')
+    await user.click(personalId!)
+    expect(personalId?.getAttribute('aria-pressed')).toBe('true')
+    expect(address?.getAttribute('aria-pressed')).toBe('false')
 
-    await user.click(personalId)
-    expect(personalId.getAttribute('aria-pressed')).toBe('true')
-    expect(address.getAttribute('aria-pressed')).toBe('false')
-
-    await user.click(address)
-    expect(personalId.getAttribute('aria-pressed')).toBe('false')
-    expect(address.getAttribute('aria-pressed')).toBe('true')
+    await user.click(address!)
+    expect(personalId?.getAttribute('aria-pressed')).toBe('false')
+    expect(address?.getAttribute('aria-pressed')).toBe('true')
   })
 
   it('Continue button is disabled when nothing is selected', () => {
     renderPage()
-
-    const continueBtn = screen.getByRole('button', { name: /continue/i })
-    expect(continueBtn).toBeTruthy()
-    expect((continueBtn as HTMLButtonElement).disabled).toBe(true)
+    const btn = screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement
+    expect(btn.disabled).toBe(true)
   })
 
   it('Continue button becomes enabled after selecting a credential', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    const continueBtn = screen.getByRole('button', { name: /continue/i })
-    expect((continueBtn as HTMLButtonElement).disabled).toBe(true)
-
+    const btn = screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement
+    expect(btn.disabled).toBe(true)
     await user.click(screen.getByText('Personal ID').closest('button')!)
-    expect((continueBtn as HTMLButtonElement).disabled).toBe(false)
+    expect(btn.disabled).toBe(false)
+  })
+
+  // ---------------------------------------------------------------------------
+  // Issuer display
+  // ---------------------------------------------------------------------------
+
+  it('shows issuer display_name when provided', () => {
+    renderPage()
+    expect(screen.getAllByText('Keycloak-demo').length).toBeGreaterThan(0)
+  })
+
+  it('falls back to hostname (not raw URL) when display_name is null', () => {
+    mockOfferState.offer = baseOffer({
+      issuer: {
+        credential_issuer: 'https://fallback.example.org',
+        display_name: null,
+        logo_uri: null,
+      },
+    })
+    renderPage()
+    // Should show host, not the full "https://..." URL as initials source
+    expect(screen.getAllByText('fallback.example.org').length).toBeGreaterThan(0)
+    // Initials should be "FA" not "HT"
+    const initials = screen.getAllByText('FA')
+    expect(initials.length).toBeGreaterThan(0)
   })
 
   it('shows issuer logo when provided by backend', () => {
     renderPage()
-
     const logos = screen.getAllByRole('img', { name: /Keycloak-demo logo/i })
     expect(logos.length).toBeGreaterThan(0)
     expect(logos[0]?.getAttribute('src')).toBe('https://issuer.example.org/logo.png')
   })
 
-  it('shows safe fallback when issuer logo is missing', () => {
+  it('shows initials placeholder when logo_uri is null', () => {
     mockOfferState.offer = baseOffer({
       issuer: {
         credential_issuer: 'https://issuer.example.org',
-        display_name: null,
+        display_name: 'My Issuer',
         logo_uri: null,
       },
       credential_types: [
@@ -166,38 +217,61 @@ describe('CredentialTypesPage', () => {
         },
       ],
     })
+    renderPage()
+    expect(screen.queryAllByRole('img', { name: /logo/i }).length).toBe(0)
+    // "MY" initials rendered
+    expect(screen.getAllByText('MY').length).toBeGreaterThan(0)
+  })
+
+  it('swaps logo to initials placeholder when logo URL is present but image fails to load', async () => {
+    mockOfferState.offer = baseOffer({
+      issuer: {
+        credential_issuer: 'https://issuer.example.org',
+        display_name: 'Keycloak-demo',
+        logo_uri: 'https://issuer.example.org/broken.png',
+      },
+      credential_types: [
+        {
+          credential_configuration_id: 'pid',
+          format: 'vc+sd-jwt',
+          display: { name: 'Personal ID' },
+        },
+      ],
+    })
 
     renderPage()
-    expect(screen.getAllByText('https://issuer.example.org').length).toBeGreaterThan(0)
-    expect(screen.queryAllByRole('img', { name: /logo/i }).length).toBe(0)
+
+    // Trigger onError on every img with the broken src
+    const imgs = screen.getAllByRole('img', { name: /Keycloak-demo logo/i })
+    expect(imgs.length).toBeGreaterThan(0)
+    imgs.forEach((img) => fireEvent.error(img))
+
+    // After error, images should be gone and initials placeholder shown
+    await waitFor(() => {
+      expect(screen.queryAllByRole('img', { name: /Keycloak-demo logo/i }).length).toBe(0)
+    })
+    expect(screen.getAllByText('KE').length).toBeGreaterThan(0)
   })
+
+  // ---------------------------------------------------------------------------
+  // Guards / redirects
+  // ---------------------------------------------------------------------------
 
   it('redirects to scan page when offer is unavailable', async () => {
     mockOfferState.offer = undefined
-
     renderPage()
-
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
     })
   })
 
-  it('shows issuer display_name when provided', () => {
+  it('redirects to scan with ?error=empty-options when credential_types is empty', async () => {
+    mockOfferState.offer = baseOffer({ credential_types: [] })
     renderPage()
-
-    expect(screen.getAllByText('Keycloak-demo').length).toBeGreaterThan(0)
-  })
-
-  it('falls back to credential_issuer URL when display_name is null', () => {
-    mockOfferState.offer = baseOffer({
-      issuer: {
-        credential_issuer: 'https://fallback.example.org',
-        display_name: null,
-        logo_uri: null,
-      },
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(`${routes.scan}?error=empty-options`, {
+        replace: true,
+      })
     })
-
-    renderPage()
-    expect(screen.getAllByText('https://fallback.example.org').length).toBeGreaterThan(0)
   })
 })

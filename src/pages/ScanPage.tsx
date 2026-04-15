@@ -124,15 +124,20 @@ export function ScanPage() {
     const errorReason = searchParams.get('error')
 
     if (errorReason === 'empty-options') {
+      // Show the message briefly then resume scanning so the user is not
+      // stranded on a blank non-scanning screen with no recovery affordance.
       setIsInitializing(false)
-      setIsScannerActive(false)
-      setScanStatus('idle')
+      resetOffer()
       setFeedbackMessage(
         'No credential options were returned for this offer. Please scan again.'
       )
-      resetOffer()
+      const timer = window.setTimeout(() => {
+        if (!mounted) return
+        void startScan()
+      }, 220)
       return () => {
         mounted = false
+        window.clearTimeout(timer)
       }
     }
 
@@ -155,13 +160,6 @@ export function ScanPage() {
       readerRef.current = null
     }
   }, [])
-
-  // After a successful offer submission, navigate to credential types
-  useEffect(() => {
-    if (offerState.status === 'success' && scanStatus === 'done') {
-      navigate(routes.credentialTypes)
-    }
-  }, [offerState.status, scanStatus, navigate])
 
   // ---------------------------------------------------------------------------
   // Camera swap
@@ -188,16 +186,17 @@ export function ScanPage() {
     offerState.status === 'loading' ||
     (offerState.status === 'error' && !!offerState.apiError)
 
+  // The offer card is the only success path. There is no competing useEffect
+  // that auto-navigates away — the user must explicitly tap Accept.
   const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
   const showErrorCard = scanStatus === 'done' && offerState.status === 'error'
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
 
   // ---------------------------------------------------------------------------
-  // Handlers from offer card
+  // Handlers
   // ---------------------------------------------------------------------------
 
   const handleAccept = () => {
-    // Navigate to credential type selection — user picks which credential to accept.
     navigate(routes.credentialTypes)
   }
 
@@ -318,7 +317,7 @@ export function ScanPage() {
             </div>
           )}
 
-          {/* Credential offer card — success state */}
+          {/* Credential offer card — single success path, user must tap Accept */}
           {showOfferCard && offerState.status === 'success' && (
             <CredentialOfferCard
               session={offerState.session}
@@ -327,7 +326,7 @@ export function ScanPage() {
             />
           )}
 
-          {/* Error card — fallback error UI */}
+          {/* Error card */}
           {showErrorCard && offerState.status === 'error' && (
             <IssuanceErrorCard
               apiError={offerState.apiError}
