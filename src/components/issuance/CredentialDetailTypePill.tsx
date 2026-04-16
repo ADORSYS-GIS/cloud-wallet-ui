@@ -1,15 +1,5 @@
 import React from 'react'
 
-// ---------------------------------------------------------------------------
-// CredentialTypePill
-//
-// Shared primitive used by both CredentialOfferCard and CredentialTypesPage.
-// Renders a coloured credential banner using CSS custom properties so that
-// Tailwind's JIT scanner sees static class names while backend-supplied colors
-// are piped in via variables — no dynamic string interpolation in class names,
-// no direct CSS properties in style props.
-// ---------------------------------------------------------------------------
-
 type CredentialTypePillProps = {
   name: string
   backgroundColor?: string

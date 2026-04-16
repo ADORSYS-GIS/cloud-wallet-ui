@@ -1,16 +1,5 @@
 import { useState } from 'react'
 
-// ---------------------------------------------------------------------------
-// IssuerAvatar
-//
-// Shared primitive used by both CredentialOfferCard and CredentialTypesPage.
-// Renders the issuer logo when available; falls back to initials derived from
-// the display name (never from a raw URL).
-//
-// When a logo_uri is present but the image fails to load, the component
-// switches to the initials placeholder rather than leaving an empty gap.
-// ---------------------------------------------------------------------------
-
 type IssuerAvatarSize = 'sm' | 'md'
 
 const SIZE_CLASSES: Record<IssuerAvatarSize, string> = {
