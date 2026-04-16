@@ -1,6 +1,7 @@
 export const routes = {
   home: '/',
   scan: '/scan',
+  credentialTypes: '/credential-types',
   credentials: '/credentials',
 } as const
 

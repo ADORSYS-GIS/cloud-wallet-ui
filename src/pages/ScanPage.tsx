@@ -121,9 +121,24 @@ export function ScanPage() {
 
   useEffect(() => {
     let mounted = true
-    const isFreshScan = searchParams.get('fresh') === 'true'
-    if (isFreshScan) {
-      navigate(routes.scan, { replace: true })
+    const errorReason = searchParams.get('error')
+
+    if (errorReason === 'empty-options') {
+      // Show the message briefly then resume scanning so the user is not
+      // stranded on a blank non-scanning screen with no recovery affordance.
+      setIsInitializing(false)
+      resetOffer()
+      setFeedbackMessage(
+        'No credential options were returned for this offer. Please scan again.'
+      )
+      const timer = window.setTimeout(() => {
+        if (!mounted) return
+        void startScan()
+      }, 220)
+      return () => {
+        mounted = false
+        window.clearTimeout(timer)
+      }
     }
 
     const timer = window.setTimeout(() => {
@@ -171,18 +186,18 @@ export function ScanPage() {
     offerState.status === 'loading' ||
     (offerState.status === 'error' && !!offerState.apiError)
 
+  // The offer card is the only success path. There is no competing useEffect
+  // that auto-navigates away — the user must explicitly tap Accept.
   const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
   const showErrorCard = scanStatus === 'done' && offerState.status === 'error'
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
 
   // ---------------------------------------------------------------------------
-  // Handlers from offer card
+  // Handlers
   // ---------------------------------------------------------------------------
 
   const handleAccept = () => {
-    // Consent & next steps are handled in a future ticket.
-    // For now we navigate to credentials as a placeholder.
-    navigate(routes.credentials)
+    navigate(routes.credentialTypes)
   }
 
   const handleDecline = () => {
@@ -210,7 +225,7 @@ export function ScanPage() {
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        {/* Fullscreen loading and error overlays */}
+        {/* Fullscreen loading overlay */}
         {showFullscreenStatus && offerState.status === 'loading' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <div className="flex flex-col items-center px-6 text-center">
@@ -229,6 +244,8 @@ export function ScanPage() {
             </div>
           </div>
         )}
+
+        {/* Fullscreen error overlay */}
         {showFullscreenStatus && offerState.status === 'error' && offerState.apiError && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <div className="flex flex-col items-center px-6 text-center">
@@ -292,9 +309,7 @@ export function ScanPage() {
           />
           {!isScannerActive && <div className="h-full w-full bg-[#E9ECEF]" />}
 
-          {/* ----------------------------------------------------------------
-              Processing spinner — shown while waiting for API response
-          ---------------------------------------------------------------- */}
+          {/* Processing spinner */}
           {showSpinner && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/30">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
@@ -302,9 +317,7 @@ export function ScanPage() {
             </div>
           )}
 
-          {/* ----------------------------------------------------------------
-              Credential offer card — success state
-          ---------------------------------------------------------------- */}
+          {/* Credential offer card — single success path, user must tap Accept */}
           {showOfferCard && offerState.status === 'success' && (
             <CredentialOfferCard
               session={offerState.session}
@@ -313,9 +326,7 @@ export function ScanPage() {
             />
           )}
 
-          {/* ----------------------------------------------------------------
-              Error card — fallback error UI
-          ---------------------------------------------------------------- */}
+          {/* Error card */}
           {showErrorCard && offerState.status === 'error' && (
             <IssuanceErrorCard
               apiError={offerState.apiError}
@@ -325,9 +336,7 @@ export function ScanPage() {
             />
           )}
 
-          {/* ----------------------------------------------------------------
-              Camera swap button
-          ---------------------------------------------------------------- */}
+          {/* Camera swap button */}
           {isScannerActive && scanStatus === 'scanning' && (
             <button
               type="button"
@@ -343,9 +352,7 @@ export function ScanPage() {
             </button>
           )}
 
-          {/* ----------------------------------------------------------------
-              Invalid QR retry — inline feedback when QR is malformed
-          ---------------------------------------------------------------- */}
+          {/* Invalid QR retry */}
           {scanStatus === 'idle' &&
             feedbackMessage.startsWith('Invalid') &&
             !showErrorCard && (
