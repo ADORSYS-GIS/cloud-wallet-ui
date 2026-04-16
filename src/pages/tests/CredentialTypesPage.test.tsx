@@ -89,10 +89,6 @@ describe('CredentialTypesPage', () => {
     mockOfferState.offer = baseOffer()
   })
 
-  // ---------------------------------------------------------------------------
-  // Rendering
-  // ---------------------------------------------------------------------------
-
   it('renders credential options from credential_types', () => {
     renderPage()
     expect(screen.getByText('Personal ID')).toBeTruthy()
@@ -131,10 +127,6 @@ describe('CredentialTypesPage', () => {
     expect(badges.length).toBe(2)
   })
 
-  // ---------------------------------------------------------------------------
-  // Selection
-  // ---------------------------------------------------------------------------
-
   it('allows selecting exactly one credential option', async () => {
     const user = userEvent.setup()
     renderPage()
@@ -170,10 +162,6 @@ describe('CredentialTypesPage', () => {
     expect(btn.disabled).toBe(false)
   })
 
-  // ---------------------------------------------------------------------------
-  // Issuer display
-  // ---------------------------------------------------------------------------
-
   it('shows issuer display_name when provided', () => {
     renderPage()
     expect(screen.getAllByText('Keycloak-demo').length).toBeGreaterThan(0)
@@ -188,7 +176,6 @@ describe('CredentialTypesPage', () => {
       },
     })
     renderPage()
-    // Should show host, not the full "https://..." URL as initials source
     expect(screen.getAllByText('fallback.example.org').length).toBeGreaterThan(0)
     // Initials should be "FA" not "HT"
     const initials = screen.getAllByText('FA')
@@ -219,7 +206,6 @@ describe('CredentialTypesPage', () => {
     })
     renderPage()
     expect(screen.queryAllByRole('img', { name: /logo/i }).length).toBe(0)
-    // "MY" initials rendered
     expect(screen.getAllByText('MY').length).toBeGreaterThan(0)
   })
 
@@ -252,10 +238,6 @@ describe('CredentialTypesPage', () => {
     })
     expect(screen.getAllByText('KE').length).toBeGreaterThan(0)
   })
-
-  // ---------------------------------------------------------------------------
-  // Guards / redirects
-  // ---------------------------------------------------------------------------
 
   it('redirects to scan page when offer is unavailable', async () => {
     mockOfferState.offer = undefined

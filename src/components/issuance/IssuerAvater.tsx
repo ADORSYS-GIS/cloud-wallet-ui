@@ -19,7 +19,6 @@ const SIZE_CLASSES: Record<IssuerAvatarSize, string> = {
 }
 
 type IssuerAvatarProps = {
-  /** Human-readable name already resolved to host/display_name — never a raw URL. */
   displayName: string
   logoUri: string | null
   size?: IssuerAvatarSize
