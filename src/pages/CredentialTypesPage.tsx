@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Footer } from '../components/Footer'
 import { IssuerAvatar } from '../components/issuance/IssuerAvater'
-import { CredentialTypePill } from '../components/issuance/CredentialDetailTypePill'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { useCredentialOfferState } from '../state/issuance.state'
@@ -29,30 +28,28 @@ function CredentialTypeCard({
       onClick={() => onSelect(credentialType.credential_configuration_id)}
       aria-pressed={isSelected ? 'true' : 'false'}
       className={[
-        'flex w-full flex-col gap-0 rounded-2xl border p-0 text-left transition-all duration-200 overflow-hidden shadow-sm',
+        'flex w-full flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-200',
         isSelected
-          ? 'border-[#99e827] ring-2 ring-[#99e827] ring-offset-1 shadow-md'
+          ? 'border-slate-400 ring-2 ring-slate-300'
           : 'border-slate-200 hover:border-slate-300 hover:shadow-md',
       ].join(' ')}
     >
-      <CredentialTypePill
-        name={credentialType.display.name}
-        backgroundColor={credentialType.display.background_color}
-        textColor={credentialType.display.text_color}
-        format={credentialType.format}
-        description={credentialType.display.description}
-      />
+      <div className="flex flex-col gap-1 px-5 py-4">
+        <div className="flex flex-col items-start gap-1">
+          <IssuerAvatar displayName={issuerName} logoUri={issuerLogoUri} size="sm" />
 
-      {/* Issuer row */}
-      <div className="flex items-center gap-3 bg-white px-5 py-3">
-        <IssuerAvatar displayName={issuerName} logoUri={issuerLogoUri} size="sm" />
-        <span className="min-w-0 truncate text-[13px] text-slate-500">{issuerName}</span>
-
-        {isSelected && (
-          <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#99e827] text-xs font-bold text-slate-900">
-            ✓
+          <span className="text-1xl font-semibold text-slate-900 leading-tight">
+            {issuerName}
           </span>
-        )}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-900 leading-tight">
+            {credentialType.display.name}
+          </p>
+          <p className="truncate text-xs text-slate-500">
+            {credentialType.display.description ?? 'Credential'}
+          </p>
+        </div>
       </div>
     </button>
   )
@@ -92,13 +89,6 @@ export function CredentialTypesPage() {
       ? selectedOptionId
       : null
 
-  const handleContinue = () => {
-    // TODO: forward effectiveSelectedId to the consent endpoint once that
-    // ticket lands. The selection is captured here; consent submission is
-    // intentionally out of scope for this ticket.
-    navigate(routes.credentials)
-  }
-
   return (
     <PageContainer fullWidth>
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
@@ -113,24 +103,10 @@ export function CredentialTypesPage() {
             ‹
           </button>
           <div className="text-center text-[22px] font-semibold leading-none text-white">
-            Select Credential
+            Credential Types
           </div>
           <div className="w-10" />
         </div>
-
-        {/* Issuer summary bar */}
-        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-          <IssuerAvatar displayName={issuerName} logoUri={issuer.logo_uri} size="md" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-900">{issuerName}</p>
-            <p className="truncate text-xs text-slate-500">{issuer.credential_issuer}</p>
-          </div>
-        </div>
-
-        {/* Instruction */}
-        <p className="px-4 pt-4 pb-2 text-sm text-slate-600">
-          Select one credential to add to your wallet.
-        </p>
 
         {/* Credential list — iterates directly over CredentialTypeDisplay */}
         <section className="flex-1 overflow-y-auto px-3 pt-1 pb-4">
@@ -148,18 +124,6 @@ export function CredentialTypesPage() {
             ))}
           </ul>
         </section>
-
-        {/* Continue button */}
-        <div className="border-t border-slate-200 bg-white px-4 py-3">
-          <button
-            type="button"
-            onClick={handleContinue}
-            disabled={!effectiveSelectedId}
-            className="w-full rounded-xl bg-[#99e827] py-3 text-base font-semibold text-slate-900 shadow-sm transition-colors hover:bg-[#8cd422] active:bg-[#7fc01f] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Continue
-          </button>
-        </div>
 
         {/* Navigate to routes.scan directly — ?fresh=true is no longer read */}
         <Footer onScanClick={() => navigate(routes.scan)} scanDisabled={false} />
