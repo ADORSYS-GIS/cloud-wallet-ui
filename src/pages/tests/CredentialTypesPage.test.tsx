@@ -114,22 +114,6 @@ describe('CredentialTypesPage', () => {
     expect(address?.getAttribute('aria-pressed')).toBe('true')
   })
 
-  // it('Continue button is disabled when nothing is selected', () => {
-  //   renderPage()
-  //   const btn = screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement
-  //   expect(btn.disabled).toBe(true)
-  // })
-
-  // it('Continue button becomes enabled after selecting a credential', async () => {
-  //   const user = userEvent.setup()
-  //   renderPage()
-
-  //   const btn = screen.getByRole('button', { name: /continue/i }) as HTMLButtonElement
-  //   expect(btn.disabled).toBe(true)
-  //   await user.click(screen.getByText('Personal ID').closest('button')!)
-  //   expect(btn.disabled).toBe(false)
-  // })
-
   it('shows issuer display_name when provided', () => {
     renderPage()
     expect(screen.getAllByText('Keycloak-demo').length).toBeGreaterThan(0)
