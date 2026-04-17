@@ -4,8 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { CredentialTypeDetailsPage } from '../CredentialTypeDetailsPage'
-import { routes } from '../../constants/routes'
-import type { StartIssuanceResponse } from '../../types/issuance'
+import { routes, issuanceSuccessPath } from '../../constants/routes'
+import type { StartIssuanceResponse, ConsentResponse } from '../../types/issuance'
 
 const mockNavigate = vi.fn()
 
@@ -25,13 +25,35 @@ vi.mock('../../state/issuance.state', () => ({
   useCredentialOfferState: () => mockOfferState,
 }))
 
+// Mock the consent API
+vi.mock('../../api/issuance-session', () => ({
+  submitConsent: vi.fn(),
+  cancelSession: vi.fn(),
+}))
+
+// Mock SSE hook
+const mockOpenStream = vi.fn()
+const mockCloseStream = vi.fn()
+let mockStreamStatus = { status: 'idle' as const }
+
+vi.mock('../../hooks/useSseStream', () => ({
+  useSseStream: () => ({
+    streamStatus: mockStreamStatus,
+    openStream: mockOpenStream,
+    closeStream: mockCloseStream,
+  }),
+}))
+
+import { submitConsent } from '../../api/issuance-session'
+const mockSubmitConsent = vi.mocked(submitConsent)
+
 function buildOffer(): StartIssuanceResponse {
   return {
     session_id: 'ses_123',
     expires_at: '2026-04-08T14:35:00Z',
     issuer: {
       credential_issuer: 'https://issuer.example.org',
-      display_name: 'Issuer',
+      display_name: 'Example Issuer',
       logo_uri: null,
     },
     credential_types: [
@@ -72,57 +94,77 @@ function renderPage(initialPath = '/credential-types/identity_credential') {
 describe('CredentialTypeDetailsPage', () => {
   beforeEach(() => {
     mockNavigate.mockReset()
+    mockOpenStream.mockReset()
+    mockCloseStream.mockReset()
+    mockSubmitConsent.mockReset()
+    mockStreamStatus = { status: 'idle' }
     mockOfferState.offer = buildOffer()
   })
 
   afterEach(() => cleanup())
 
-  it('renders selected credential type details and claim rows', () => {
+  it('renders credential type display fields per spec', () => {
     renderPage()
     expect(screen.getByText('Credential Type Details')).toBeTruthy()
+    // Header card
     expect(screen.getAllByText('Identity Credential').length).toBeGreaterThan(0)
-    expect(screen.getByText('Credential Configuration Id')).toBeTruthy()
+    // Display rows — all fields from CredentialTypeDisplay.display
+    expect(screen.getByText('Credential Configuration ID')).toBeTruthy()
     expect(screen.getByText('Format')).toBeTruthy()
     expect(screen.getByText('Name')).toBeTruthy()
+    expect(screen.getByText('Description')).toBeTruthy()
     expect(screen.getByText('Background Color')).toBeTruthy()
     expect(screen.getByText('Text Color')).toBeTruthy()
-    expect(screen.getByText('Logo Uri')).toBeTruthy()
+    expect(screen.getByText('Logo URI')).toBeTruthy()
     expect(screen.getByText('Logo Alt Text')).toBeTruthy()
-    expect(screen.getByText('Issue VC')).toBeTruthy()
-    expect(screen.getByText('Cancel')).toBeTruthy()
   })
 
-  it('renders dynamic credential claims when backend includes them', () => {
-    const offer = buildOffer() as StartIssuanceResponse & {
-      credential_types: Array<
-        StartIssuanceResponse['credential_types'][number] & {
-          claims?: Record<string, unknown>
-        }
-      >
-    }
-    offer.credential_types[0].claims = {
-      given_name: 'Jane',
-      family_name: 'Doe',
-      birthdate: '1990-01-01',
-    }
-    mockOfferState.offer = offer
-
+  it('renders Issue VC and Cancel buttons', () => {
     renderPage()
-
-    expect(screen.getByText('Given Name')).toBeTruthy()
-    expect(screen.getByText('Family Name')).toBeTruthy()
-    expect(screen.getByText('Birthdate')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Issue VC' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy()
   })
 
-  it('navigates to issuance success when Issue VC is clicked', async () => {
+  it('does NOT render claims from a non-spec extension field', () => {
+    // CredentialTypeDisplay has no claims; we must not try to render them
+    renderPage()
+    // "Given Name", "Family Name" etc. should NOT appear since spec has no claims here
+    expect(screen.queryByText('Given Name')).toBeNull()
+    expect(screen.queryByText('Family Name')).toBeNull()
+  })
+
+  it('calls POST /issuance/{session_id}/consent with selected type on Issue VC click', async () => {
+    const consentResponse: ConsentResponse = {
+      session_id: 'ses_123',
+      next_action: 'none',
+    }
+    mockSubmitConsent.mockResolvedValueOnce(consentResponse)
+
     const user = userEvent.setup()
     renderPage()
 
     await user.click(screen.getByRole('button', { name: 'Issue VC' }))
-    expect(mockNavigate).toHaveBeenCalledWith(routes.issuanceSuccess)
+
+    expect(mockSubmitConsent).toHaveBeenCalledWith('ses_123', true, [
+      'identity_credential',
+    ])
   })
 
-  it('navigates back to credential types on Cancel', async () => {
+  it('opens SSE stream after consent is submitted', async () => {
+    const consentResponse: ConsentResponse = {
+      session_id: 'ses_123',
+      next_action: 'none',
+    }
+    mockSubmitConsent.mockResolvedValueOnce(consentResponse)
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    expect(mockOpenStream).toHaveBeenCalledWith('ses_123')
+  })
+
+  it('navigates to credentials on Cancel', async () => {
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -135,6 +177,50 @@ describe('CredentialTypeDetailsPage', () => {
       expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes, {
         replace: true,
       })
+    })
+  })
+
+  it('shows error overlay when consent API call fails', async () => {
+    mockSubmitConsent.mockRejectedValueOnce(new Error('Network error'))
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Network error')).toBeTruthy()
+    })
+  })
+
+  it('navigates to issuance success when SSE completed event received', async () => {
+    const consentResponse: ConsentResponse = {
+      session_id: 'ses_123',
+      next_action: 'none',
+    }
+    mockSubmitConsent.mockResolvedValueOnce(consentResponse)
+
+    // Simulate SSE completed by returning completed status from hook
+    mockStreamStatus = {
+      status: 'completed' as const,
+      credentialIds: ['cred-uuid-1'],
+      credentialTypes: ['identity_credential'],
+    } as Parameters<typeof mockNavigate>[0]
+
+    vi.mock('../../hooks/useSseStream', () => ({
+      useSseStream: () => ({
+        streamStatus: mockStreamStatus,
+        openStream: mockOpenStream,
+        closeStream: mockCloseStream,
+      }),
+    }))
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(
+        issuanceSuccessPath('cred-uuid-1'),
+        expect.objectContaining({ state: { credentialId: 'cred-uuid-1' } })
+      )
     })
   })
 })
