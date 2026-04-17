@@ -25,9 +25,10 @@ vi.mock('../../state/issuance.state', () => ({
   useCredentialOfferState: () => mockOfferState,
 }))
 
-// Mock the consent API
+// Mock the issuance-session API
 vi.mock('../../api/issuance-session', () => ({
   submitConsent: vi.fn(),
+  submitTxCode: vi.fn(),
   cancelSession: vi.fn(),
 }))
 
@@ -44,10 +45,14 @@ vi.mock('../../hooks/useSseStream', () => ({
   }),
 }))
 
-import { submitConsent } from '../../api/issuance-session'
+import { submitConsent, submitTxCode, cancelSession } from '../../api/issuance-session'
 const mockSubmitConsent = vi.mocked(submitConsent)
+const mockSubmitTxCode = vi.mocked(submitTxCode)
+const mockCancelSession = vi.mocked(cancelSession)
 
-function buildOffer(): StartIssuanceResponse {
+function buildOffer(
+  overrides: Partial<StartIssuanceResponse> = {}
+): StartIssuanceResponse {
   return {
     session_id: 'ses_123',
     expires_at: '2026-04-08T14:35:00Z',
@@ -75,6 +80,7 @@ function buildOffer(): StartIssuanceResponse {
     flow: 'authorization_code',
     tx_code_required: false,
     tx_code: null,
+    ...overrides,
   }
 }
 
@@ -97,6 +103,8 @@ describe('CredentialTypeDetailsPage', () => {
     mockOpenStream.mockReset()
     mockCloseStream.mockReset()
     mockSubmitConsent.mockReset()
+    mockSubmitTxCode.mockReset()
+    mockCancelSession.mockReset()
     mockStreamStatus = { status: 'idle' }
     mockOfferState.offer = buildOffer()
   })
@@ -106,9 +114,7 @@ describe('CredentialTypeDetailsPage', () => {
   it('renders credential type display fields per spec', () => {
     renderPage()
     expect(screen.getByText('Credential Type Details')).toBeTruthy()
-    // Header card
     expect(screen.getAllByText('Identity Credential').length).toBeGreaterThan(0)
-    // Display rows — all fields from CredentialTypeDisplay.display
     expect(screen.getByText('Credential Configuration ID')).toBeTruthy()
     expect(screen.getByText('Format')).toBeTruthy()
     expect(screen.getByText('Name')).toBeTruthy()
@@ -126,9 +132,7 @@ describe('CredentialTypeDetailsPage', () => {
   })
 
   it('does NOT render claims from a non-spec extension field', () => {
-    // CredentialTypeDisplay has no claims; we must not try to render them
     renderPage()
-    // "Given Name", "Family Name" etc. should NOT appear since spec has no claims here
     expect(screen.queryByText('Given Name')).toBeNull()
     expect(screen.queryByText('Family Name')).toBeNull()
   })
@@ -150,7 +154,7 @@ describe('CredentialTypeDetailsPage', () => {
     ])
   })
 
-  it('opens SSE stream after consent is submitted', async () => {
+  it('opens SSE stream immediately after receiving consent response (spec requirement)', async () => {
     const consentResponse: ConsentResponse = {
       session_id: 'ses_123',
       next_action: 'none',
@@ -164,31 +168,98 @@ describe('CredentialTypeDetailsPage', () => {
     expect(mockOpenStream).toHaveBeenCalledWith('ses_123')
   })
 
-  it('navigates to credentials on Cancel', async () => {
-    const user = userEvent.setup()
-    renderPage()
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
-  })
-
-  it('redirects to credential types when selected type is unavailable', async () => {
-    renderPage('/credential-types/unknown')
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes, {
-        replace: true,
-      })
+  it('shows TX code input when next_action is provide_tx_code', async () => {
+    const offerWithTxCode = buildOffer({
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: {
+        input_mode: 'numeric',
+        length: 6,
+        description: 'Enter the one-time code sent to your email.',
+      },
     })
-  })
+    mockOfferState.offer = offerWithTxCode
 
-  it('shows error overlay when consent API call fails', async () => {
-    mockSubmitConsent.mockRejectedValueOnce(new Error('Network error'))
+    const consentResponse: ConsentResponse = {
+      session_id: 'ses_123',
+      next_action: 'provide_tx_code',
+    }
+    mockSubmitConsent.mockResolvedValueOnce(consentResponse)
 
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: 'Issue VC' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Network error')).toBeTruthy()
+      expect(screen.getByText('Transaction Code Required')).toBeTruthy()
+    })
+    expect(screen.getByText('Enter the one-time code sent to your email.')).toBeTruthy()
+  })
+
+  it('submits TX code via POST /issuance/{session_id}/tx-code', async () => {
+    const offerWithTxCode = buildOffer({
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: { input_mode: 'numeric', length: 6, description: null },
+    })
+    mockOfferState.offer = offerWithTxCode
+
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'provide_tx_code',
+    } as ConsentResponse)
+    mockSubmitTxCode.mockResolvedValueOnce({ session_id: 'ses_123' })
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transaction Code Required')).toBeTruthy()
+    })
+
+    // Type into the hidden input (sr-only)
+    const hiddenInput = screen.getByRole('textbox', { hidden: true })
+    await user.type(hiddenInput, '123456')
+    await user.click(screen.getByRole('button', { name: 'Submit Code' }))
+
+    await waitFor(() => {
+      expect(mockSubmitTxCode).toHaveBeenCalledWith('ses_123', '123456')
+    })
+  })
+
+  it('shows error when tx code submission fails (e.g. invalid_tx_code)', async () => {
+    const offerWithTxCode = buildOffer({
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: { input_mode: 'numeric', length: 6, description: null },
+    })
+    mockOfferState.offer = offerWithTxCode
+
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'provide_tx_code',
+    } as ConsentResponse)
+    mockSubmitTxCode.mockRejectedValueOnce(
+      new Error('Transaction code must be exactly 6 numeric digits.')
+    )
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transaction Code Required')).toBeTruthy()
+    })
+
+    const hiddenInput = screen.getByRole('textbox', { hidden: true })
+    await user.type(hiddenInput, '000000')
+    await user.click(screen.getByRole('button', { name: 'Submit Code' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Transaction code must be exactly 6 numeric digits.')
+      ).toBeTruthy()
     })
   })
 
@@ -199,7 +270,6 @@ describe('CredentialTypeDetailsPage', () => {
     }
     mockSubmitConsent.mockResolvedValueOnce(consentResponse)
 
-    // Simulate SSE completed by returning completed status from hook
     mockStreamStatus = {
       status: 'completed' as const,
       credentialIds: ['cred-uuid-1'],
@@ -221,6 +291,93 @@ describe('CredentialTypeDetailsPage', () => {
         issuanceSuccessPath('cred-uuid-1'),
         expect.objectContaining({ state: { credentialId: 'cred-uuid-1' } })
       )
+    })
+  })
+
+  it('calls cancelSession and navigates to credential types on Cancel click', async () => {
+    mockCancelSession.mockResolvedValueOnce(undefined)
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
+  })
+
+  it('calls cancelSession when cancelling from TX code screen', async () => {
+    const offerWithTxCode = buildOffer({
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: { input_mode: 'numeric', length: 6, description: null },
+    })
+    mockOfferState.offer = offerWithTxCode
+
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'provide_tx_code',
+    } as ConsentResponse)
+    mockCancelSession.mockResolvedValueOnce(undefined)
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transaction Code Required')).toBeTruthy()
+    })
+
+    // Cancel from the TX code dialog
+    const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
+    // The TX code Cancel button is the first one rendered in TxCodeInput
+    await user.click(cancelButtons[0])
+
+    await waitFor(() => {
+      expect(mockCancelSession).toHaveBeenCalledWith('ses_123')
+    })
+    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
+  })
+
+  it('shows error overlay when consent API call fails', async () => {
+    mockSubmitConsent.mockRejectedValueOnce(new Error('Network error'))
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Network error')).toBeTruthy()
+    })
+  })
+
+  it('redirects to credential types when selected type is unavailable', async () => {
+    renderPage('/credential-types/unknown')
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes, {
+        replace: true,
+      })
+    })
+  })
+
+  it('shows failure overlay when SSE failed event received', async () => {
+    mockStreamStatus = {
+      status: 'failed' as const,
+      error: 'access_denied',
+      errorDescription: 'The user denied authorization.',
+      step: 'authorization',
+    }
+
+    vi.mock('../../hooks/useSseStream', () => ({
+      useSseStream: () => ({
+        streamStatus: mockStreamStatus,
+        openStream: mockOpenStream,
+        closeStream: mockCloseStream,
+      }),
+    }))
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('The user denied authorization.')).toBeTruthy()
     })
   })
 })

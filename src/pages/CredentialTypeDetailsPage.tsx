@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IssuerAvatar } from '../components/issuance/IssuerAvater'
+import { TxCodeInput } from '../components/issuance/TxCodeInput'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes, issuanceSuccessPath } from '../constants/routes'
 import { useCredentialOfferState } from '../state/issuance.state'
-import { submitConsent } from '../api/issuance-session'
+import { submitConsent, submitTxCode, cancelSession } from '../api/issuance-session'
 import { useSseStream } from '../hooks/useSseStream'
 
-import type { ConsentResponse } from '../types/issuance'
+import type { ConsentResponse, TxCodeSpec } from '../types/issuance'
 
 function useSelectedType(
   session: ReturnType<typeof useCredentialOfferState>['offer'],
@@ -72,6 +73,9 @@ function stepLabel(step: ProcessingStep): string {
 type OverlayStatus =
   | { kind: 'hidden' }
   | { kind: 'submitting' }
+  | { kind: 'awaiting_tx_code'; txCodeSpec: TxCodeSpec }
+  | { kind: 'submitting_tx_code'; txCodeSpec: TxCodeSpec }
+  | { kind: 'tx_code_error'; txCodeSpec: TxCodeSpec; errorMessage: string }
   | { kind: 'processing'; step: ProcessingStep }
   | { kind: 'failed'; message: string }
 
@@ -90,7 +94,17 @@ function ProcessingOverlay({
       ? 'Submitting consent…'
       : status.kind === 'processing'
         ? stepLabel(status.step)
-        : status.message
+        : status.kind === 'failed'
+          ? status.message
+          : ''
+
+  if (
+    status.kind === 'awaiting_tx_code' ||
+    status.kind === 'submitting_tx_code' ||
+    status.kind === 'tx_code_error'
+  ) {
+    return null
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -157,34 +171,32 @@ export function CredentialTypeDetailsPage() {
 
   const doAuthRedirect = useAuthRedirect()
 
-  // React to SSE updates
-  useEffect(() => {
-    let newOverlayStatus: OverlayStatus = { kind: 'hidden' }
 
+  useEffect(() => {
     if (streamStatus.status === 'processing') {
-      newOverlayStatus = { kind: 'processing', step: streamStatus.step }
+      setOverlay({ kind: 'processing', step: streamStatus.step })
+
     } else if (streamStatus.status === 'completed') {
       closeStream()
       const firstId = streamStatus.credentialIds[0]
       navigate(issuanceSuccessPath(firstId), {
         state: { credentialId: firstId },
       })
-      return // Exit early as navigation handles the state change
     } else if (streamStatus.status === 'failed') {
       closeStream()
       const msg =
         streamStatus.errorDescription ??
         `Issuance failed at step "${streamStatus.step}": ${streamStatus.error}`
-      newOverlayStatus = { kind: 'failed', message: msg }
+      setOverlay({ kind: 'failed', message: msg })
     }
-
-    queueMicrotask(() => {
-      setOverlay(newOverlayStatus)
-    })
   }, [streamStatus, closeStream, navigate])
 
-  // Cleanup on unmount
-  useEffect(() => () => closeStream(), [closeStream])
+  useEffect(
+    () => () => {
+      closeStream()
+    },
+    [closeStream]
+  )
 
   if (shouldRedirect || !session || !selectedType) return null
 
@@ -205,42 +217,78 @@ export function CredentialTypeDetailsPage() {
       return
     }
 
-    // Open SSE stream immediately per spec requirement
+
     openStream(session.session_id)
 
     switch (consentResponse.next_action) {
       case 'redirect':
-        // Authorization Code Flow — open issuer's authorization URL in browser
         if (consentResponse.authorization_url) {
           doAuthRedirect(consentResponse.authorization_url)
+          setOverlay({ kind: 'processing', step: 'authorization' })
         } else {
           setOverlay({
             kind: 'failed',
-            message: 'Authorization URL missing from response.',
+            message: 'Authorization URL missing from server response.',
           })
         }
         break
 
-      case 'provide_tx_code':
-        // Pre-authorized code flow requiring TX code — not handled in this view
-        // (TX code input would need a dedicated UI per spec; for now show error)
-        setOverlay({
-          kind: 'failed',
-          message:
-            'A transaction code is required. Please restart the flow and enter the code when prompted.',
-        })
+      case 'provide_tx_code': {
+        const txSpec = session.tx_code
+        if (!txSpec) {
+          setOverlay({
+            kind: 'failed',
+            message:
+              'Server requested a transaction code but did not provide the code spec. Please restart the flow.',
+          })
+          return
+        }
+        setOverlay({ kind: 'awaiting_tx_code', txCodeSpec: txSpec })
         break
+      }
 
-      case 'none':
-        // Pre-authorized code flow, no TX code — processing started, SSE will deliver outcome
+      case 'none':e.
         setOverlay({ kind: 'processing', step: '' })
         break
 
       case 'rejected':
         setOverlay({ kind: 'hidden' })
+        closeStream()
         navigate(routes.scan, { replace: true })
         break
     }
+  }
+
+  const handleTxCodeSubmit = async (code: string) => {
+    if (
+      overlay.kind !== 'awaiting_tx_code' &&
+      overlay.kind !== 'tx_code_error'
+    )
+      return
+
+    const txCodeSpec = overlay.txCodeSpec
+    setOverlay({ kind: 'submitting_tx_code', txCodeSpec })
+
+    try {
+      await submitTxCode(session.session_id, code)
+      setOverlay({ kind: 'processing', step: 'exchanging_token' })
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Invalid transaction code. Please check and try again.'
+      setOverlay({ kind: 'tx_code_error', txCodeSpec, errorMessage: msg })
+    }
+  }
+
+  const handleTxCodeCancel = async () => {
+    closeStream()
+    try {
+      await cancelSession(session.session_id)
+    } catch {
+      // Best-effort — session may already be expired/cancelled
+    }
+    navigate(routes.credentialTypes)
   }
 
   const handleOverlayRetry = () => {
@@ -248,9 +296,24 @@ export function CredentialTypeDetailsPage() {
     closeStream()
   }
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    closeStream()
+    if (overlay.kind !== 'hidden') {
+      // Only cancel if a session operation is in progress
+      try {
+        await cancelSession(session.session_id)
+      } catch {
+        // Best-effort
+      }
+    }
     navigate(routes.credentialTypes)
   }
+
+  // Is the TX code overlay active?
+  const isTxCodeActive =
+    overlay.kind === 'awaiting_tx_code' ||
+    overlay.kind === 'submitting_tx_code' ||
+    overlay.kind === 'tx_code_error'
 
   return (
     <PageContainer fullWidth>
@@ -316,6 +379,28 @@ export function CredentialTypeDetailsPage() {
           </div>
         </section>
 
+        {/* TX Code input overlay (inline, over the camera/content area) */}
+        {isTxCodeActive && (
+          <div className="absolute inset-x-0 top-0 z-30 flex h-full items-start justify-center bg-black/40 pt-16">
+            <div className="w-full max-w-sm px-3">
+              <TxCodeInput
+                txCodeSpec={
+                  overlay.kind === 'awaiting_tx_code' ||
+                    overlay.kind === 'submitting_tx_code' ||
+                    overlay.kind === 'tx_code_error'
+                    ? overlay.txCodeSpec
+                    : (session.tx_code as NonNullable<typeof session.tx_code>)
+                }
+                sessionId={session.session_id}
+                onSubmit={handleTxCodeSubmit}
+                onCancel={() => void handleTxCodeCancel()}
+                isSubmitting={overlay.kind === 'submitting_tx_code'}
+                error={overlay.kind === 'tx_code_error' ? overlay.errorMessage : null}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="px-2 pb-1">
           {/* Issue VC button */}
@@ -331,9 +416,9 @@ export function CredentialTypeDetailsPage() {
           {/* Cancel button */}
           <button
             type="button"
-            onClick={handleCancel}
-            disabled={overlay.kind !== 'hidden'}
-            className="mt-1 h-7 w-full rounded-[4px] bg-transparent text-[14px] text-slate-700 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => void handleCancel()}
+            disabled={false}
+            className="mt-1 h-7 w-full rounded-[4px] bg-transparent text-[14px] text-slate-700 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200"
           >
             Cancel
           </button>
