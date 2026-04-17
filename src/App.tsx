@@ -6,6 +6,7 @@ import { ScanPage } from './pages/ScanPage'
 import { routes } from './constants/routes'
 import { CredentialOfferProvider } from './state/issuance.state'
 import { CredentialTypesPage } from './pages/CredentialTypesPage'
+import { IssuanceSuccessPage } from './pages/IssuanceSuccessPage'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path={routes.home} element={<HomePage />} />
           <Route path={routes.scan} element={<ScanPage />} />
           <Route path={routes.credentialTypes} element={<CredentialTypesPage />} />
+          <Route path={routes.issuanceSuccess} element={<IssuanceSuccessPage />} />
           <Route path={routes.credentials} element={<CredentialsPage />} />
           <Route
             path={`${routes.credentials}/:credentialId`}
