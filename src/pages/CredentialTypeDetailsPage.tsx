@@ -24,10 +24,12 @@ function useSelectedType(
   }, [optionId, session])
 }
 
+type ClaimRow = { label: string; value: string }
+
 function buildDisplayRows(
   credType: NonNullable<ReturnType<typeof useSelectedType>>
-): { label: string; value: string }[] {
-  const rows: { label: string; value: string }[] = [
+): ClaimRow[] {
+  const rows: ClaimRow[] = [
     { label: 'Credential Configuration ID', value: credType.credential_configuration_id },
     { label: 'Format', value: credType.format },
     { label: 'Name', value: credType.display.name },
