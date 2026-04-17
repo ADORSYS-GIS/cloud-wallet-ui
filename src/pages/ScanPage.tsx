@@ -34,10 +34,6 @@ export function ScanPage() {
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const scanInProgressRef = useRef(false)
 
-  // ---------------------------------------------------------------------------
-  // Scanner helpers
-  // ---------------------------------------------------------------------------
-
   const stopScanner = () => {
     controlsRef.current?.stop()
     controlsRef.current = null
@@ -115,24 +111,18 @@ export function ScanPage() {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Lifecycle
-  // ---------------------------------------------------------------------------
-
   useEffect(() => {
     let mounted = true
     const errorReason = searchParams.get('error')
 
     if (errorReason === 'empty-options') {
-      // Show the message briefly then resume scanning so the user is not
-      // stranded on a blank non-scanning screen with no recovery affordance.
-      setIsInitializing(false)
-      resetOffer()
-      setFeedbackMessage(
-        'No credential options were returned for this offer. Please scan again.'
-      )
       const timer = window.setTimeout(() => {
+        resetOffer()
         if (!mounted) return
+        setIsInitializing(false)
+        setFeedbackMessage(
+          'No credential options were returned for this offer. Please scan again.'
+        )
         void startScan()
       }, 220)
       return () => {
@@ -160,11 +150,6 @@ export function ScanPage() {
       readerRef.current = null
     }
   }, [])
-
-  // ---------------------------------------------------------------------------
-  // Camera swap
-  // ---------------------------------------------------------------------------
-
   const swapCamera = async () => {
     if (isSwapping) return
     setIsSwapping(true)
@@ -178,10 +163,6 @@ export function ScanPage() {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Overlay visibility
-  // ---------------------------------------------------------------------------
-
   const showFullscreenStatus =
     offerState.status === 'loading' ||
     (offerState.status === 'error' && !!offerState.apiError)
@@ -191,10 +172,6 @@ export function ScanPage() {
   const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
   const showErrorCard = scanStatus === 'done' && offerState.status === 'error'
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
-
-  // ---------------------------------------------------------------------------
-  // Handlers
-  // ---------------------------------------------------------------------------
 
   const handleAccept = () => {
     navigate(routes.credentialTypes)
@@ -213,10 +190,6 @@ export function ScanPage() {
   const handleErrorBack = () => {
     navigate(routes.home)
   }
-
-  // ---------------------------------------------------------------------------
-  // Feedback bar text
-  // ---------------------------------------------------------------------------
 
   const statusBarText = isInitializing
     ? '◉ Initializing scanner…'

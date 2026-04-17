@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Footer } from '../components/Footer'
 import { IssuerAvatar } from '../components/issuance/IssuerAvater'
 import { PageContainer } from '../components/layout/PageContainer'
-import { routes } from '../constants/routes'
+import { credentialTypeDetailsPath, routes } from '../constants/routes'
 import { useCredentialOfferState } from '../state/issuance.state'
 import type { CredentialTypeDisplay } from '../types/issuance'
 
@@ -11,43 +11,29 @@ type CredentialTypeCardProps = {
   credentialType: CredentialTypeDisplay
   issuerName: string
   issuerLogoUri: string | null
-  isSelected: boolean
-  onSelect: (id: string) => void
+  onClick: (id: string) => void
 }
 
 function CredentialTypeCard({
   credentialType,
   issuerName,
   issuerLogoUri,
-  isSelected,
-  onSelect,
+  onClick,
 }: CredentialTypeCardProps) {
   return (
     <button
       type="button"
-      onClick={() => onSelect(credentialType.credential_configuration_id)}
-      aria-pressed={isSelected ? 'true' : 'false'}
-      className={[
-        'flex w-full flex-col overflow-hidden rounded-2xl border bg-white text-left shadow-sm transition-all duration-200',
-        isSelected
-          ? 'border-slate-400 ring-2 ring-slate-300'
-          : 'border-slate-200 hover:border-slate-300 hover:shadow-md',
-      ].join(' ')}
+      onClick={() => onClick(credentialType.credential_configuration_id)}
+      className="flex w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md active:scale-[0.99]"
     >
-      <div className="flex flex-col gap-1 px-5 py-4">
+      <div className="flex flex-col gap-1 px-3 py-3">
         <div className="flex flex-col items-start gap-1">
           <IssuerAvatar displayName={issuerName} logoUri={issuerLogoUri} size="sm" />
-
-          <span className="text-1xl font-semibold text-slate-900 leading-tight">
-            {issuerName}
-          </span>
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-900 leading-tight">
+          <p className="truncate text-[14px] md:text-[15px] font-semibold leading-tight text-slate-900">
             {credentialType.display.name}
           </p>
-          <p className="truncate text-xs text-slate-500">
-            {credentialType.display.description ?? 'Credential'}
+          <p className="truncate text-[12px] md:text-[13px] leading-tight text-slate-500">
+            {issuerName}
           </p>
         </div>
       </div>
@@ -58,8 +44,6 @@ function CredentialTypeCard({
 export function CredentialTypesPage() {
   const navigate = useNavigate()
   const offerState = useCredentialOfferState()
-
-  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
 
   // Guard: no offer → back to scan
   useEffect(() => {
@@ -77,21 +61,13 @@ export function CredentialTypesPage() {
   }, [navigate, offerState.offer])
 
   if (!offerState.offer) return null
-
   const { issuer, credential_types } = offerState.offer
 
   const issuerName = issuer.display_name ?? new URL(issuer.credential_issuer).host
 
-  // Validate that the stored selection still matches an available option
-  const effectiveSelectedId =
-    selectedOptionId &&
-    credential_types.some((ct) => ct.credential_configuration_id === selectedOptionId)
-      ? selectedOptionId
-      : null
-
   return (
     <PageContainer fullWidth>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
+      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e7eaed] font-serif">
         {/* Sub-header */}
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
           <button
@@ -102,7 +78,7 @@ export function CredentialTypesPage() {
           >
             ‹
           </button>
-          <div className="text-center text-[22px] font-semibold leading-none text-white">
+          <div className="text-center text-[16px] md:text-[18px] font-semibold leading-none text-white">
             Credential Types
           </div>
           <div className="w-10" />
@@ -117,8 +93,7 @@ export function CredentialTypesPage() {
                   credentialType={ct}
                   issuerName={issuerName}
                   issuerLogoUri={issuer.logo_uri}
-                  isSelected={ct.credential_configuration_id === effectiveSelectedId}
-                  onSelect={setSelectedOptionId}
+                  onClick={(id) => navigate(credentialTypeDetailsPath(id))}
                 />
               </li>
             ))}
