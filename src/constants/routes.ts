@@ -3,7 +3,6 @@ export const routes = {
   scan: '/scan',
   credentialTypes: '/credential-types',
   credentialTypeDetails: '/credential-types/:optionId',
-  issuanceSuccess: '/issuance/success',
   credentials: '/credentials',
   issuanceSuccess: '/issuance/success/:credentialId?',
 } as const

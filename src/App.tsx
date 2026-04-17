@@ -16,12 +16,10 @@ function App() {
         <Routes>
           <Route path={routes.home} element={<HomePage />} />
           <Route path={routes.scan} element={<ScanPage />} />
-
           <Route
             path={routes.credentialTypeDetails}
             element={<CredentialTypeDetailsPage />}
           />
-
           <Route path={routes.credentialTypes} element={<CredentialTypesPage />} />
           <Route path={routes.issuanceSuccess} element={<IssuanceSuccessPage />} />
           <Route path={routes.credentials} element={<CredentialsPage />} />
