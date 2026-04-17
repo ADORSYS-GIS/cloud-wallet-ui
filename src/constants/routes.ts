@@ -5,6 +5,7 @@ export const routes = {
   credentialTypeDetails: '/credential-types/:optionId',
   issuanceSuccess: '/issuance/success',
   credentials: '/credentials',
+  issuanceSuccess: '/issuance/success/:credentialId?',
 } as const
 
 export function credentialTypeDetailsPath(optionId: string) {
@@ -13,4 +14,10 @@ export function credentialTypeDetailsPath(optionId: string) {
 
 export function credentialDetailPath(id: string) {
   return `${routes.credentials}/${encodeURIComponent(id)}`
+}
+
+export function issuanceSuccessPath(credentialId?: string) {
+  return credentialId
+    ? `/issuance/success/${encodeURIComponent(credentialId)}`
+    : '/issuance/success'
 }
