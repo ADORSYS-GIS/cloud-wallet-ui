@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { CredentialTypeDetailsPage } from '../CredentialTypeDetailsPage'
 import { routes, issuanceSuccessPath } from '../../constants/routes'
 import type { StartIssuanceResponse, ConsentResponse } from '../../types/issuance'
+import type { SseStreamStatus } from '../../hooks/useSseStream'
 
 const mockNavigate = vi.fn()
 
@@ -35,7 +36,7 @@ vi.mock('../../api/issuance-session', () => ({
 // Mock SSE hook
 const mockOpenStream = vi.fn()
 const mockCloseStream = vi.fn()
-let mockStreamStatus = { status: 'idle' as const }
+let mockStreamStatus: SseStreamStatus = { status: 'idle' }
 
 vi.mock('../../hooks/useSseStream', () => ({
   useSseStream: () => ({
@@ -264,25 +265,11 @@ describe('CredentialTypeDetailsPage', () => {
   })
 
   it('navigates to issuance success when SSE completed event received', async () => {
-    const consentResponse: ConsentResponse = {
-      session_id: 'ses_123',
-      next_action: 'none',
-    }
-    mockSubmitConsent.mockResolvedValueOnce(consentResponse)
-
     mockStreamStatus = {
-      status: 'completed' as const,
+      status: 'completed',
       credentialIds: ['cred-uuid-1'],
       credentialTypes: ['identity_credential'],
-    } as Parameters<typeof mockNavigate>[0]
-
-    vi.mock('../../hooks/useSseStream', () => ({
-      useSseStream: () => ({
-        streamStatus: mockStreamStatus,
-        openStream: mockOpenStream,
-        closeStream: mockCloseStream,
-      }),
-    }))
+    }
 
     renderPage()
 
@@ -360,19 +347,11 @@ describe('CredentialTypeDetailsPage', () => {
 
   it('shows failure overlay when SSE failed event received', async () => {
     mockStreamStatus = {
-      status: 'failed' as const,
+      status: 'failed',
       error: 'access_denied',
       errorDescription: 'The user denied authorization.',
       step: 'authorization',
     }
-
-    vi.mock('../../hooks/useSseStream', () => ({
-      useSseStream: () => ({
-        streamStatus: mockStreamStatus,
-        openStream: mockOpenStream,
-        closeStream: mockCloseStream,
-      }),
-    }))
 
     renderPage()
 

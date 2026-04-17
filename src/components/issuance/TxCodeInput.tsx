@@ -56,8 +56,7 @@ export function TxCodeInput({
     // For numeric mode, strip non-digits as the user types
     const filtered = isNumeric ? raw.replace(/\D/g, '') : raw
     // Enforce max length if known
-    const clamped =
-      expectedLength !== null ? filtered.slice(0, expectedLength) : filtered
+    const clamped = expectedLength !== null ? filtered.slice(0, expectedLength) : filtered
     setCode(clamped)
     setValidationError(null)
   }

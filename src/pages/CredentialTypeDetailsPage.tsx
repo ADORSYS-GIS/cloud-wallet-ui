@@ -171,12 +171,27 @@ export function CredentialTypeDetailsPage() {
 
   const doAuthRedirect = useAuthRedirect()
 
+  const lastHandledSseStatus = useRef<string>('')
 
   useEffect(() => {
-    if (streamStatus.status === 'processing') {
-      setOverlay({ kind: 'processing', step: streamStatus.step })
+    // Build a stable key for this status snapshot so we only act once per change.
+    const statusKey =
+      streamStatus.status === 'processing'
+        ? `processing:${streamStatus.step}`
+        : streamStatus.status
 
-    } else if (streamStatus.status === 'completed') {
+    if (lastHandledSseStatus.current === statusKey) return
+    lastHandledSseStatus.current = statusKey
+
+    if (streamStatus.status === 'processing') {
+      const step = streamStatus.step
+      const id = setTimeout(() => {
+        setOverlay({ kind: 'processing', step })
+      }, 0)
+      return () => clearTimeout(id)
+    }
+
+    if (streamStatus.status === 'completed') {
       closeStream()
       const firstId = streamStatus.credentialIds[0]
       navigate(issuanceSuccessPath(firstId), {
@@ -187,7 +202,10 @@ export function CredentialTypeDetailsPage() {
       const msg =
         streamStatus.errorDescription ??
         `Issuance failed at step "${streamStatus.step}": ${streamStatus.error}`
-      setOverlay({ kind: 'failed', message: msg })
+      const id = setTimeout(() => {
+        setOverlay({ kind: 'failed', message: msg })
+      }, 0)
+      return () => clearTimeout(id)
     }
   }, [streamStatus, closeStream, navigate])
 
@@ -217,11 +235,12 @@ export function CredentialTypeDetailsPage() {
       return
     }
 
-
     openStream(session.session_id)
 
+    // Handle next_action per spec:
     switch (consentResponse.next_action) {
       case 'redirect':
+        // Authorization code flow — open authorization_url in system browser.
         if (consentResponse.authorization_url) {
           doAuthRedirect(consentResponse.authorization_url)
           setOverlay({ kind: 'processing', step: 'authorization' })
@@ -234,6 +253,7 @@ export function CredentialTypeDetailsPage() {
         break
 
       case 'provide_tx_code': {
+        // Pre-authorized code flow — transaction code required.
         const txSpec = session.tx_code
         if (!txSpec) {
           setOverlay({
@@ -247,11 +267,13 @@ export function CredentialTypeDetailsPage() {
         break
       }
 
-      case 'none':e.
+      case 'none':
+        // Pre-authorized code flow without tx_code — processing started, listen on SSE.
         setOverlay({ kind: 'processing', step: '' })
         break
 
       case 'rejected':
+        // User declined — session is terminated.
         setOverlay({ kind: 'hidden' })
         closeStream()
         navigate(routes.scan, { replace: true })
@@ -260,16 +282,13 @@ export function CredentialTypeDetailsPage() {
   }
 
   const handleTxCodeSubmit = async (code: string) => {
-    if (
-      overlay.kind !== 'awaiting_tx_code' &&
-      overlay.kind !== 'tx_code_error'
-    )
-      return
+    if (overlay.kind !== 'awaiting_tx_code' && overlay.kind !== 'tx_code_error') return
 
     const txCodeSpec = overlay.txCodeSpec
     setOverlay({ kind: 'submitting_tx_code', txCodeSpec })
 
     try {
+      // Spec: POST /issuance/{session_id}/tx-code
       await submitTxCode(session.session_id, code)
       setOverlay({ kind: 'processing', step: 'exchanging_token' })
     } catch (err) {
@@ -284,6 +303,7 @@ export function CredentialTypeDetailsPage() {
   const handleTxCodeCancel = async () => {
     closeStream()
     try {
+      // Spec: POST /issuance/{session_id}/cancel
       await cancelSession(session.session_id)
     } catch {
       // Best-effort — session may already be expired/cancelled
@@ -301,6 +321,7 @@ export function CredentialTypeDetailsPage() {
     if (overlay.kind !== 'hidden') {
       // Only cancel if a session operation is in progress
       try {
+        // Spec: POST /issuance/{session_id}/cancel
         await cancelSession(session.session_id)
       } catch {
         // Best-effort
@@ -386,8 +407,8 @@ export function CredentialTypeDetailsPage() {
               <TxCodeInput
                 txCodeSpec={
                   overlay.kind === 'awaiting_tx_code' ||
-                    overlay.kind === 'submitting_tx_code' ||
-                    overlay.kind === 'tx_code_error'
+                  overlay.kind === 'submitting_tx_code' ||
+                  overlay.kind === 'tx_code_error'
                     ? overlay.txCodeSpec
                     : (session.tx_code as NonNullable<typeof session.tx_code>)
                 }
@@ -403,7 +424,6 @@ export function CredentialTypeDetailsPage() {
 
         {/* Actions */}
         <div className="px-2 pb-1">
-          {/* Issue VC button */}
           <button
             type="button"
             onClick={() => void handleIssueVc()}
@@ -413,7 +433,6 @@ export function CredentialTypeDetailsPage() {
             Issue VC
           </button>
 
-          {/* Cancel button */}
           <button
             type="button"
             onClick={() => void handleCancel()}
