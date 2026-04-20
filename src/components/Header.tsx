@@ -7,12 +7,14 @@ const DEFAULT_TITLE = 'DATEV Cloud Wallet'
 
 type HeaderProps = {
   showMainHeader?: boolean
+  hidePwaBanner?: boolean
   title?: string
   leftSlot?: ReactNode
 }
 
 export function Header({
   showMainHeader = true,
+  hidePwaBanner = false,
   title = DEFAULT_TITLE,
   leftSlot,
 }: HeaderProps) {
@@ -41,18 +43,20 @@ export function Header({
 
   return (
     <>
-      <div className="flex items-center justify-between bg-[#499c9d] px-4 py-2 text-black">
-        <span>To access the app from your phone, install now</span>
-        <button
-          type="button"
-          onClick={handleInstallClick}
-          disabled={isInstalling || isInstalled}
-          className="rounded-lg bg-[#99e827] px-24 py-1 text-black disabled:cursor-not-allowed disabled:opacity-70"
-          aria-label="Install app"
-        >
-          {isInstalled ? 'Installed' : installButtonLabel}
-        </button>
-      </div>
+      {!hidePwaBanner && (
+        <div className="flex items-center justify-between bg-[#499c9d] px-4 py-2 text-black">
+          <span>To access the app from your phone, install now</span>
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            disabled={isInstalling || isInstalled}
+            className="rounded-lg bg-[#99e827] px-24 py-1 text-black disabled:cursor-not-allowed disabled:opacity-70"
+            aria-label="Install app"
+          >
+            {isInstalled ? 'Installed' : installButtonLabel}
+          </button>
+        </div>
+      )}
       {isIosInstallable && showIosInstructions && (
         <div className="bg-[#3f6f7e] px-4 py-2 text-sm text-slate-100">
           To install on iOS: tap Share, then choose Add to Home Screen.

@@ -25,8 +25,8 @@ export function CredentialsPage() {
         {!loading && credentials.length === 0 && <CredentialsEmptyState />}
 
         {!loading && credentials.length > 0 && (
-          <section className="min-h-0 flex-1 overflow-y-auto bg-[#E9ECEF] px-3 py-3">
-            <div className="mx-auto flex max-w-lg flex-col gap-3">
+          <section className="min-h-0 flex-1 overflow-y-auto bg-[#E9ECEF] py-4">
+            <div className="flex flex-col gap-4 px-4">
               {credentials.map((c) => (
                 <CredentialSummaryCard key={c.id} credential={c} />
               ))}

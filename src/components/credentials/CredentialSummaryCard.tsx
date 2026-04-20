@@ -16,10 +16,10 @@ export function CredentialSummaryCard({ credential }: CredentialSummaryCardProps
     <button
       type="button"
       onClick={() => navigate(credentialDetailPath(credential.id))}
-      className="w-full rounded-lg border border-[#D1D5DB] bg-white p-6 text-left shadow-[0px_1px_24px_0px_rgba(44,51,53,0.09)] transition-colors hover:bg-[#e6f4e6]"
+      className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-5 text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all hover:scale-[1.01] hover:shadow-md hover:border-[#499c9d]/30 active:scale-[0.98]"
     >
-      <p className="text-base font-semibold leading-6 text-slate-900">{title}</p>
-      <p className="mt-1 text-sm leading-5 text-slate-600">{issuer}</p>
+      <p className="truncate text-base font-semibold tracking-tight text-slate-900">{title}</p>
+      <p className="mt-1 truncate text-[14px] leading-relaxed text-slate-500">{issuer}</p>
     </button>
   )
 }
