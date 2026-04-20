@@ -34,7 +34,9 @@ function ClaimRow({ label, value, revealed, onToggle }: ClaimRowProps) {
   return (
     <div className="flex items-start justify-between py-4">
       <div className="min-w-0 flex-1 pr-4">
-        <p className="text-[14px] font-normal leading-relaxed text-slate-500">{displayLabel}</p>
+        <p className="text-[14px] font-normal leading-relaxed text-slate-500">
+          {displayLabel}
+        </p>
         <p
           className={[
             'mt-0.5 break-all text-[15px] text-slate-900 transition-all duration-200',
