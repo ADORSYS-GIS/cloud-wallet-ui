@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { CredentialTypesPage } from '../CredentialTypesPage'
-import { routes } from '../../constants/routes'
+import { credentialTypeDetailsPath, routes } from '../../constants/routes'
 import type { StartIssuanceResponse } from '../../types/issuance'
 import type { CredentialOfferStatus } from '../../state/issuance.state'
 
@@ -95,23 +95,13 @@ describe('CredentialTypesPage', () => {
     expect(screen.getByText('Address Credential')).toBeTruthy()
   })
 
-  it('allows selecting exactly one credential option', async () => {
+  it('navigates to credential type details when a type is clicked', async () => {
     const user = userEvent.setup()
     renderPage()
 
     const personalId = screen.getByText('Personal ID').closest('button')
-    const address = screen.getByText('Address Credential').closest('button')
-
-    expect(personalId?.getAttribute('aria-pressed')).toBe('false')
-    expect(address?.getAttribute('aria-pressed')).toBe('false')
-
     await user.click(personalId!)
-    expect(personalId?.getAttribute('aria-pressed')).toBe('true')
-    expect(address?.getAttribute('aria-pressed')).toBe('false')
-
-    await user.click(address!)
-    expect(personalId?.getAttribute('aria-pressed')).toBe('false')
-    expect(address?.getAttribute('aria-pressed')).toBe('true')
+    expect(mockNavigate).toHaveBeenCalledWith(credentialTypeDetailsPath('pid'))
   })
 
   it('shows issuer display_name when provided', () => {

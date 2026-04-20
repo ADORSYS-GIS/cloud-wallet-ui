@@ -1,4 +1,5 @@
 import { CredentialDetailPage } from './pages/CredentialDetailPage'
+import { CredentialTypeDetailsPage } from './pages/CredentialTypeDetailsPage'
 import { CredentialsPage } from './pages/CredentialsPage'
 import { HomePage } from './pages/HomePage'
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom'
@@ -15,6 +16,10 @@ function App() {
         <Routes>
           <Route path={routes.home} element={<HomePage />} />
           <Route path={routes.scan} element={<ScanPage />} />
+          <Route
+            path={routes.credentialTypeDetails}
+            element={<CredentialTypeDetailsPage />}
+          />
           <Route path={routes.credentialTypes} element={<CredentialTypesPage />} />
           <Route path={routes.issuanceSuccess} element={<IssuanceSuccessPage />} />
           <Route path={routes.credentials} element={<CredentialsPage />} />
