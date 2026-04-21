@@ -78,14 +78,14 @@ export function IssuanceSuccessPage() {
           <button
             type="button"
             onClick={viewCredential}
-            className="w-full rounded-xl border border-slate-500 bg-[#e7eaed] py-2.5 text-center text-[clamp(14px,1.8vw,18px)] font-normal text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.08)] transition-colors duration-200 hover:bg-[#dfe3e7]"
+            className="w-full rounded-xl border border-slate-500 bg-[#e7eaed] py-2.5 text-center text-[16px] font-medium text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.08)] transition-colors duration-200 hover:bg-[#dfe3e7]"
           >
             View Credential
           </button>
           <button
             type="button"
             onClick={() => navigate(routes.credentials)}
-            className="mt-2 w-full rounded-xl bg-[#99e827] py-2.5 text-center text-[clamp(16px,2vw,20px)] font-semibold text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors duration-200 hover:bg-[#8bdc1d]"
+            className="mt-2 w-full rounded-xl bg-[#99e827] py-2.5 text-center text-[18px] font-semibold text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors duration-200 hover:bg-[#8bdc1d]"
           >
             Done
           </button>
