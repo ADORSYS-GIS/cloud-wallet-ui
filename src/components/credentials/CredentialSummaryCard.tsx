@@ -19,14 +19,14 @@ export function CredentialSummaryCard({ credential }: CredentialSummaryCardProps
       className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-5 text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all hover:scale-[1.01] hover:shadow-md hover:border-[#4b7c8c]/30 active:scale-[0.98]"
     >
       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-100 bg-slate-50">
-        <svg 
-          width="24" 
-          height="24" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          stroke="#4b7c8c" 
-          strokeWidth="1.5" 
-          strokeLinecap="round" 
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#4b7c8c"
+          strokeWidth="1.5"
+          strokeLinecap="round"
           strokeLinejoin="round"
         >
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
