@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { IssuerAvatar } from '../issuance/IssuerAvater'
 import { credentialDetailPath } from '../../constants/routes'
 import type { CredentialRecord } from '../../types/credential'
 import { credentialDisplayName, issuerDisplayLabel } from '../../utils/credentialDisplay'
@@ -16,10 +17,17 @@ export function CredentialSummaryCard({ credential }: CredentialSummaryCardProps
     <button
       type="button"
       onClick={() => navigate(credentialDetailPath(credential.id))}
-      className="w-full rounded-lg border border-[#D1D5DB] bg-white p-6 text-left shadow-[0px_1px_24px_0px_rgba(44,51,53,0.09)] transition-colors hover:bg-[#e6f4e6]"
+      className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-5 text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all hover:scale-[1.01] hover:shadow-md hover:border-[#4b7c8c]/30 hover:bg-[#e6f4e6] active:scale-[0.98]"
     >
-      <p className="text-base font-semibold leading-6 text-slate-900">{title}</p>
-      <p className="mt-1 text-sm leading-5 text-slate-600">{issuer}</p>
+      <IssuerAvatar displayName={issuer} logoUri={null} size="md" />
+      <div className="min-w-0">
+        <p className="truncate text-base font-semibold tracking-tight text-slate-900">
+          {title}
+        </p>
+        <p className="mt-0.5 truncate text-[14px] leading-relaxed text-slate-500">
+          {issuer}
+        </p>
+      </div>
     </button>
   )
 }
