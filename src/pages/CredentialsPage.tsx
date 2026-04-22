@@ -13,8 +13,21 @@ export function CredentialsPage() {
 
   return (
     <PageContainer>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
-        <Header title="Your Credentials" />
+
+      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
+        <Header
+          title="Your Credentials"
+          leftSlot={
+            <button
+              type="button"
+              onClick={() => navigate(routes.home)}
+              className="h-10 w-10 rounded-full text-4xl leading-none text-white"
+              aria-label="Back to home"
+            >
+              ‹
+            </button>
+          }
+        />
 
         {loading && (
           <section className="flex flex-1 items-center justify-center bg-[#E9ECEF] py-16 text-slate-600">
@@ -25,8 +38,8 @@ export function CredentialsPage() {
         {!loading && credentials.length === 0 && <CredentialsEmptyState />}
 
         {!loading && credentials.length > 0 && (
-          <section className="min-h-0 flex-1 overflow-y-auto bg-[#E9ECEF] px-3 py-3">
-            <div className="mx-auto flex max-w-lg flex-col gap-3">
+          <section className="min-h-0 flex-1 overflow-y-auto bg-[#E9ECEF] py-4">
+            <div className="flex flex-col gap-4 px-4">
               {credentials.map((c) => (
                 <CredentialSummaryCard key={c.id} credential={c} />
               ))}
