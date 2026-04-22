@@ -9,6 +9,7 @@ import { submitConsent, submitTxCode, cancelSession } from '../api/issuance-sess
 import { useSseStream } from '../hooks/useSseStream'
 
 import type { ConsentResponse, TxCodeSpec } from '../types/issuance'
+import illuWallet from '../assets/illu-wallet.png'
 
 function useSelectedType(
   session: ReturnType<typeof useCredentialOfferState>['offer'],
@@ -106,12 +107,28 @@ function ProcessingOverlay({
     return null
   }
 
+  if (!isError) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center px-6 text-center">
+          <div className="relative mb-16 h-52 w-52">
+            <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+            <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+            <img
+              src={illuWallet}
+              alt=""
+              className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+            />
+          </div>
+          <div className="mt-2 text-sm text-slate-500">{message}</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 text-center shadow-2xl">
-        {!isError && (
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#99e827]" />
-        )}
         {isError && (
           <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-xl">
             ⚠️
@@ -428,7 +445,7 @@ export function CredentialTypeDetailsPage() {
             type="button"
             onClick={() => void handleIssueVc()}
             disabled={overlay.kind !== 'hidden'}
-            className="h-9 w-full rounded-[4px] bg-[#99e827] text-[14px] font-semibold text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-9 w-full rounded-[4px] bg-[#99e827] text-[14px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Issue VC
           </button>

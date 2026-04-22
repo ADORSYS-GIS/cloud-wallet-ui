@@ -24,15 +24,15 @@ function CredentialTypeCard({
     <button
       type="button"
       onClick={() => onClick(credentialType.credential_configuration_id)}
-      className="flex w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md active:scale-[0.99]"
+      className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-[#4b7c8c]/30 hover:bg-[#e6f4e6] active:scale-[0.98]"
     >
-      <div className="flex flex-col gap-1 px-3 py-3">
-        <div className="flex flex-col items-start gap-1">
-          <IssuerAvatar displayName={issuerName} logoUri={issuerLogoUri} size="sm" />
-          <p className="truncate text-[14px] md:text-[15px] font-semibold leading-tight text-slate-900">
+      <div className="flex items-center gap-4 px-5 py-12">
+        <IssuerAvatar displayName={issuerName} logoUri={issuerLogoUri} size="md" />
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold tracking-tight text-slate-900">
             {credentialType.display.name}
           </p>
-          <p className="truncate text-[12px] md:text-[13px] leading-tight text-slate-500">
+          <p className="mt-0.5 truncate text-[14px] leading-relaxed text-slate-500">
             {issuerName}
           </p>
         </div>
@@ -85,7 +85,7 @@ export function CredentialTypesPage() {
         </div>
 
         {/* Credential list — iterates directly over CredentialTypeDisplay */}
-        <section className="flex-1 overflow-y-auto px-3 pt-1 pb-4">
+        <section className="flex-1 overflow-y-auto px-4 py-4">
           <ul className="space-y-3">
             {credential_types.map((ct) => (
               <li key={ct.credential_configuration_id}>

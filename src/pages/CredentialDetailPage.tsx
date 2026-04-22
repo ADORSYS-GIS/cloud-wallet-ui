@@ -104,15 +104,15 @@ function CredentialDetailBody({ credentialId }: { credentialId: string }) {
         )}
 
         {!loading && error && (
-          <section className="flex flex-1 flex-col items-center justify-center gap-3 bg-[#F6F7F9] px-4 text-center">
+          <section className="flex flex-1 flex-col items-center justify-center gap-6 bg-[#e9ecef] px-4 text-center">
             <p className="text-slate-800">Could not open this credential.</p>
             <p className="text-sm text-slate-600">{error.message}</p>
             <button
               type="button"
               onClick={() => navigate(routes.credentials)}
-              className="rounded-md bg-[#99e827] px-4 py-2 text-sm font-semibold text-slate-900"
+              className="w-64 rounded-md bg-[#99e827] py-3 text-center text-base font-semibold text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
             >
-              Back to credentials
+              Back to Credentials
             </button>
           </section>
         )}

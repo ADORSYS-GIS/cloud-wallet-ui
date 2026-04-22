@@ -20,7 +20,7 @@ function SuccessIllustration() {
         <img
           src={checkCirclePrimary}
           alt=""
-          className="h-[39px] w-[39px] object-contain"
+          className="h-[35px] w-[35px] object-contain"
           style={{ imageRendering: '-webkit-optimize-contrast' }}
         />
       </div>
@@ -31,7 +31,7 @@ function SuccessIllustration() {
         <img
           src={illuWallet}
           alt=""
-          className="h-[142px] w-[122px] object-contain"
+          className="h-[132px] w-[122px] object-contain"
           style={{ imageRendering: '-webkit-optimize-contrast' }}
         />
       </div>
@@ -60,7 +60,7 @@ export function IssuanceSuccessPage() {
 
   return (
     <PageContainer fullWidth>
-      <div className="flex min-h-screen w-full flex-col bg-[#e7eaed]">
+      <div className="flex min-h-screen w-full flex-col bg-[#e7eaed] font-serif">
         <section
           className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-8 pt-10"
           aria-labelledby="issuance-success-heading"
@@ -68,7 +68,7 @@ export function IssuanceSuccessPage() {
           <SuccessIllustration />
           <h1
             id="issuance-success-heading"
-            className="mt-6 text-center text-[clamp(18px,2.6vw,24px)] font-semibold leading-tight text-slate-900"
+            className="mt-12 text-center text-[clamp(18px,2.6vw,24px)] font-semibold leading-tight text-slate-900"
           >
             Credential added to your wallet
           </h1>
@@ -78,14 +78,14 @@ export function IssuanceSuccessPage() {
           <button
             type="button"
             onClick={viewCredential}
-            className="w-full rounded-xl border border-slate-500 bg-[#e7eaed] py-2.5 text-center text-[clamp(14px,1.8vw,18px)] font-normal text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.08)] transition-colors duration-200 hover:bg-[#dfe3e7]"
+            className="w-full rounded-md border border-slate-500 bg-[#e7eaed] py-3 text-center text-[clamp(14px,1.8vw,18px)] font-normal text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.08)] transition-colors duration-200 hover:bg-[#dfe3e7]"
           >
             View Credential
           </button>
           <button
             type="button"
             onClick={() => navigate(routes.credentials)}
-            className="mt-2 w-full rounded-xl bg-[#99e827] py-2.5 text-center text-[clamp(16px,2vw,20px)] font-semibold text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors duration-200 hover:bg-[#8bdc1d]"
+            className="mt-2 w-full rounded-md bg-[#99e827] py-3 text-center text-[clamp(16px,2vw,20px)] font-normal text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors duration-200 hover:bg-[#8bdc1d]"
           >
             Done
           </button>

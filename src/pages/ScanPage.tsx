@@ -1,5 +1,5 @@
 import { BrowserQRCodeReader } from '@zxing/browser'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CredentialOfferCard } from '../components/issuance/CredentailOfferCard'
 import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
@@ -34,86 +34,93 @@ export function ScanPage() {
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const scanInProgressRef = useRef(false)
 
-  const stopScanner = () => {
+  const stopScanner = useCallback(() => {
     controlsRef.current?.stop()
     controlsRef.current = null
-  }
+  }, [])
 
-  const handleDecodedValue = async (value: string) => {
-    if (scanInProgressRef.current) return
-    scanInProgressRef.current = true
+  const handleDecodedValue = useCallback(
+    async (value: string) => {
+      if (scanInProgressRef.current) return
+      scanInProgressRef.current = true
 
-    stopScanner()
+      stopScanner()
 
-    const parsedOffer = parseCredentialOfferInput(value)
-    if (!parsedOffer) {
-      setScanStatus('idle')
-      setFeedbackMessage(
-        'Invalid credential offer QR content. Please scan a valid OpenID4VCI offer.'
-      )
-      scanInProgressRef.current = false
-      return
-    }
-
-    setScanStatus('processing')
-    setFeedbackMessage('Contacting issuer…')
-
-    await submitOffer(parsedOffer.normalizedUri)
-
-    setScanStatus('done')
-    scanInProgressRef.current = false
-  }
-
-  const startScan = async (mode: FacingMode = facingMode) => {
-    setIsScannerActive(true)
-    resetOffer()
-    setScanStatus('idle')
-    setFeedbackMessage('Requesting camera permission…')
-
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setIsScannerActive(false)
-      setScanStatus('idle')
-      setFeedbackMessage('No camera device is available on this browser.')
-      return
-    }
-
-    if (!videoRef.current) {
-      setIsScannerActive(false)
-      setScanStatus('idle')
-      setFeedbackMessage('Video preview unavailable. Please reload and try again.')
-      return
-    }
-
-    setScanStatus('scanning')
-    setFeedbackMessage('Searching for QR code…')
-
-    try {
-      readerRef.current = new BrowserQRCodeReader()
-      controlsRef.current = await readerRef.current.decodeFromConstraints(
-        { video: { facingMode: { ideal: mode } } },
-        videoRef.current,
-        (result) => {
-          if (result) {
-            void handleDecodedValue(result.getText().trim())
-          }
-        }
-      )
-    } catch (error: unknown) {
-      setIsScannerActive(false)
-      setScanStatus('idle')
-      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      const parsedOffer = parseCredentialOfferInput(value)
+      if (!parsedOffer) {
+        setScanStatus('idle')
         setFeedbackMessage(
-          'Camera permission denied. Please allow camera access and retry.'
+          'Invalid credential offer QR content. Please scan a valid OpenID4VCI offer.'
         )
+        scanInProgressRef.current = false
         return
       }
-      setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
-    }
-  }
+
+      setScanStatus('processing')
+      setFeedbackMessage('Contacting issuer…')
+
+      await submitOffer(parsedOffer.normalizedUri)
+
+      setScanStatus('done')
+      scanInProgressRef.current = false
+    },
+    [stopScanner, submitOffer]
+  )
+
+  const startScan = useCallback(
+    async (mode: FacingMode = facingMode) => {
+      setIsScannerActive(true)
+      resetOffer()
+      setScanStatus('idle')
+      setFeedbackMessage('Requesting camera permission…')
+
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setIsScannerActive(false)
+        setScanStatus('idle')
+        setFeedbackMessage('No camera device is available on this browser.')
+        return
+      }
+
+      if (!videoRef.current) {
+        setIsScannerActive(false)
+        setScanStatus('idle')
+        setFeedbackMessage('Video preview unavailable. Please reload and try again.')
+        return
+      }
+
+      setScanStatus('scanning')
+      setFeedbackMessage('Searching for QR code…')
+
+      try {
+        readerRef.current = new BrowserQRCodeReader()
+        controlsRef.current = await readerRef.current.decodeFromConstraints(
+          { video: { facingMode: { ideal: mode } } },
+          videoRef.current,
+          (result) => {
+            if (result) {
+              void handleDecodedValue(result.getText().trim())
+            }
+          }
+        )
+      } catch (error: unknown) {
+        setIsScannerActive(false)
+        setScanStatus('idle')
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          setFeedbackMessage(
+            'Camera permission denied. Please allow camera access and retry.'
+          )
+          return
+        }
+        setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
+      }
+    },
+    [facingMode, handleDecodedValue, resetOffer]
+  )
+
+  const errorReason = searchParams.get('error')
 
   useEffect(() => {
     let mounted = true
-    const errorReason = searchParams.get('error')
 
     if (errorReason === 'empty-options') {
       const timer = window.setTimeout(() => {
@@ -141,15 +148,14 @@ export function ScanPage() {
       mounted = false
       window.clearTimeout(timer)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [errorReason, resetOffer, startScan])
 
   useEffect(() => {
     return () => {
       stopScanner()
       readerRef.current = null
     }
-  }, [])
+  }, [stopScanner])
   const swapCamera = async () => {
     if (isSwapping) return
     setIsSwapping(true)
@@ -263,7 +269,7 @@ export function ScanPage() {
 
         {/* Status bar */}
         {!showFullscreenStatus && (
-          <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700">
+          <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700 font-serif">
             {statusBarText}
           </div>
         )}

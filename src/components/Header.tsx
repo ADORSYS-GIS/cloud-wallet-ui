@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import gearIcon from '../assets/icon-gear.svg'
 import { useState } from 'react'
 import { usePWA } from '../hooks/usePWA'
 
@@ -73,9 +72,6 @@ export function Header({
           <h1 className="min-w-0 truncate text-center font-semibold leading-none text-slate-100 md:text-[28px]">
             {title}
           </h1>
-          <div className="flex w-8 shrink-0 justify-end">
-            <img src={gearIcon} alt="Settings" className="h-6 w-6" />
-          </div>
         </header>
       )}
     </>

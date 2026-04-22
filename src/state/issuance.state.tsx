@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import type { StartIssuanceResponse } from '../types/issuance'
 import type { IssuanceApiError } from '../types/issuance'
 
@@ -35,38 +35,46 @@ export function CredentialOfferProvider({ children }: { children: React.ReactNod
   const [error, setErrorState] = useState<IssuanceApiError | undefined>(undefined)
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
 
+  const setLoading = useCallback(() => {
+    setOfferState(undefined)
+    setErrorState(undefined)
+    setErrorMessage(undefined)
+    setStatus('loading')
+  }, [])
+
+  const setOffer = useCallback((next: StartIssuanceResponse) => {
+    setErrorState(undefined)
+    setErrorMessage(undefined)
+    setOfferState(next)
+    setStatus('success')
+  }, [])
+
+  const setError = useCallback((next: IssuanceApiError, message: string) => {
+    setOfferState(undefined)
+    setErrorState(next)
+    setErrorMessage(message)
+    setStatus('error')
+  }, [])
+
+  const clear = useCallback(() => {
+    setOfferState(undefined)
+    setErrorState(undefined)
+    setErrorMessage(undefined)
+    setStatus('idle')
+  }, [])
+
   const value = useMemo<CredentialOfferState>(
     () => ({
       status,
       offer,
       error,
       errorMessage,
-      setLoading: () => {
-        setOfferState(undefined)
-        setErrorState(undefined)
-        setErrorMessage(undefined)
-        setStatus('loading')
-      },
-      setOffer: (next) => {
-        setErrorState(undefined)
-        setErrorMessage(undefined)
-        setOfferState(next)
-        setStatus('success')
-      },
-      setError: (next, message) => {
-        setOfferState(undefined)
-        setErrorState(next)
-        setErrorMessage(message)
-        setStatus('error')
-      },
-      clear: () => {
-        setOfferState(undefined)
-        setErrorState(undefined)
-        setErrorMessage(undefined)
-        setStatus('idle')
-      },
+      setLoading,
+      setOffer,
+      setError,
+      clear,
     }),
-    [error, errorMessage, offer, status]
+    [clear, error, errorMessage, offer, setError, setLoading, setOffer, status]
   )
 
   return (
