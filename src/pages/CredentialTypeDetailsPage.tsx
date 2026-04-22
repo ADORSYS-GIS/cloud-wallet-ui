@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
 import { IssuerAvatar } from '../components/issuance/IssuerAvater'
 import { TxCodeInput } from '../components/issuance/TxCodeInput'
 import { PageContainer } from '../components/layout/PageContainer'
@@ -7,8 +8,9 @@ import { routes, issuanceSuccessPath } from '../constants/routes'
 import { useCredentialOfferState } from '../state/issuance.state'
 import { submitConsent, submitTxCode, cancelSession } from '../api/issuance-session'
 import { useSseStream } from '../hooks/useSseStream'
+import { issuanceUserMessage, toIssuanceApiError } from '../utils/issuanceErrors'
 
-import type { ConsentResponse, TxCodeSpec } from '../types/issuance'
+import type { ConsentResponse, IssuanceApiError, TxCodeSpec } from '../types/issuance'
 
 function useSelectedType(
   session: ReturnType<typeof useCredentialOfferState>['offer'],
@@ -77,26 +79,50 @@ type OverlayStatus =
   | { kind: 'submitting_tx_code'; txCodeSpec: TxCodeSpec }
   | { kind: 'tx_code_error'; txCodeSpec: TxCodeSpec; errorMessage: string }
   | { kind: 'processing'; step: ProcessingStep }
-  | { kind: 'failed'; message: string }
+  | {
+      kind: 'failed'
+      apiError: IssuanceApiError
+      message: string
+      canRetry: boolean
+      retryAction: 'issue_vc' | null
+    }
 
 function ProcessingOverlay({
   status,
   onRetry,
+  onRestart,
 }: {
   status: OverlayStatus
   onRetry: () => void
+  onRestart: () => void
 }) {
   if (status.kind === 'hidden') return null
 
-  const isError = status.kind === 'failed'
+  if (status.kind === 'failed') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+        <div className="relative w-full max-w-md pb-2">
+          <IssuanceErrorCard
+            apiError={status.apiError}
+            userMessage={status.message}
+            onRetry={onRetry}
+            onBack={onRestart}
+            retryLabel="Try again"
+            backLabel="Restart flow"
+            showRetry={status.canRetry}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  const isError = false
   const message =
     status.kind === 'submitting'
       ? 'Submitting consent…'
       : status.kind === 'processing'
         ? stepLabel(status.step)
-        : status.kind === 'failed'
-          ? status.message
-          : ''
+        : ''
 
   if (
     status.kind === 'awaiting_tx_code' ||
@@ -118,15 +144,7 @@ function ProcessingOverlay({
           </div>
         )}
         <p className="text-sm leading-relaxed text-slate-700">{message}</p>
-        {isError && (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-4 w-full rounded-lg bg-[#99e827] py-2.5 text-sm font-semibold text-slate-900"
-          >
-            Try again
-          </button>
-        )}
+        {isError && <button type="button" onClick={onRetry} className="mt-4 w-full" />}
       </div>
     </div>
   )
@@ -202,8 +220,19 @@ export function CredentialTypeDetailsPage() {
       const msg =
         streamStatus.errorDescription ??
         `Issuance failed at step "${streamStatus.step}": ${streamStatus.error}`
+      const apiError: IssuanceApiError = {
+        httpStatus: 0,
+        error: streamStatus.error,
+        error_description: streamStatus.errorDescription,
+      }
       const id = setTimeout(() => {
-        setOverlay({ kind: 'failed', message: msg })
+        setOverlay({
+          kind: 'failed',
+          apiError,
+          message: msg,
+          canRetry: false,
+          retryAction: null,
+        })
       }, 0)
       return () => clearTimeout(id)
     }
@@ -229,9 +258,18 @@ export function CredentialTypeDetailsPage() {
         selectedType.credential_configuration_id,
       ])
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : 'Could not submit consent. Please try again.'
-      setOverlay({ kind: 'failed', message: msg })
+      const apiError = toIssuanceApiError(err)
+      const message =
+        apiError.httpStatus === 0 && err instanceof Error
+          ? err.message
+          : issuanceUserMessage(apiError)
+      setOverlay({
+        kind: 'failed',
+        apiError,
+        message,
+        canRetry: true,
+        retryAction: 'issue_vc',
+      })
       return
     }
 
@@ -245,9 +283,17 @@ export function CredentialTypeDetailsPage() {
           doAuthRedirect(consentResponse.authorization_url)
           setOverlay({ kind: 'processing', step: 'authorization' })
         } else {
+          const apiError: IssuanceApiError = {
+            httpStatus: 0,
+            error: 'invalid_request',
+            error_description: 'Authorization URL missing from server response.',
+          }
           setOverlay({
             kind: 'failed',
-            message: 'Authorization URL missing from server response.',
+            apiError,
+            message: issuanceUserMessage(apiError),
+            canRetry: false,
+            retryAction: null,
           })
         }
         break
@@ -256,10 +302,18 @@ export function CredentialTypeDetailsPage() {
         // Pre-authorized code flow — transaction code required.
         const txSpec = session.tx_code
         if (!txSpec) {
+          const apiError: IssuanceApiError = {
+            httpStatus: 0,
+            error: 'invalid_request',
+            error_description:
+              'Server requested a transaction code but did not provide the code spec. Please restart the flow.',
+          }
           setOverlay({
             kind: 'failed',
-            message:
-              'Server requested a transaction code but did not provide the code spec. Please restart the flow.',
+            apiError,
+            message: issuanceUserMessage(apiError),
+            canRetry: false,
+            retryAction: null,
           })
           return
         }
@@ -303,7 +357,6 @@ export function CredentialTypeDetailsPage() {
   const handleTxCodeCancel = async () => {
     closeStream()
     try {
-      // Spec: POST /issuance/{session_id}/cancel
       await cancelSession(session.session_id)
     } catch {
       // Best-effort — session may already be expired/cancelled
@@ -312,8 +365,20 @@ export function CredentialTypeDetailsPage() {
   }
 
   const handleOverlayRetry = () => {
+    if (overlay.kind === 'failed' && overlay.retryAction === 'issue_vc') {
+      setOverlay({ kind: 'hidden' })
+      void handleIssueVc()
+      return
+    }
     setOverlay({ kind: 'hidden' })
     closeStream()
+  }
+
+  const handleRestartFlow = () => {
+    closeStream()
+    offerState.clear()
+    setOverlay({ kind: 'hidden' })
+    navigate(routes.scan, { replace: true })
   }
 
   const handleCancel = async () => {
@@ -338,7 +403,11 @@ export function CredentialTypeDetailsPage() {
 
   return (
     <PageContainer fullWidth>
-      <ProcessingOverlay status={overlay} onRetry={handleOverlayRetry} />
+      <ProcessingOverlay
+        status={overlay}
+        onRetry={handleOverlayRetry}
+        onRestart={handleRestartFlow}
+      />
 
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e7eaed] font-serif">
         {/* Sub-header */}

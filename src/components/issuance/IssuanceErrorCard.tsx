@@ -48,12 +48,19 @@ type IssuanceErrorCardProps = {
   userMessage: string
   onRetry: () => void
   onBack: () => void
+  retryLabel?: string
+  backLabel?: string
+  showRetry?: boolean
 }
 
 export function IssuanceErrorCard({
   apiError,
   userMessage,
   onRetry,
+  onBack,
+  retryLabel = 'Try again',
+  backLabel = 'Restart flow',
+  showRetry = true,
 }: IssuanceErrorCardProps) {
   const meta = errorMeta(apiError)
 
@@ -87,12 +94,21 @@ export function IssuanceErrorCard({
 
       {/* Actions */}
       <div className="border-t border-slate-100 px-4 py-3">
+        {showRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="w-full rounded-lg bg-[#99e827] py-2.5 text-sm font-semibold text-slate-900 transition-colors hover:bg-[#8cd422] active:bg-[#7fc01f]"
+          >
+            {retryLabel}
+          </button>
+        )}
         <button
           type="button"
-          onClick={onRetry}
-          className="w-full rounded-lg bg-[#99e827] py-2.5 text-sm font-semibold text-slate-900 transition-colors hover:bg-[#8cd422] active:bg-[#7fc01f]"
+          onClick={onBack}
+          className={`w-full rounded-lg border border-slate-200 bg-white py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 active:bg-slate-100 ${showRetry ? 'mt-2' : ''}`}
         >
-          Scan again
+          {backLabel}
         </button>
       </div>
     </div>

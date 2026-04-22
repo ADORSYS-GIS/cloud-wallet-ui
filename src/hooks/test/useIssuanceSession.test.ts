@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { useIssuanceSession } from '../../hooks/useIssuanceSession'
 import { IssuanceError } from '../../api/issuance'
+import { ApiError } from '../../api/client'
 import type { StartIssuanceResponse } from '../../types/issuance'
 import { CredentialOfferProvider } from '../../state/issuance.state'
 
@@ -147,6 +148,30 @@ describe('useIssuanceSession', () => {
     if (result.current.offerState.status === 'error') {
       expect(result.current.offerState.apiError.httpStatus).toBe(0)
       expect(result.current.offerState.rawMessage).toBe('Failed to fetch')
+    }
+  })
+
+  it('maps ApiError ErrorResponse fields to user-facing issuance state', async () => {
+    mockStart.mockRejectedValueOnce(
+      new ApiError(404, 'No active session found for the given session_id.', {
+        errorCode: 'session_not_found',
+        errorDescription: 'No active session found for the given session_id.',
+      })
+    )
+
+    const { result } = renderHook(() => useIssuanceSession(), { wrapper })
+
+    await act(async () => {
+      await result.current.submitOffer('openid-credential-offer://?x=y')
+    })
+
+    expect(result.current.offerState.status).toBe('error')
+    if (result.current.offerState.status === 'error') {
+      expect(result.current.offerState.apiError.httpStatus).toBe(404)
+      expect(result.current.offerState.apiError.error).toBe('session_not_found')
+      expect(result.current.offerState.rawMessage).toBe(
+        'No active session found for the given session_id.'
+      )
     }
   })
 

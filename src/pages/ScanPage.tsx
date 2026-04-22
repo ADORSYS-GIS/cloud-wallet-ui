@@ -16,7 +16,6 @@ export function ScanPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  // Camera / scanner state
   const [scanStatus, setScanStatus] = useState<ScanStatus>('idle')
   const [feedbackMessage, setFeedbackMessage] = useState(
     'Point your camera at a credential offer QR code.'
@@ -26,7 +25,6 @@ export function ScanPage() {
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
 
-  // Issuance offer state machine
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -163,9 +161,7 @@ export function ScanPage() {
     }
   }
 
-  const showFullscreenStatus =
-    offerState.status === 'loading' ||
-    (offerState.status === 'error' && !!offerState.apiError)
+  const showFullscreenStatus = offerState.status === 'loading'
 
   // The offer card is the only success path. There is no competing useEffect
   // that auto-navigates away — the user must explicitly tap Accept.
@@ -214,33 +210,6 @@ export function ScanPage() {
               <div className="text-base text-slate-700">
                 Just a moment while we make a secure connection...
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Fullscreen error overlay */}
-        {showFullscreenStatus && offerState.status === 'error' && offerState.apiError && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
-            <div className="flex flex-col items-center px-6 text-center">
-              <div className="relative mb-16 h-52 w-52">
-                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
-                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
-                <img
-                  src={illuWallet}
-                  alt=""
-                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
-                />
-              </div>
-              <div className="text-base text-slate-700">
-                {offerState.rawMessage || String(offerState.apiError)}
-              </div>
-              <button
-                type="button"
-                onClick={() => void startScan()}
-                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
-              >
-                Scan again
-              </button>
             </div>
           </div>
         )}
@@ -306,6 +275,8 @@ export function ScanPage() {
               userMessage={offerState.rawMessage}
               onRetry={handleErrorRetry}
               onBack={handleErrorBack}
+              retryLabel="Scan again"
+              backLabel="Back to home"
             />
           )}
 

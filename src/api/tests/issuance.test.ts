@@ -101,6 +101,32 @@ describe('startIssuanceSession', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('parses OpenAPI ErrorResponse fields into ApiError details', async () => {
+    const fetchMock = vi.fn(async () =>
+      mockResponse({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: 'invalid_credential_offer',
+          error_description: 'The credential offer URI could not be parsed.',
+        }),
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    const err = await startIssuanceSession('openid-credential-offer://?x=y').catch(
+      (e) => e
+    )
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).errorCode).toBe('invalid_credential_offer')
+    expect((err as ApiError).errorDescription).toBe(
+      'The credential offer URI could not be parsed.'
+    )
+    expect((err as ApiError).message).toBe(
+      'The credential offer URI could not be parsed.'
+    )
+  })
+
   it('throws ApiError when the server returns 401', async () => {
     const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 401 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
