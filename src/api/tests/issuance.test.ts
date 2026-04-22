@@ -4,10 +4,6 @@ import { ApiError } from '../client'
 import { ContractError } from '../validation'
 import type { StartIssuanceResponse } from '../../types/issuance'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 type MockFetchResponse = {
   ok: boolean
   status: number
@@ -49,10 +45,6 @@ const minimalSession: StartIssuanceResponse = {
   tx_code_required: false,
   tx_code: null,
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('startIssuanceSession', () => {
   beforeEach(() => {

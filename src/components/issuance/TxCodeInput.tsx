@@ -32,7 +32,6 @@ export function TxCodeInput({
   const [validationError, setValidationError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-focus on mount
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
@@ -53,9 +52,7 @@ export function TxCodeInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value
-    // For numeric mode, strip non-digits as the user types
     const filtered = isNumeric ? raw.replace(/\D/g, '') : raw
-    // Enforce max length if known
     const clamped = expectedLength !== null ? filtered.slice(0, expectedLength) : filtered
     setCode(clamped)
     setValidationError(null)
@@ -78,7 +75,6 @@ export function TxCodeInput({
 
   const displayError = validationError ?? error
 
-  // Build individual digit boxes for fixed-length numeric input
   const useBoxedInput = isNumeric && expectedLength !== null && expectedLength <= 8
 
   return (
@@ -88,7 +84,6 @@ export function TxCodeInput({
       aria-modal="true"
       aria-label="Enter transaction code"
     >
-      {/* Header */}
       <div className="border-b border-slate-100 bg-[#f6f8fa] px-4 py-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Transaction Code Required
@@ -99,7 +94,6 @@ export function TxCodeInput({
         </p>
       </div>
 
-      {/* Description from spec */}
       {txCodeSpec.description && (
         <div className="border-b border-slate-100 bg-amber-50 px-4 py-3">
           <p className="text-xs leading-relaxed text-amber-800">
@@ -108,10 +102,8 @@ export function TxCodeInput({
         </div>
       )}
 
-      {/* Input area */}
       <div className="px-4 py-4">
         {useBoxedInput ? (
-          /* Boxed digit display for fixed-length numeric codes */
           <div className="flex flex-col items-center gap-3">
             <div className="flex gap-2" aria-hidden="true">
               {Array.from({ length: expectedLength! }).map((_, i) => (
@@ -130,7 +122,6 @@ export function TxCodeInput({
                 </div>
               ))}
             </div>
-            {/* Hidden actual input — captures keyboard on mobile */}
             <input
               ref={inputRef}
               type="tel"
@@ -145,7 +136,6 @@ export function TxCodeInput({
               autoComplete="one-time-code"
               disabled={isSubmitting}
             />
-            {/* Visible tap target to re-focus hidden input */}
             <button
               type="button"
               onClick={() => inputRef.current?.focus()}
@@ -155,7 +145,6 @@ export function TxCodeInput({
             </button>
           </div>
         ) : (
-          /* Plain input for text mode or long numeric codes */
           <input
             ref={inputRef}
             type={isNumeric ? 'tel' : 'text'}
@@ -176,7 +165,6 @@ export function TxCodeInput({
           />
         )}
 
-        {/* Validation / API error */}
         {displayError && (
           <p
             className="mt-2 text-center text-xs font-medium text-red-600"
@@ -188,7 +176,6 @@ export function TxCodeInput({
         )}
       </div>
 
-      {/* Actions */}
       <div className="flex gap-2 border-t border-slate-100 px-4 py-3">
         <button
           type="button"

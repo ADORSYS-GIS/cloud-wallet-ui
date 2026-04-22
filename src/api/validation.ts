@@ -28,10 +28,6 @@ import type {
   IssuanceFlow,
 } from '../types/issuance'
 
-// ---------------------------------------------------------------------------
-// ContractError
-// ---------------------------------------------------------------------------
-
 export class ContractError extends Error {
   constructor(context: string, field: string, received: unknown) {
     super(
@@ -40,10 +36,6 @@ export class ContractError extends Error {
     this.name = 'ContractError'
   }
 }
-
-// ---------------------------------------------------------------------------
-// Primitive helpers
-// ---------------------------------------------------------------------------
 
 function requireString(ctx: string, field: string, value: unknown): string {
   if (typeof value !== 'string') throw new ContractError(ctx, field, value)
@@ -82,10 +74,6 @@ function requireObject(
   return value as Record<string, unknown>
 }
 
-// ---------------------------------------------------------------------------
-// Enum helpers
-// ---------------------------------------------------------------------------
-
 const CREDENTIAL_STATUSES: CredentialStatus[] = [
   'active',
   'expired',
@@ -102,10 +90,6 @@ const CREDENTIAL_FORMATS: CredentialFormat[] = [
 const ISSUANCE_FLOWS: IssuanceFlow[] = ['authorization_code', 'pre_authorized_code']
 const TX_CODE_INPUT_MODES = ['numeric', 'text'] as const
 
-// ---------------------------------------------------------------------------
-// IssuerSummary
-// ---------------------------------------------------------------------------
-
 function validateIssuerSummary(raw: unknown): IssuerSummary {
   const ctx = 'IssuerSummary'
   const obj = requireObject(ctx, 'issuer', raw)
@@ -116,17 +100,12 @@ function validateIssuerSummary(raw: unknown): IssuerSummary {
   }
 }
 
-// ---------------------------------------------------------------------------
-// CredentialDisplay
-// ---------------------------------------------------------------------------
-
 function validateCredentialDisplay(raw: unknown): CredentialDisplay {
   const ctx = 'CredentialDisplay'
   const obj = requireObject(ctx, 'display', raw)
 
   const name = requireString(ctx, 'name', obj.name)
 
-  // Optional fields — only validate type when present
   const description =
     obj.description !== undefined
       ? requireString(ctx, 'description', obj.description)
@@ -140,7 +119,6 @@ function validateCredentialDisplay(raw: unknown): CredentialDisplay {
       ? requireString(ctx, 'text_color', obj.text_color)
       : undefined
 
-  // logo is optional and nullable
   let logo: CredentialDisplay['logo'] = undefined
   if (obj.logo !== undefined && obj.logo !== null) {
     const logoObj = requireObject(ctx, 'logo', obj.logo)
@@ -157,10 +135,6 @@ function validateCredentialDisplay(raw: unknown): CredentialDisplay {
 
   return { name, description, background_color, text_color, logo }
 }
-
-// ---------------------------------------------------------------------------
-// CredentialTypeDisplay
-// ---------------------------------------------------------------------------
 
 function validateCredentialTypeDisplay(
   raw: unknown,
@@ -179,10 +153,6 @@ function validateCredentialTypeDisplay(
   }
 }
 
-// ---------------------------------------------------------------------------
-// TxCodeSpec
-// ---------------------------------------------------------------------------
-
 function validateTxCodeSpec(raw: unknown): TxCodeSpec {
   const ctx = 'TxCodeSpec'
   const obj = requireObject(ctx, 'tx_code', raw)
@@ -198,10 +168,6 @@ function validateTxCodeSpec(raw: unknown): TxCodeSpec {
     description: requireStringOrNull(ctx, 'description', obj.description),
   }
 }
-
-// ---------------------------------------------------------------------------
-// StartIssuanceResponse  (POST /issuance/start → 201)
-// ---------------------------------------------------------------------------
 
 export function validateStartIssuanceResponse(raw: unknown): StartIssuanceResponse {
   const ctx = 'StartIssuanceResponse'
@@ -237,10 +203,6 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
   }
 }
 
-// ---------------------------------------------------------------------------
-// CredentialRecord  (GET /credentials/{id} → 200)
-// ---------------------------------------------------------------------------
-
 export function validateCredentialRecord(raw: unknown): CredentialRecord {
   const ctx = 'CredentialRecord'
   const obj = requireObject(ctx, 'response', raw)
@@ -270,10 +232,6 @@ export function validateCredentialRecord(raw: unknown): CredentialRecord {
     claims,
   }
 }
-
-// ---------------------------------------------------------------------------
-// CredentialListResponse  (GET /credentials → 200)
-// ---------------------------------------------------------------------------
 
 export function validateCredentialListResponse(raw: unknown): CredentialListResponse {
   const ctx = 'CredentialListResponse'

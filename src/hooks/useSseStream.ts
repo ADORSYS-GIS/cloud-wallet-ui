@@ -123,5 +123,4 @@ export function useSseStream(): UseSseStreamReturn {
   return { streamStatus, openStream, closeStream }
 }
 
-// Internal type alias used above
 type SseProcessingFrame = { event: string; step: string }

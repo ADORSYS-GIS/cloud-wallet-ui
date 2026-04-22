@@ -3,10 +3,6 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 import type { StartIssuanceResponse } from '../types/issuance'
 import type { IssuanceApiError } from '../types/issuance'
 
-// ---------------------------------------------------------------------------
-// State shape
-// ---------------------------------------------------------------------------
-
 export type CredentialOfferStatus = 'idle' | 'loading' | 'success' | 'error'
 
 type CredentialOfferState = {
@@ -22,10 +18,6 @@ type CredentialOfferState = {
   setError: (error: IssuanceApiError, message: string) => void
   clear: () => void
 }
-
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
 
 const CredentialOfferContext = createContext<CredentialOfferState | null>(null)
 

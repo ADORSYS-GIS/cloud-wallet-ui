@@ -3,19 +3,11 @@ import { IssuanceError, startIssuanceSession } from '../api/issuance'
 import type { IssuanceApiError, StartIssuanceResponse } from '../types/issuance'
 import { useCredentialOfferState } from '../state/issuance.state'
 
-// ---------------------------------------------------------------------------
-// State machine types
-// ---------------------------------------------------------------------------
-
 export type IssuanceOfferState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; session: StartIssuanceResponse }
   | { status: 'error'; apiError: IssuanceApiError; rawMessage: string }
-
-// ---------------------------------------------------------------------------
-// Human-readable error messages mapped from spec error codes.
-// ---------------------------------------------------------------------------
 
 function userFacingMessage(error: IssuanceApiError): string {
   if (error.error_description) {
@@ -40,10 +32,6 @@ function userFacingMessage(error: IssuanceApiError): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
 export type UseIssuanceSessionReturn = {
   offerState: IssuanceOfferState
   /** Submit a raw credential offer URI/string returned from the QR scanner. */
@@ -55,8 +43,6 @@ export type UseIssuanceSessionReturn = {
 export function useIssuanceSession(): UseIssuanceSessionReturn {
   const [offerState, setOfferState] = useState<IssuanceOfferState>({ status: 'idle' })
 
-  // Push outcomes into the shared context so other pages (e.g. CredentialsPage)
-  // can react to the successful issuance without prop drilling.
   const { setLoading, setOffer, setError, clear } = useCredentialOfferState()
 
   const submitOffer = useCallback(
@@ -79,7 +65,6 @@ export function useIssuanceSession(): UseIssuanceSessionReturn {
           setOfferState({ status: 'error', apiError, rawMessage: message })
           setError(apiError, message)
         } else {
-          // Network-level failure (offline, DNS, etc.)
           const message =
             err instanceof Error && err.message
               ? err.message

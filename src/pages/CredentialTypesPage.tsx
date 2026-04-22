@@ -45,14 +45,12 @@ export function CredentialTypesPage() {
   const navigate = useNavigate()
   const offerState = useCredentialOfferState()
 
-  // Guard: no offer → back to scan
   useEffect(() => {
     if (!offerState.offer) {
       navigate(routes.scan, { replace: true })
     }
   }, [navigate, offerState.offer])
 
-  // Guard: empty credential_types → back to scan with error flag
   useEffect(() => {
     if (!offerState.offer) return
     if (offerState.offer.credential_types.length === 0) {
@@ -68,7 +66,6 @@ export function CredentialTypesPage() {
   return (
     <PageContainer fullWidth>
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e7eaed] font-serif">
-        {/* Sub-header */}
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
           <button
             type="button"
@@ -84,7 +81,6 @@ export function CredentialTypesPage() {
           <div className="w-10" />
         </div>
 
-        {/* Credential list — iterates directly over CredentialTypeDisplay */}
         <section className="flex-1 overflow-y-auto px-4 py-4">
           <ul className="space-y-3">
             {credential_types.map((ct) => (
@@ -100,7 +96,6 @@ export function CredentialTypesPage() {
           </ul>
         </section>
 
-        {/* Navigate to routes.scan directly — ?fresh=true is no longer read */}
         <Footer onScanClick={() => navigate(routes.scan)} scanDisabled={false} />
       </div>
     </PageContainer>

@@ -172,7 +172,6 @@ export function CredentialTypeDetailsPage() {
     (session ? new URL(session.issuer.credential_issuer).host : 'Issuer')
   const issuerLogoUri = session?.issuer.logo_uri ?? null
 
-  // Redirect guard
   const shouldRedirect = !session || !selectedType || !optionId
   useEffect(() => {
     if (shouldRedirect) {
@@ -180,10 +179,8 @@ export function CredentialTypeDetailsPage() {
     }
   }, [navigate, shouldRedirect])
 
-  // SSE stream hook
   const { streamStatus, openStream, closeStream } = useSseStream()
 
-  // Overlay state
   const [overlay, setOverlay] = useState<OverlayStatus>({ kind: 'hidden' })
 
   const doAuthRedirect = useAuthRedirect()
@@ -191,7 +188,6 @@ export function CredentialTypeDetailsPage() {
   const lastHandledSseStatus = useRef<string>('')
 
   useEffect(() => {
-    // Build a stable key for this status snapshot so we only act once per change.
     const statusKey =
       streamStatus.status === 'processing'
         ? `processing:${streamStatus.step}`
@@ -254,10 +250,8 @@ export function CredentialTypeDetailsPage() {
 
     openStream(session.session_id)
 
-    // Handle next_action per spec:
     switch (consentResponse.next_action) {
       case 'redirect':
-        // Authorization code flow — open authorization_url in system browser.
         if (consentResponse.authorization_url) {
           doAuthRedirect(consentResponse.authorization_url)
           setOverlay({ kind: 'processing', step: 'authorization' })
@@ -270,7 +264,6 @@ export function CredentialTypeDetailsPage() {
         break
 
       case 'provide_tx_code': {
-        // Pre-authorized code flow — transaction code required.
         const txSpec = session.tx_code
         if (!txSpec) {
           setOverlay({
@@ -285,12 +278,10 @@ export function CredentialTypeDetailsPage() {
       }
 
       case 'none':
-        // Pre-authorized code flow without tx_code — processing started, listen on SSE.
         setOverlay({ kind: 'processing', step: '' })
         break
 
       case 'rejected':
-        // User declined — session is terminated.
         setOverlay({ kind: 'hidden' })
         closeStream()
         navigate(routes.scan, { replace: true })
@@ -305,7 +296,6 @@ export function CredentialTypeDetailsPage() {
     setOverlay({ kind: 'submitting_tx_code', txCodeSpec })
 
     try {
-      // Spec: POST /issuance/{session_id}/tx-code
       await submitTxCode(session.session_id, code)
       setOverlay({ kind: 'processing', step: 'exchanging_token' })
     } catch (err) {
@@ -320,10 +310,9 @@ export function CredentialTypeDetailsPage() {
   const handleTxCodeCancel = async () => {
     closeStream()
     try {
-      // Spec: POST /issuance/{session_id}/cancel
       await cancelSession(session.session_id)
     } catch {
-      // Best-effort — session may already be expired/cancelled
+      void 0
     }
     navigate(routes.credentialTypes)
   }
@@ -336,18 +325,15 @@ export function CredentialTypeDetailsPage() {
   const handleCancel = async () => {
     closeStream()
     if (overlay.kind !== 'hidden') {
-      // Only cancel if a session operation is in progress
       try {
-        // Spec: POST /issuance/{session_id}/cancel
         await cancelSession(session.session_id)
       } catch {
-        // Best-effort
+        void 0
       }
     }
     navigate(routes.credentialTypes)
   }
 
-  // Is the TX code overlay active?
   const isTxCodeActive =
     overlay.kind === 'awaiting_tx_code' ||
     overlay.kind === 'submitting_tx_code' ||
@@ -358,7 +344,6 @@ export function CredentialTypeDetailsPage() {
       <ProcessingOverlay status={overlay} onRetry={handleOverlayRetry} />
 
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e7eaed] font-serif">
-        {/* Sub-header */}
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
           <button
             type="button"
@@ -374,10 +359,8 @@ export function CredentialTypeDetailsPage() {
           <div className="w-10" />
         </div>
 
-        {/* Content */}
         <section className="flex-1 overflow-y-auto px-1 py-1">
           <div className="rounded-md bg-[#e7eaed] p-1.5">
-            {/* Issuer / credential card */}
             <div className="mb-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md">
               <div className="flex flex-col items-start gap-1">
                 <IssuerAvatar
@@ -394,7 +377,6 @@ export function CredentialTypeDetailsPage() {
               </p>
             </div>
 
-            {/* Credential type display fields */}
             <p className="mb-2 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
               Credential details:
             </p>
@@ -417,7 +399,6 @@ export function CredentialTypeDetailsPage() {
           </div>
         </section>
 
-        {/* TX Code input overlay (inline, over the camera/content area) */}
         {isTxCodeActive && (
           <div className="absolute inset-x-0 top-0 z-30 flex h-full items-start justify-center bg-black/40 pt-16">
             <div className="w-full max-w-sm px-3">
@@ -439,7 +420,6 @@ export function CredentialTypeDetailsPage() {
           </div>
         )}
 
-        {/* Actions */}
         <div className="px-2 pb-1">
           <button
             type="button"
