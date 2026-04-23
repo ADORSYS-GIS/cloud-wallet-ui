@@ -173,13 +173,10 @@ export function ScanPage() {
     }
   }
 
-  const showFullscreenStatus = offerState.status === 'loading'
-
-  // The offer card is the only success path. There is no competing useEffect
-  // that auto-navigates away — the user must explicitly tap Accept.
   const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
   const showErrorCard =
     scanStatus === 'done' && (offerState.status === 'error' || localScanError !== null)
+  const showFullscreenStatus = offerState.status === 'loading' || showErrorCard
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
 
   const handleAccept = () => {
