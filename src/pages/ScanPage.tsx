@@ -31,6 +31,7 @@ export function ScanPage() {
   const readerRef = useRef<BrowserQRCodeReader | null>(null)
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const scanInProgressRef = useRef(false)
+  const facingModeRef = useRef<FacingMode>(facingMode)
 
   const stopScanner = useCallback(() => {
     controlsRef.current?.stop()
@@ -65,8 +66,13 @@ export function ScanPage() {
     [stopScanner, submitOffer]
   )
 
+  useEffect(() => {
+    facingModeRef.current = facingMode
+  }, [facingMode])
+
   const startScan = useCallback(
-    async (mode: FacingMode = facingMode) => {
+    async (mode?: FacingMode) => {
+      const selectedMode = mode ?? facingModeRef.current
       setIsScannerActive(true)
       resetOffer()
       setScanStatus('idle')
@@ -92,7 +98,7 @@ export function ScanPage() {
       try {
         readerRef.current = new BrowserQRCodeReader()
         controlsRef.current = await readerRef.current.decodeFromConstraints(
-          { video: { facingMode: { ideal: mode } } },
+          { video: { facingMode: { ideal: selectedMode } } },
           videoRef.current,
           (result) => {
             if (result) {
@@ -112,7 +118,7 @@ export function ScanPage() {
         setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
       }
     },
-    [facingMode, handleDecodedValue, resetOffer]
+    [handleDecodedValue, resetOffer]
   )
 
   const errorReason = searchParams.get('error')
@@ -312,6 +318,7 @@ export function ScanPage() {
                 'absolute bottom-4 left-1/2 z-10 h-9 w-9 -translate-x-1/2 rounded-full bg-white text-lg text-slate-700 shadow',
                 isSwapping ? 'cursor-not-allowed opacity-60' : '',
               ].join(' ')}
+              title="Swap Camera"
               aria-label="Swap camera"
             >
               ↻
