@@ -1,14 +1,3 @@
-/**
- * Tenant registration API.
- *
- * Spec: POST /tenants (unauthenticated)
- * Request:  { name: string }
- * Response: TenantRegistrationResponse — { tenant_id: string; name: string }
- *
- * This endpoint requires NO bearer token (security: [] in OpenAPI spec).
- * We therefore call `fetch` directly rather than going through `apiPost`.
- */
-
 import { getApiBaseUrl } from '../utils/env'
 
 export type TenantRegistrationResponse = {
@@ -17,6 +6,8 @@ export type TenantRegistrationResponse = {
 }
 
 const TENANT_ID_KEY = 'cloud_wallet_tenant_id'
+
+export const DEFAULT_TENANT_NAME = 'DATEV Cloud Wallet'
 
 /**
  * Persist the tenant_id returned by the backend.
@@ -34,7 +25,7 @@ export function getStoredTenantId(): string | null {
 
 /**
  * Call POST /tenants and return the registration response.
- * Throws on non-2xx responses.
+ * Throws on non-2xx responses, including the full error body for debuggability.
  */
 export async function registerTenant(name: string): Promise<TenantRegistrationResponse> {
   const response = await fetch(`${getApiBaseUrl()}/tenants`, {
@@ -44,7 +35,16 @@ export async function registerTenant(name: string): Promise<TenantRegistrationRe
   })
 
   if (!response.ok) {
-    throw new Error(`Tenant registration failed with HTTP ${response.status}`)
+    // Include the response body so callers can see the server's error detail.
+    let bodyText = ''
+    try {
+      bodyText = await response.text()
+    } catch {
+      // Ignore — body may not be readable (e.g. network stream already closed).
+    }
+    throw new Error(
+      `Tenant registration failed with HTTP ${response.status}${bodyText ? `: ${bodyText}` : ''}`
+    )
   }
 
   const body = (await response.json()) as TenantRegistrationResponse

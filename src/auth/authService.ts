@@ -10,9 +10,12 @@
  */
 
 import { getOrCreateKeyPair, createJwt, type StoredKeyPair } from './crypto'
-import { registerTenant, storeTenantId, getStoredTenantId } from './tenant'
-
-const APP_NAME = 'DATEV Cloud Wallet'
+import {
+  registerTenant,
+  storeTenantId,
+  getStoredTenantId,
+  DEFAULT_TENANT_NAME,
+} from './tenant'
 
 // How many seconds before expiry we proactively refresh the token.
 const REFRESH_BUFFER_SECONDS = 60
@@ -51,7 +54,7 @@ async function ensureTenantId(): Promise<string> {
   const existing = getStoredTenantId()
   if (existing) return existing
 
-  const { tenant_id } = await registerTenant(APP_NAME)
+  const { tenant_id } = await registerTenant(DEFAULT_TENANT_NAME)
   storeTenantId(tenant_id)
   return tenant_id
 }
