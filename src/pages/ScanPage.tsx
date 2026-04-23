@@ -6,6 +6,8 @@ import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { useIssuanceSession } from '../hooks/useIssuanceSession'
+import type { IssuanceApiError } from '../types/issuance'
+import { issuanceUserMessage } from '../utils/issuanceErrors'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
 import illuWallet from '../assets/illu-wallet.png'
 
@@ -24,6 +26,10 @@ export function ScanPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
+  const [localScanError, setLocalScanError] = useState<{
+    apiError: IssuanceApiError
+    userMessage: string
+  } | null>(null)
 
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
 
@@ -45,10 +51,16 @@ export function ScanPage() {
 
     const parsedOffer = parseCredentialOfferInput(value)
     if (!parsedOffer) {
-      setScanStatus('idle')
-      setFeedbackMessage(
-        'Invalid credential offer QR content. Please scan a valid OpenID4VCI offer.'
-      )
+      const apiError: IssuanceApiError = {
+        httpStatus: 400,
+        error: 'invalid_credential_offer',
+        error_description: null,
+      }
+      setLocalScanError({
+        apiError,
+        userMessage: issuanceUserMessage(apiError),
+      })
+      setScanStatus('done')
       scanInProgressRef.current = false
       return
     }
@@ -65,6 +77,7 @@ export function ScanPage() {
   const startScan = async (mode: FacingMode = facingMode) => {
     setIsScannerActive(true)
     resetOffer()
+    setLocalScanError(null)
     setScanStatus('idle')
     setFeedbackMessage('Requesting camera permission…')
 
@@ -166,7 +179,8 @@ export function ScanPage() {
   // The offer card is the only success path. There is no competing useEffect
   // that auto-navigates away — the user must explicitly tap Accept.
   const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
-  const showErrorCard = scanStatus === 'done' && offerState.status === 'error'
+  const showErrorCard =
+    scanStatus === 'done' && (offerState.status === 'error' || localScanError !== null)
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
 
   const handleAccept = () => {
@@ -279,6 +293,16 @@ export function ScanPage() {
               backLabel="Back to home"
             />
           )}
+          {showErrorCard && localScanError && offerState.status !== 'error' && (
+            <IssuanceErrorCard
+              apiError={localScanError.apiError}
+              userMessage={localScanError.userMessage}
+              onRetry={handleErrorRetry}
+              onBack={handleErrorBack}
+              retryLabel="Scan again"
+              backLabel="Back to home"
+            />
+          )}
 
           {/* Camera swap button */}
           {isScannerActive && scanStatus === 'scanning' && (
@@ -296,18 +320,6 @@ export function ScanPage() {
             </button>
           )}
 
-          {/* Invalid QR retry */}
-          {scanStatus === 'idle' &&
-            feedbackMessage.startsWith('Invalid') &&
-            !showErrorCard && (
-              <button
-                type="button"
-                onClick={() => void startScan()}
-                className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
-              >
-                Retry scan
-              </button>
-            )}
         </section>
       </div>
     </PageContainer>
