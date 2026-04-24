@@ -13,7 +13,7 @@ export function CredentialsPage() {
 
   return (
     <PageContainer>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
+      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
         <Header
           title="Your Credentials"
           leftSlot={

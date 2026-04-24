@@ -361,20 +361,22 @@ export function CredentialTypeDetailsPage() {
 
         <section className="flex-1 overflow-y-auto px-1 py-1">
           <div className="rounded-md bg-[#e7eaed] p-1.5">
-            <div className="mb-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md">
-              <div className="flex flex-col items-start gap-1">
+            <div className="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-[#4b7c8c]/30 hover:bg-[#e6f4e6] active:scale-[0.98]">
+              <div className="flex items-center gap-4 px-5 py-12">
                 <IssuerAvatar
                   displayName={issuerName}
                   logoUri={issuerLogoUri}
-                  size="sm"
+                  size="md"
                 />
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold tracking-tight text-slate-900">
+                    {selectedType.display.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-[14px] leading-relaxed text-slate-500">
+                    {issuerName}
+                  </p>
+                </div>
               </div>
-              <p className="mt-2 text-[14px] md:text-[15px] font-semibold leading-tight text-slate-900">
-                {selectedType.display.name}
-              </p>
-              <p className="text-[12px] md:text-[13px] leading-tight text-slate-500">
-                {issuerName}
-              </p>
             </div>
 
             <p className="mb-2 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
