@@ -1,6 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import { getApiBaseUrl } from '../utils/env'
-import type { SseEvent, SseCompletedEvent, SseFailedEvent } from '../types/issuance'
+import type {
+  ConsentResponse,
+  SseEvent,
+  SseCompletedEvent,
+  SseFailedEvent,
+} from '../types/issuance'
 
 export type SseStreamStatus =
   | { status: 'idle' }
@@ -124,3 +129,76 @@ export function useSseStream(): UseSseStreamReturn {
 }
 
 type SseProcessingFrame = { event: string; step: string }
+
+/**
+ * Hook that orchestrates the full post-consent flow:
+ * 1. Submit consent via POST /issuance/{session_id}/consent
+ * 2. Open SSE stream
+ * 3. Handle next_action (redirect / provide_tx_code / none)
+ */
+export type ConsentFlowStatus =
+  | { status: 'idle' }
+  | { status: 'submitting' }
+  | { status: 'awaiting_redirect'; authorizationUrl: string }
+  | { status: 'awaiting_tx_code' }
+  | { status: 'processing'; step: string }
+  | { status: 'completed'; credentialIds: string[]; credentialTypes: string[] }
+  | { status: 'rejected' }
+  | { status: 'failed'; error: string; errorDescription: string | null }
+
+export type UseConsentFlowReturn = {
+  consentStatus: ConsentFlowStatus
+  handleConsentResponse: (response: ConsentResponse, sessionId: string) => void
+  updateFromSse: (streamStatus: SseStreamStatus) => void
+  reset: () => void
+}
+
+export function useConsentFlow(): UseConsentFlowReturn {
+  const [consentStatus, setConsentStatus] = useState<ConsentFlowStatus>({
+    status: 'idle',
+  })
+
+  const handleConsentResponse = useCallback((response: ConsentResponse) => {
+    switch (response.next_action) {
+      case 'redirect':
+        setConsentStatus({
+          status: 'awaiting_redirect',
+          authorizationUrl: response.authorization_url ?? '',
+        })
+        break
+      case 'provide_tx_code':
+        setConsentStatus({ status: 'awaiting_tx_code' })
+        break
+      case 'none':
+        setConsentStatus({ status: 'processing', step: '' })
+        break
+      case 'rejected':
+        setConsentStatus({ status: 'rejected' })
+        break
+    }
+  }, [])
+
+  const updateFromSse = useCallback((ss: SseStreamStatus) => {
+    if (ss.status === 'processing') {
+      setConsentStatus({ status: 'processing', step: ss.step })
+    } else if (ss.status === 'completed') {
+      setConsentStatus({
+        status: 'completed',
+        credentialIds: ss.credentialIds,
+        credentialTypes: ss.credentialTypes,
+      })
+    } else if (ss.status === 'failed') {
+      setConsentStatus({
+        status: 'failed',
+        error: ss.error,
+        errorDescription: ss.errorDescription,
+      })
+    }
+  }, [])
+
+  const reset = useCallback(() => {
+    setConsentStatus({ status: 'idle' })
+  }, [])
+
+  return { consentStatus, handleConsentResponse, updateFromSse, reset }
+}
