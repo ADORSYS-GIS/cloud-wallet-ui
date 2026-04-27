@@ -37,8 +37,9 @@ export class IssuanceError extends Error {
  * A `ContractError` is thrown if the backend response does not conform.
  * An `IssuanceError` is thrown for non-2xx HTTP responses.
  */
-export function startIssuanceSession(offer: string): Promise<StartIssuanceResponse> {
-  return apiPost<unknown, { offer: string }>('/issuance/start', { offer }).then((raw) =>
-    validateStartIssuanceResponse(raw)
-  )
+export async function startIssuanceSession(
+  offer: string
+): Promise<StartIssuanceResponse> {
+  const raw = await apiPost<unknown, { offer: string }>('/issuance/start', { offer })
+  return validateStartIssuanceResponse(raw)
 }
