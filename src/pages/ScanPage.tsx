@@ -1,7 +1,7 @@
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { CredentialOfferCard } from '../components/issuance/CredentailOfferCard'
+
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { useIssuanceSession } from '../hooks/useIssuanceSession'
@@ -25,7 +25,6 @@ export function ScanPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
-  const [isRestartingScan, setIsRestartingScan] = useState(false)
   const [localScanError, setLocalScanError] = useState<{
     apiError: IssuanceApiError
     userMessage: string
@@ -33,12 +32,17 @@ export function ScanPage() {
 
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
 
+  useEffect(() => {
+    if (offerState.status === 'success' && offerState.session) {
+      navigate(routes.credentialTypes)
+    }
+  }, [offerState, navigate])
+
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const readerRef = useRef<BrowserQRCodeReader | null>(null)
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const scanInProgressRef = useRef(false)
-  const startScanInFlightRef = useRef(false)
-  const facingModeRef = useRef<FacingMode>('environment')
+  const facingModeRef = useRef<FacingMode>(facingMode)
 
   const stopScanner = useCallback(() => {
     controlsRef.current?.stop()
@@ -50,44 +54,44 @@ export function ScanPage() {
       if (scanInProgressRef.current) return
       scanInProgressRef.current = true
 
-      try {
-        stopScanner()
-        const parsedOffer = parseCredentialOfferInput(value)
-        if (!parsedOffer) {
-          const apiError: IssuanceApiError = {
-            httpStatus: 400,
-            error: 'invalid_credential_offer',
-            error_description: null,
-          }
-          setLocalScanError({
-            apiError,
-            userMessage: issuanceUserMessage(apiError),
-          })
-          setScanStatus('done')
-          return
+      stopScanner()
+
+      const parsedOffer = parseCredentialOfferInput(value)
+      if (!parsedOffer) {
+        const apiError: IssuanceApiError = {
+          httpStatus: 400,
+          error: 'invalid_credential_offer',
+          error_description: null,
         }
-
-        setLocalScanError(null)
-        setScanStatus('processing')
-        setFeedbackMessage('Contacting issuer…')
-
-        await submitOffer(parsedOffer.normalizedUri)
+        setLocalScanError({
+          apiError,
+          userMessage: issuanceUserMessage(apiError),
+        })
         setScanStatus('done')
-      } finally {
         scanInProgressRef.current = false
+        return
       }
+
+      setScanStatus('processing')
+      setFeedbackMessage('Contacting issuer…')
+
+      await submitOffer(parsedOffer.normalizedUri)
+
+      setScanStatus('done')
+      scanInProgressRef.current = false
     },
     [stopScanner, submitOffer]
   )
 
+  useEffect(() => {
+    facingModeRef.current = facingMode
+  }, [facingMode])
+
   const startScan = useCallback(
     async (mode?: FacingMode) => {
-      if (startScanInFlightRef.current) return
-      startScanInFlightRef.current = true
       const selectedMode = mode ?? facingModeRef.current
       setIsScannerActive(true)
       resetOffer()
-      setLocalScanError(null)
       setScanStatus('idle')
       setFeedbackMessage('Requesting camera permission…')
 
@@ -95,7 +99,6 @@ export function ScanPage() {
         setIsScannerActive(false)
         setScanStatus('idle')
         setFeedbackMessage('No camera device is available on this browser.')
-        startScanInFlightRef.current = false
         return
       }
 
@@ -103,7 +106,6 @@ export function ScanPage() {
         setIsScannerActive(false)
         setScanStatus('idle')
         setFeedbackMessage('Video preview unavailable. Please reload and try again.')
-        startScanInFlightRef.current = false
         return
       }
 
@@ -131,18 +133,12 @@ export function ScanPage() {
           return
         }
         setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
-      } finally {
-        startScanInFlightRef.current = false
       }
     },
     [handleDecodedValue, resetOffer]
   )
 
   const errorReason = searchParams.get('error')
-
-  useEffect(() => {
-    facingModeRef.current = facingMode
-  }, [facingMode])
 
   useEffect(() => {
     let mounted = true
@@ -194,28 +190,14 @@ export function ScanPage() {
     }
   }
 
-  const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
   const showErrorCard =
     scanStatus === 'done' && (offerState.status === 'error' || localScanError !== null)
   const showFullscreenStatus = offerState.status === 'loading' || showErrorCard
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
 
-  const handleAccept = () => {
-    navigate(routes.credentialTypes)
-  }
-
-  const handleDecline = () => {
-    if (isRestartingScan) return
-    setIsRestartingScan(true)
-    resetOffer()
-    void startScan().finally(() => setIsRestartingScan(false))
-  }
-
   const handleErrorRetry = () => {
-    if (isRestartingScan) return
-    setIsRestartingScan(true)
     resetOffer()
-    void startScan().finally(() => setIsRestartingScan(false))
+    void startScan()
   }
 
   const statusBarText = isInitializing
@@ -265,10 +247,9 @@ export function ScanPage() {
               <button
                 type="button"
                 onClick={() => void handleErrorRetry()}
-                disabled={isRestartingScan}
-                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
               >
-                {isRestartingScan ? 'Starting scanner…' : 'Scan again'}
+                Scan again
               </button>
             </div>
           </div>
@@ -313,15 +294,6 @@ export function ScanPage() {
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
               <p className="text-sm font-medium text-white">Contacting issuer…</p>
             </div>
-          )}
-
-          {showOfferCard && offerState.status === 'success' && (
-            <CredentialOfferCard
-              session={offerState.session}
-              onAccept={handleAccept}
-              onDecline={handleDecline}
-              isBusy={isRestartingScan}
-            />
           )}
 
           {/* Camera swap button */}

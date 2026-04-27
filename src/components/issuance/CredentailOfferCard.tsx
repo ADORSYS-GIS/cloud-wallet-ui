@@ -94,17 +94,9 @@ function FlowBadge({ flow, txCodeRequired }: FlowBadgeProps) {
 
 type CredentialOfferCardProps = {
   session: StartIssuanceResponse
-  onAccept: () => void
-  onDecline: () => void
-  isBusy?: boolean
 }
 
-export function CredentialOfferCard({
-  session,
-  onAccept,
-  onDecline,
-  isBusy = false,
-}: CredentialOfferCardProps) {
+export function CredentialOfferCard({ session }: CredentialOfferCardProps) {
   const expiresAt = new Date(session.expires_at)
   const expiresLabel = expiresAt.toLocaleTimeString(undefined, {
     hour: '2-digit',
@@ -168,25 +160,6 @@ export function CredentialOfferCard({
             {session.tx_code.description}
           </p>
         )}
-      </div>
-
-      <div className="flex gap-2 px-4 py-3">
-        <button
-          type="button"
-          onClick={onDecline}
-          disabled={isBusy}
-          className="flex-1 rounded-lg border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Decline
-        </button>
-        <button
-          type="button"
-          onClick={onAccept}
-          disabled={isBusy}
-          className="flex-1 rounded-lg bg-[#99e827] py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:bg-[#8cd422] active:bg-[#7fc01f] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Accept
-        </button>
       </div>
     </div>
   )
