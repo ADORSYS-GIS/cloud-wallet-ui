@@ -33,14 +33,14 @@ function ClaimRow({ label, value, revealed, onToggle }: ClaimRowProps) {
   const displayLabel = formatLabel(label)
 
   return (
-    <div className="flex items-start justify-between py-4">
+    <div className="flex items-start justify-between py-2">
       <div className="min-w-0 flex-1 pr-4">
         <p className="text-[14px] font-normal leading-relaxed text-slate-500">
           {displayLabel}
         </p>
         <p
           className={[
-            'mt-0.5 break-all text-[15px] text-slate-900 transition-all duration-200',
+            'mt-0 break-all text-[15px] text-slate-900 transition-all duration-200',
             revealed ? 'font-medium' : 'select-none tracking-[0.2em] text-slate-900',
           ].join(' ')}
           aria-label={revealed ? value : `${displayLabel} hidden`}
@@ -135,8 +135,8 @@ function CredentialHeaderCard({ credential }: CredentialHeaderCardProps) {
   const avatarDisplayName = issuer
 
   return (
-    <div className="mx-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-[#4b7c8c]/30">
-      <div className="flex items-center gap-4 px-5 py-5">
+    <div className="mx-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-[#4b7c8c]/30 hover:bg-[#e6f4e6] active:scale-[0.98]">
+      <div className="flex items-center gap-4 px-5 py-12">
         <IssuerAvatar displayName={avatarDisplayName} logoUri={null} size="md" />
         <div className="min-w-0">
           <p className="truncate text-base font-semibold tracking-tight text-slate-900">
@@ -158,7 +158,7 @@ function CredentialDetailBody({ credentialId }: { credentialId: string }) {
 
   return (
     <PageContainer fullWidth={true}>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
+      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
         <Header
           title={headerTitle}
           hidePwaBanner={true}
@@ -187,9 +187,9 @@ function CredentialDetailBody({ credentialId }: { credentialId: string }) {
             <button
               type="button"
               onClick={() => navigate(routes.credentials)}
-              className="rounded-md bg-[#99e827] px-4 py-2 text-sm font-semibold text-slate-900"
+              className="w-64 rounded-md bg-[#99e827] py-3 text-center text-base font-semibold text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
             >
-              Back to credentials
+              Back to Credentials
             </button>
           </section>
         )}

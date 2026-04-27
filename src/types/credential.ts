@@ -1,8 +1,3 @@
-// ---------------------------------------------------------------------------
-// Types derived directly from the OpenAPI spec CredentialRecord schema and
-// the CredentialListResponse schema.
-// ---------------------------------------------------------------------------
-
 /**
  * Spec enum: active | expired | revoked | suspended
  * We keep the union open-ended with `string` so unknown future values don't

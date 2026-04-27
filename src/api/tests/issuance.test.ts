@@ -71,10 +71,6 @@ const minimalSession: StartIssuanceResponse = {
   tx_code: null,
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe('startIssuanceSession', () => {
   beforeEach(() => {
     vi.stubEnv('VITE_API_BASE_URL', 'http://api.test')

@@ -83,7 +83,6 @@ function parseOfferParams(
   const credentialOffer = params.get('credential_offer')
   const credentialOfferUri = params.get('credential_offer_uri')
 
-  // OpenID4VCI requires exactly one of these parameters.
   if (
     (!credentialOffer && !credentialOfferUri) ||
     (credentialOffer && credentialOfferUri)
@@ -139,8 +138,6 @@ export function parseCredentialOfferInput(
         return null
       }
 
-      // Conservative default: only accept URLs that look like offer endpoints.
-      // This reduces accidental submission of arbitrary HTTPS QR codes.
       const pathLooksLikeOffer = url.pathname.toLowerCase().includes('credential-offer')
       if (allowedHosts.length === 0 && !pathLooksLikeOffer) {
         return null

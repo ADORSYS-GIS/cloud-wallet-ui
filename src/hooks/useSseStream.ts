@@ -1,10 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import { getApiBaseUrl } from '../utils/env'
 import type {
+  ConsentResponse,
   SseEvent,
   SseCompletedEvent,
   SseFailedEvent,
-  ConsentResponse,
 } from '../types/issuance'
 
 export type SseStreamStatus =
@@ -128,7 +128,6 @@ export function useSseStream(): UseSseStreamReturn {
   return { streamStatus, openStream, closeStream }
 }
 
-// Internal type alias used above
 type SseProcessingFrame = { event: string; step: string }
 
 /**

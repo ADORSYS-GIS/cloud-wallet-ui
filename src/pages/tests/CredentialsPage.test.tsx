@@ -13,10 +13,6 @@ vi.mock('../../hooks/useCredentials', () => ({
 
 const mockedUseCredentials = vi.mocked(useCredentials)
 
-// ---------------------------------------------------------------------------
-// Fixture helpers
-// ---------------------------------------------------------------------------
-
 function makeCredential(overrides: Partial<CredentialRecord> = {}): CredentialRecord {
   return {
     id: 'cred-1',
@@ -30,10 +26,6 @@ function makeCredential(overrides: Partial<CredentialRecord> = {}): CredentialRe
     ...overrides,
   }
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('CredentialsPage', () => {
   afterEach(() => {
@@ -103,7 +95,6 @@ describe('CredentialsPage', () => {
     )
 
     expect(screen.queryByText('Your wallet is empty.')).toBeNull()
-    // credentialDisplayName extracts 'mDL' from the URL path
     expect(screen.getByRole('button', { name: /mDL/i })).toBeDefined()
     expect(screen.getByText('issuer.example.com')).toBeDefined()
   })
