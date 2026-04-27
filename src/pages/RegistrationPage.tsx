@@ -2,13 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
+import { initAuth } from '../auth/authService'
 import {
   DEFAULT_TENANT_NAME,
   getStoredTenantId,
   registerTenant,
   storeTenantId,
 } from '../auth/tenant'
-import { initAuth } from '../auth/authService'
 
 export function RegistrationPage() {
   const navigate = useNavigate()
@@ -44,7 +44,7 @@ export function RegistrationPage() {
     <PageContainer fullWidth>
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e7eaed] font-serif">
         {/* Sub-header */}
-        <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-5">
           <div className="w-10" />
           <div className="text-center text-[16px] md:text-[18px] font-semibold leading-none text-white">
             Registration
@@ -53,7 +53,7 @@ export function RegistrationPage() {
         </div>
 
         <section className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-          <p className="mb-4 text-sm text-slate-700">Register to wallet</p>
+          <p className="mb-4 max-w-[830px] text-slate-700">Register to wallet</p>
           <button
             type="button"
             onClick={() => void handleRegister()}
