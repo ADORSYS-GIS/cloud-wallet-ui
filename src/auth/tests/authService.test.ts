@@ -15,6 +15,7 @@ vi.mock('../tenant', () => ({
   })),
   storeTenantId: vi.fn(),
   getStoredTenantId: vi.fn(() => null),
+  DEFAULT_TENANT_NAME: 'DATEV Cloud Wallet',
 }))
 
 import { initAuth, getBearerToken, resetAuthState } from '../authService'
