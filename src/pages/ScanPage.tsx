@@ -25,6 +25,7 @@ export function ScanPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
+  const [isRestartingScan, setIsRestartingScan] = useState(false)
   const [localScanError, setLocalScanError] = useState<{
     apiError: IssuanceApiError
     userMessage: string
@@ -36,7 +37,8 @@ export function ScanPage() {
   const readerRef = useRef<BrowserQRCodeReader | null>(null)
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const scanInProgressRef = useRef(false)
-  const facingModeRef = useRef<FacingMode>(facingMode)
+  const startScanInFlightRef = useRef(false)
+  const facingModeRef = useRef<FacingMode>('environment')
 
   const stopScanner = useCallback(() => {
     controlsRef.current?.stop()
@@ -48,44 +50,44 @@ export function ScanPage() {
       if (scanInProgressRef.current) return
       scanInProgressRef.current = true
 
-      stopScanner()
-
-      const parsedOffer = parseCredentialOfferInput(value)
-      if (!parsedOffer) {
-        const apiError: IssuanceApiError = {
-          httpStatus: 400,
-          error: 'invalid_credential_offer',
-          error_description: null,
+      try {
+        stopScanner()
+        const parsedOffer = parseCredentialOfferInput(value)
+        if (!parsedOffer) {
+          const apiError: IssuanceApiError = {
+            httpStatus: 400,
+            error: 'invalid_credential_offer',
+            error_description: null,
+          }
+          setLocalScanError({
+            apiError,
+            userMessage: issuanceUserMessage(apiError),
+          })
+          setScanStatus('done')
+          return
         }
-        setLocalScanError({
-          apiError,
-          userMessage: issuanceUserMessage(apiError),
-        })
+
+        setLocalScanError(null)
+        setScanStatus('processing')
+        setFeedbackMessage('Contacting issuer…')
+
+        await submitOffer(parsedOffer.normalizedUri)
         setScanStatus('done')
+      } finally {
         scanInProgressRef.current = false
-        return
       }
-
-      setScanStatus('processing')
-      setFeedbackMessage('Contacting issuer…')
-
-      await submitOffer(parsedOffer.normalizedUri)
-
-      setScanStatus('done')
-      scanInProgressRef.current = false
     },
     [stopScanner, submitOffer]
   )
 
-  useEffect(() => {
-    facingModeRef.current = facingMode
-  }, [facingMode])
-
   const startScan = useCallback(
     async (mode?: FacingMode) => {
+      if (startScanInFlightRef.current) return
+      startScanInFlightRef.current = true
       const selectedMode = mode ?? facingModeRef.current
       setIsScannerActive(true)
       resetOffer()
+      setLocalScanError(null)
       setScanStatus('idle')
       setFeedbackMessage('Requesting camera permission…')
 
@@ -93,6 +95,7 @@ export function ScanPage() {
         setIsScannerActive(false)
         setScanStatus('idle')
         setFeedbackMessage('No camera device is available on this browser.')
+        startScanInFlightRef.current = false
         return
       }
 
@@ -100,6 +103,7 @@ export function ScanPage() {
         setIsScannerActive(false)
         setScanStatus('idle')
         setFeedbackMessage('Video preview unavailable. Please reload and try again.')
+        startScanInFlightRef.current = false
         return
       }
 
@@ -127,12 +131,18 @@ export function ScanPage() {
           return
         }
         setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
+      } finally {
+        startScanInFlightRef.current = false
       }
     },
     [handleDecodedValue, resetOffer]
   )
 
   const errorReason = searchParams.get('error')
+
+  useEffect(() => {
+    facingModeRef.current = facingMode
+  }, [facingMode])
 
   useEffect(() => {
     let mounted = true
@@ -195,13 +205,17 @@ export function ScanPage() {
   }
 
   const handleDecline = () => {
+    if (isRestartingScan) return
+    setIsRestartingScan(true)
     resetOffer()
-    void startScan()
+    void startScan().finally(() => setIsRestartingScan(false))
   }
 
   const handleErrorRetry = () => {
+    if (isRestartingScan) return
+    setIsRestartingScan(true)
     resetOffer()
-    void startScan()
+    void startScan().finally(() => setIsRestartingScan(false))
   }
 
   const statusBarText = isInitializing
@@ -251,9 +265,10 @@ export function ScanPage() {
               <button
                 type="button"
                 onClick={() => void handleErrorRetry()}
-                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
+                disabled={isRestartingScan}
+                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Scan again
+                {isRestartingScan ? 'Starting scanner…' : 'Scan again'}
               </button>
             </div>
           </div>
@@ -305,6 +320,7 @@ export function ScanPage() {
               session={offerState.session}
               onAccept={handleAccept}
               onDecline={handleDecline}
+              isBusy={isRestartingScan}
             />
           )}
 

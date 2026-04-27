@@ -98,14 +98,17 @@ describe('startIssuanceSession', () => {
     const result = await startIssuanceSession(rawOffer)
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/issuance/start', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${MOCK_BEARER_TOKEN}`, // Added Authorization header
-      },
-      body: JSON.stringify({ offer: rawOffer }),
-    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/issuance/start',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${MOCK_BEARER_TOKEN}`,
+        },
+        body: JSON.stringify({ offer: rawOffer }),
+      })
+    )
     expect(result).toEqual(minimalSession)
   })
 

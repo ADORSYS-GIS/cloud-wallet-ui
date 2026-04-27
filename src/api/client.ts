@@ -32,6 +32,28 @@ export class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 15_000
+
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(408, `Request timed out after ${timeoutMs}ms`)
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 type ApiErrorPayload = {
   errorCode: string | null
   errorDescription: string | null
@@ -65,7 +87,6 @@ async function buildApiError(
     errorDescription,
   })
 }
-
 async function authHeaders(): Promise<Record<string, string>> {
   const token = await getBearerToken()
   return {
@@ -74,9 +95,13 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    headers: await authHeaders(),
-  })
+  const response = await fetchWithTimeout(
+    `${getApiBaseUrl()}${path}`,
+    {
+      headers: await authHeaders(),
+    },
+    REQUEST_TIMEOUT_MS
+  )
 
   if (!response.ok) {
     throw await buildApiError('GET', path, response)
@@ -89,14 +114,18 @@ export async function apiPost<TResponse, TBody>(
   path: string,
   body: TBody
 ): Promise<TResponse> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(await authHeaders()),
+  const response = await fetchWithTimeout(
+    `${getApiBaseUrl()}${path}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await authHeaders()),
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  })
+    REQUEST_TIMEOUT_MS
+  )
 
   if (!response.ok) {
     throw await buildApiError('POST', path, response)

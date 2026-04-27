@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -361,5 +361,33 @@ describe('CredentialTypeDetailsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('The user denied authorization.')).toBeTruthy()
     })
+  })
+
+  it('shows timeout error when issuer processing takes too long', async () => {
+    vi.useFakeTimers()
+    try {
+      mockStreamStatus = {
+        status: 'processing',
+        step: 'requesting_credential',
+      }
+
+      renderPage()
+
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync()
+      })
+
+      await act(async () => {
+        vi.advanceTimersByTime(45_000)
+      })
+
+      expect(
+        screen.getByText(
+          'The issuer is taking longer than expected to respond. Please try again.'
+        )
+      ).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

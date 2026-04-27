@@ -68,6 +68,7 @@ const STEP_LABELS: Record<string, string> = {
   requesting_credential: 'Requesting credential from issuer…',
   awaiting_deferred_credential: 'Waiting for deferred credential…',
 }
+const PROCESSING_TIMEOUT_MS = 45_000
 
 function stepLabel(step: ProcessingStep): string {
   return STEP_LABELS[step] ?? 'Processing…'
@@ -204,10 +205,42 @@ export function CredentialTypeDetailsPage() {
   const { streamStatus, openStream, closeStream } = useSseStream()
 
   const [overlay, setOverlay] = useState<OverlayStatus>({ kind: 'hidden' })
+  const [isCancelling, setIsCancelling] = useState(false)
+  const issueInFlightRef = useRef(false)
+  const txCodeSubmitInFlightRef = useRef(false)
+  const txCodeCancelInFlightRef = useRef(false)
 
   const doAuthRedirect = useAuthRedirect()
 
   const lastHandledSseStatus = useRef<string>('')
+
+  useEffect(() => {
+    const hasActiveProcessing =
+      overlay.kind === 'submitting' ||
+      overlay.kind === 'submitting_tx_code' ||
+      overlay.kind === 'processing'
+
+    if (!hasActiveProcessing) return
+
+    const timeoutId = window.setTimeout(() => {
+      closeStream()
+      const apiError: IssuanceApiError = {
+        httpStatus: 0,
+        error: 'internal_error',
+        error_description:
+          'The issuer is taking longer than expected to respond. Please try again.',
+      }
+      setOverlay({
+        kind: 'failed',
+        apiError,
+        message: issuanceUserMessage(apiError),
+        canRetry: true,
+        retryAction: 'issue_vc',
+      })
+    }, PROCESSING_TIMEOUT_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [overlay, closeStream])
 
   useEffect(() => {
     const statusKey =
@@ -267,6 +300,8 @@ export function CredentialTypeDetailsPage() {
   const displayRows = buildDisplayRows(selectedType)
 
   const handleIssueVc = async () => {
+    if (issueInFlightRef.current || isCancelling) return
+    issueInFlightRef.current = true
     setOverlay({ kind: 'submitting' })
 
     let consentResponse: ConsentResponse
@@ -287,69 +322,76 @@ export function CredentialTypeDetailsPage() {
         canRetry: true,
         retryAction: 'issue_vc',
       })
+      issueInFlightRef.current = false
       return
     }
 
     openStream(session.session_id)
 
-    switch (consentResponse.next_action) {
-      case 'redirect':
-        if (consentResponse.authorization_url) {
-          doAuthRedirect(consentResponse.authorization_url)
-          setOverlay({ kind: 'processing', step: 'authorization' })
-        } else {
-          const apiError: IssuanceApiError = {
-            httpStatus: 0,
-            error: 'invalid_request',
-            error_description: 'Authorization URL missing from server response.',
+    try {
+      switch (consentResponse.next_action) {
+        case 'redirect':
+          if (consentResponse.authorization_url) {
+            doAuthRedirect(consentResponse.authorization_url)
+            setOverlay({ kind: 'processing', step: 'authorization' })
+          } else {
+            const apiError: IssuanceApiError = {
+              httpStatus: 0,
+              error: 'invalid_request',
+              error_description: 'Authorization URL missing from server response.',
+            }
+            setOverlay({
+              kind: 'failed',
+              apiError,
+              message: issuanceUserMessage(apiError),
+              canRetry: false,
+              retryAction: null,
+            })
           }
-          setOverlay({
-            kind: 'failed',
-            apiError,
-            message: issuanceUserMessage(apiError),
-            canRetry: false,
-            retryAction: null,
-          })
-        }
-        break
+          break
 
-      case 'provide_tx_code': {
-        const txSpec = session.tx_code
-        if (!txSpec) {
-          const apiError: IssuanceApiError = {
-            httpStatus: 0,
-            error: 'invalid_request',
-            error_description:
-              'Server requested a transaction code but did not provide the code spec. Please restart the flow.',
+        case 'provide_tx_code': {
+          const txSpec = session.tx_code
+          if (!txSpec) {
+            const apiError: IssuanceApiError = {
+              httpStatus: 0,
+              error: 'invalid_request',
+              error_description:
+                'Server requested a transaction code but did not provide the code spec. Please restart the flow.',
+            }
+            setOverlay({
+              kind: 'failed',
+              apiError,
+              message: issuanceUserMessage(apiError),
+              canRetry: false,
+              retryAction: null,
+            })
+            return
           }
-          setOverlay({
-            kind: 'failed',
-            apiError,
-            message: issuanceUserMessage(apiError),
-            canRetry: false,
-            retryAction: null,
-          })
-          return
+          setOverlay({ kind: 'awaiting_tx_code', txCodeSpec: txSpec })
+          break
         }
-        setOverlay({ kind: 'awaiting_tx_code', txCodeSpec: txSpec })
-        break
+
+        case 'none':
+          setOverlay({ kind: 'processing', step: '' })
+          break
+
+        case 'rejected':
+          setOverlay({ kind: 'hidden' })
+          closeStream()
+          navigate(routes.scan, { replace: true })
+          break
       }
-
-      case 'none':
-        setOverlay({ kind: 'processing', step: '' })
-        break
-
-      case 'rejected':
-        setOverlay({ kind: 'hidden' })
-        closeStream()
-        navigate(routes.scan, { replace: true })
-        break
+    } finally {
+      issueInFlightRef.current = false
     }
   }
 
   const handleTxCodeSubmit = async (code: string) => {
+    if (txCodeSubmitInFlightRef.current || isCancelling) return
     if (overlay.kind !== 'awaiting_tx_code' && overlay.kind !== 'tx_code_error') return
 
+    txCodeSubmitInFlightRef.current = true
     const txCodeSpec = overlay.txCodeSpec
     setOverlay({ kind: 'submitting_tx_code', txCodeSpec })
 
@@ -362,10 +404,14 @@ export function CredentialTypeDetailsPage() {
           ? err.message
           : 'Invalid transaction code. Please check and try again.'
       setOverlay({ kind: 'tx_code_error', txCodeSpec, errorMessage: msg })
+    } finally {
+      txCodeSubmitInFlightRef.current = false
     }
   }
 
   const handleTxCodeCancel = async () => {
+    if (txCodeCancelInFlightRef.current || isCancelling) return
+    txCodeCancelInFlightRef.current = true
     closeStream()
     try {
       await cancelSession(session.session_id)
@@ -373,6 +419,7 @@ export function CredentialTypeDetailsPage() {
       void 0
     }
     navigate(routes.credentialTypes)
+    txCodeCancelInFlightRef.current = false
   }
 
   const handleOverlayRetry = () => {
@@ -393,6 +440,8 @@ export function CredentialTypeDetailsPage() {
   }
 
   const handleCancel = async () => {
+    if (isCancelling) return
+    setIsCancelling(true)
     closeStream()
     if (overlay.kind !== 'hidden') {
       try {
@@ -402,6 +451,7 @@ export function CredentialTypeDetailsPage() {
       }
     }
     navigate(routes.credentialTypes)
+    setIsCancelling(false)
   }
 
   const isTxCodeActive =
@@ -500,7 +550,7 @@ export function CredentialTypeDetailsPage() {
           <button
             type="button"
             onClick={() => void handleIssueVc()}
-            disabled={overlay.kind !== 'hidden'}
+            disabled={overlay.kind !== 'hidden' || isCancelling}
             className="h-9 w-full rounded-[4px] bg-[#99e827] text-[14px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Issue VC
@@ -509,10 +559,10 @@ export function CredentialTypeDetailsPage() {
           <button
             type="button"
             onClick={() => void handleCancel()}
-            disabled={false}
-            className="mt-1 h-7 w-full rounded-[4px] bg-transparent text-[14px] text-slate-700 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200"
+            disabled={isCancelling}
+            className="mt-1 h-7 w-full rounded-[4px] bg-transparent text-[14px] text-slate-700 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Cancel
+            {isCancelling ? 'Cancelling…' : 'Cancel'}
           </button>
         </div>
       </div>

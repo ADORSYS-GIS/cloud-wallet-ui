@@ -96,12 +96,14 @@ type CredentialOfferCardProps = {
   session: StartIssuanceResponse
   onAccept: () => void
   onDecline: () => void
+  isBusy?: boolean
 }
 
 export function CredentialOfferCard({
   session,
   onAccept,
   onDecline,
+  isBusy = false,
 }: CredentialOfferCardProps) {
   const expiresAt = new Date(session.expires_at)
   const expiresLabel = expiresAt.toLocaleTimeString(undefined, {
@@ -172,14 +174,16 @@ export function CredentialOfferCard({
         <button
           type="button"
           onClick={onDecline}
-          className="flex-1 rounded-lg border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 active:bg-slate-100"
+          disabled={isBusy}
+          className="flex-1 rounded-lg border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Decline
         </button>
         <button
           type="button"
           onClick={onAccept}
-          className="flex-1 rounded-lg bg-[#99e827] py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:bg-[#8cd422] active:bg-[#7fc01f]"
+          disabled={isBusy}
+          className="flex-1 rounded-lg bg-[#99e827] py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:bg-[#8cd422] active:bg-[#7fc01f] disabled:cursor-not-allowed disabled:opacity-60"
         >
           Accept
         </button>
