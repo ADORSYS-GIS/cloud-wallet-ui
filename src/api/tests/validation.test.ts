@@ -8,10 +8,6 @@ import {
 import type { StartIssuanceResponse } from '../../types/issuance'
 import type { CredentialRecord } from '../../types/credential'
 
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
 const validStartIssuanceResponse: StartIssuanceResponse = {
   session_id: 'ses_abc123',
   expires_at: '2026-04-08T14:35:00Z',
@@ -48,10 +44,6 @@ const validCredentialRecord: CredentialRecord = {
   expires_at: '2027-04-08T14:35:00Z',
   claims: { given_name: 'Jane', family_name: 'Doe' },
 }
-
-// ---------------------------------------------------------------------------
-// validateStartIssuanceResponse
-// ---------------------------------------------------------------------------
 
 describe('validateStartIssuanceResponse', () => {
   it('accepts a valid authorization_code flow response', () => {
@@ -144,10 +136,6 @@ describe('validateStartIssuanceResponse', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// validateCredentialRecord
-// ---------------------------------------------------------------------------
-
 describe('validateCredentialRecord', () => {
   it('accepts a valid credential record', () => {
     const result = validateCredentialRecord(validCredentialRecord)
@@ -198,10 +186,6 @@ describe('validateCredentialRecord', () => {
     expect(() => validateCredentialRecord(42)).toThrow(ContractError)
   })
 })
-
-// ---------------------------------------------------------------------------
-// validateCredentialListResponse
-// ---------------------------------------------------------------------------
 
 describe('validateCredentialListResponse', () => {
   it('accepts a response with multiple credentials', () => {

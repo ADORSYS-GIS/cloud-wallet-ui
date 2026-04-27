@@ -1,5 +1,5 @@
 import { BrowserQRCodeReader } from '@zxing/browser'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CredentialOfferCard } from '../components/issuance/CredentailOfferCard'
 import { PageContainer } from '../components/layout/PageContainer'
@@ -36,17 +36,19 @@ export function ScanPage() {
   const readerRef = useRef<BrowserQRCodeReader | null>(null)
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const scanInProgressRef = useRef(false)
+  const facingModeRef = useRef<FacingMode>(facingMode)
 
-  const stopScanner = () => {
+  const stopScanner = useCallback(() => {
     controlsRef.current?.stop()
     controlsRef.current = null
-  }
+  }, [])
 
-  const handleDecodedValue = async (value: string) => {
-    if (scanInProgressRef.current) return
-    scanInProgressRef.current = true
+  const handleDecodedValue = useCallback(
+    async (value: string) => {
+      if (scanInProgressRef.current) return
+      scanInProgressRef.current = true
 
-    stopScanner()
+      stopScanner()
 
     const parsedOffer = parseCredentialOfferInput(value)
     if (!parsedOffer) {
@@ -71,59 +73,67 @@ export function ScanPage() {
 
     setScanStatus('done')
     scanInProgressRef.current = false
-  }
+  }, [stopScanner, submitOffer])
 
-  const startScan = async (mode: FacingMode = facingMode) => {
-    setIsScannerActive(true)
-    resetOffer()
-    setLocalScanError(null)
-    setScanStatus('idle')
-    setFeedbackMessage('Requesting camera permission…')
+  useEffect(() => {
+    facingModeRef.current = facingMode
+  }, [facingMode])
 
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setIsScannerActive(false)
+  const startScan = useCallback(
+    async (mode?: FacingMode) => {
+      const selectedMode = mode ?? facingModeRef.current
+      setIsScannerActive(true)
+      resetOffer()
       setScanStatus('idle')
-      setFeedbackMessage('No camera device is available on this browser.')
-      return
-    }
+      setFeedbackMessage('Requesting camera permission…')
 
-    if (!videoRef.current) {
-      setIsScannerActive(false)
-      setScanStatus('idle')
-      setFeedbackMessage('Video preview unavailable. Please reload and try again.')
-      return
-    }
-
-    setScanStatus('scanning')
-    setFeedbackMessage('Searching for QR code…')
-
-    try {
-      readerRef.current = new BrowserQRCodeReader()
-      controlsRef.current = await readerRef.current.decodeFromConstraints(
-        { video: { facingMode: { ideal: mode } } },
-        videoRef.current,
-        (result) => {
-          if (result) {
-            void handleDecodedValue(result.getText().trim())
-          }
-        }
-      )
-    } catch (error: unknown) {
-      setIsScannerActive(false)
-      setScanStatus('idle')
-      if (error instanceof DOMException && error.name === 'NotAllowedError') {
-        setFeedbackMessage(
-          'Camera permission denied. Please allow camera access and retry.'
-        )
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setIsScannerActive(false)
+        setScanStatus('idle')
+        setFeedbackMessage('No camera device is available on this browser.')
         return
       }
-      setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
-    }
-  }
+
+      if (!videoRef.current) {
+        setIsScannerActive(false)
+        setScanStatus('idle')
+        setFeedbackMessage('Video preview unavailable. Please reload and try again.')
+        return
+      }
+
+      setScanStatus('scanning')
+      setFeedbackMessage('Searching for QR code…')
+
+      try {
+        readerRef.current = new BrowserQRCodeReader()
+        controlsRef.current = await readerRef.current.decodeFromConstraints(
+          { video: { facingMode: { ideal: selectedMode } } },
+          videoRef.current,
+          (result) => {
+            if (result) {
+              void handleDecodedValue(result.getText().trim())
+            }
+          }
+        )
+      } catch (error: unknown) {
+        setIsScannerActive(false)
+        setScanStatus('idle')
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          setFeedbackMessage(
+            'Camera permission denied. Please allow camera access and retry.'
+          )
+          return
+        }
+        setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
+      }
+    },
+    [handleDecodedValue, resetOffer]
+  )
+
+  const errorReason = searchParams.get('error')
 
   useEffect(() => {
     let mounted = true
-    const errorReason = searchParams.get('error')
 
     if (errorReason === 'empty-options') {
       const timer = window.setTimeout(() => {
@@ -151,15 +161,14 @@ export function ScanPage() {
       mounted = false
       window.clearTimeout(timer)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [errorReason, resetOffer, startScan])
 
   useEffect(() => {
     return () => {
       stopScanner()
       readerRef.current = null
     }
-  }, [])
+  }, [stopScanner])
   const swapCamera = async () => {
     if (isSwapping) return
     setIsSwapping(true)
@@ -200,7 +209,6 @@ export function ScanPage() {
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        {/* Fullscreen loading overlay */}
         {showFullscreenStatus && offerState.status === 'loading' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <div className="flex flex-col items-center px-6 text-center">
@@ -249,7 +257,6 @@ export function ScanPage() {
           </div>
         )}
 
-        {/* Sub-header / nav bar */}
         {!showFullscreenStatus && (
           <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
             <button
@@ -265,14 +272,12 @@ export function ScanPage() {
           </div>
         )}
 
-        {/* Status bar */}
         {!showFullscreenStatus && (
-          <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700">
+          <div className="border-b border-slate-300 bg-[#e9ecef] py-1 text-center text-[15px] leading-none text-slate-700 font-serif">
             {statusBarText}
           </div>
         )}
 
-        {/* Camera + overlays */}
         <section className="relative flex-1 bg-[#E9ECEF]">
           <video
             ref={videoRef}
@@ -286,7 +291,6 @@ export function ScanPage() {
           />
           {!isScannerActive && <div className="h-full w-full bg-[#E9ECEF]" />}
 
-          {/* Processing spinner */}
           {showSpinner && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/30">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
@@ -294,7 +298,6 @@ export function ScanPage() {
             </div>
           )}
 
-          {/* Credential offer card — single success path, user must tap Accept */}
           {showOfferCard && offerState.status === 'success' && (
             <CredentialOfferCard
               session={offerState.session}
@@ -313,6 +316,7 @@ export function ScanPage() {
                 'absolute bottom-4 left-1/2 z-10 h-9 w-9 -translate-x-1/2 rounded-full bg-white text-lg text-slate-700 shadow',
                 isSwapping ? 'cursor-not-allowed opacity-60' : '',
               ].join(' ')}
+              title="Swap Camera"
               aria-label="Swap camera"
             >
               ↻

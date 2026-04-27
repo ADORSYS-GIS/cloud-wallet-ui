@@ -1,4 +1,5 @@
 export const routes = {
+  registration: '/registration',
   home: '/',
   scan: '/scan',
   credentialTypes: '/credential-types',

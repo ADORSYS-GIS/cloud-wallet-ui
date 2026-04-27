@@ -107,7 +107,6 @@ export function IssuanceErrorCard({
       role="alert"
       aria-live="assertive"
     >
-      {/* Header */}
       <div className="border-b border-red-100 bg-red-50 px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-xl" aria-hidden>
@@ -124,12 +123,10 @@ export function IssuanceErrorCard({
         )}
       </div>
 
-      {/* Message */}
       <div className="px-4 py-4">
         <p className="text-sm leading-relaxed text-slate-700">{userMessage}</p>
       </div>
 
-      {/* Actions */}
       <div className="border-t border-slate-100 px-4 py-3">
         {showRetry && (
           <button

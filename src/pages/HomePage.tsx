@@ -11,7 +11,7 @@ export function HomePage() {
 
   return (
     <PageContainer>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
+      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
         <Header />
 
         <section className="flex flex-1 flex-col items-center px-6 pb-0 pt-14">
