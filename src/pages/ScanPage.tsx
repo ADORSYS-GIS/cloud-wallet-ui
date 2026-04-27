@@ -50,30 +50,32 @@ export function ScanPage() {
 
       stopScanner()
 
-    const parsedOffer = parseCredentialOfferInput(value)
-    if (!parsedOffer) {
-      const apiError: IssuanceApiError = {
-        httpStatus: 400,
-        error: 'invalid_credential_offer',
-        error_description: null,
+      const parsedOffer = parseCredentialOfferInput(value)
+      if (!parsedOffer) {
+        const apiError: IssuanceApiError = {
+          httpStatus: 400,
+          error: 'invalid_credential_offer',
+          error_description: null,
+        }
+        setLocalScanError({
+          apiError,
+          userMessage: issuanceUserMessage(apiError),
+        })
+        setScanStatus('done')
+        scanInProgressRef.current = false
+        return
       }
-      setLocalScanError({
-        apiError,
-        userMessage: issuanceUserMessage(apiError),
-      })
+
+      setScanStatus('processing')
+      setFeedbackMessage('Contacting issuer…')
+
+      await submitOffer(parsedOffer.normalizedUri)
+
       setScanStatus('done')
       scanInProgressRef.current = false
-      return
-    }
-
-    setScanStatus('processing')
-    setFeedbackMessage('Contacting issuer…')
-
-    await submitOffer(parsedOffer.normalizedUri)
-
-    setScanStatus('done')
-    scanInProgressRef.current = false
-  }, [stopScanner, submitOffer])
+    },
+    [stopScanner, submitOffer]
+  )
 
   useEffect(() => {
     facingModeRef.current = facingMode

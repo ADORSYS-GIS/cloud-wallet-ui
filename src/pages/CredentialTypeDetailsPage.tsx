@@ -161,7 +161,11 @@ function ProcessingOverlay({
           </div>
         )}
         <p className="text-sm leading-relaxed text-slate-700">{message}</p>
-        {isError && <button type="button" onClick={onRetry} className="mt-4 w-full">Retry</button>}
+        {isError && (
+          <button type="button" onClick={onRetry} className="mt-4 w-full">
+            Retry
+          </button>
+        )}
       </div>
     </div>
   )
