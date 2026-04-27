@@ -53,14 +53,10 @@ function CredentialTypePill({
 
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-lg px-4 py-3"
-      style={{ backgroundColor: bg, color: fg }}
+      className={`flex items-center justify-between gap-3 rounded-lg px-4 py-3 bg-[${bg}] text-[${fg}]`}
     >
       <span className="text-sm font-semibold leading-snug">{name}</span>
-      <span
-        className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium opacity-70"
-        style={{ backgroundColor: 'rgba(0,0,0,0.18)' }}
-      >
+      <span className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium opacity-70 bg-black/18">
         {format}
       </span>
     </div>

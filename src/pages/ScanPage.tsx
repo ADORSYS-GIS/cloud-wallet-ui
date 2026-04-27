@@ -2,10 +2,11 @@ import { BrowserQRCodeReader } from '@zxing/browser'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CredentialOfferCard } from '../components/issuance/CredentailOfferCard'
-import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { useIssuanceSession } from '../hooks/useIssuanceSession'
+import type { IssuanceApiError } from '../types/issuance'
+import { issuanceUserMessage } from '../utils/issuanceErrors'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
 import illuWallet from '../assets/illu-wallet.png'
 
@@ -24,6 +25,10 @@ export function ScanPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
+  const [localScanError, setLocalScanError] = useState<{
+    apiError: IssuanceApiError
+    userMessage: string
+  } | null>(null)
 
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
 
@@ -47,10 +52,16 @@ export function ScanPage() {
 
       const parsedOffer = parseCredentialOfferInput(value)
       if (!parsedOffer) {
-        setScanStatus('idle')
-        setFeedbackMessage(
-          'Invalid credential offer QR content. Please scan a valid OpenID4VCI offer.'
-        )
+        const apiError: IssuanceApiError = {
+          httpStatus: 400,
+          error: 'invalid_credential_offer',
+          error_description: null,
+        }
+        setLocalScanError({
+          apiError,
+          userMessage: issuanceUserMessage(apiError),
+        })
+        setScanStatus('done')
         scanInProgressRef.current = false
         return
       }
@@ -173,12 +184,10 @@ export function ScanPage() {
     }
   }
 
-  const showFullscreenStatus =
-    offerState.status === 'loading' ||
-    (offerState.status === 'error' && !!offerState.apiError)
-
   const showOfferCard = scanStatus === 'done' && offerState.status === 'success'
-  const showErrorCard = scanStatus === 'done' && offerState.status === 'error'
+  const showErrorCard =
+    scanStatus === 'done' && (offerState.status === 'error' || localScanError !== null)
+  const showFullscreenStatus = offerState.status === 'loading' || showErrorCard
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
 
   const handleAccept = () => {
@@ -193,10 +202,6 @@ export function ScanPage() {
   const handleErrorRetry = () => {
     resetOffer()
     void startScan()
-  }
-
-  const handleErrorBack = () => {
-    navigate(routes.home)
   }
 
   const statusBarText = isInitializing
@@ -225,7 +230,7 @@ export function ScanPage() {
           </div>
         )}
 
-        {showFullscreenStatus && offerState.status === 'error' && offerState.apiError && (
+        {showErrorCard && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <div className="flex flex-col items-center px-6 text-center">
               <div className="relative mb-16 h-52 w-52">
@@ -238,11 +243,14 @@ export function ScanPage() {
                 />
               </div>
               <div className="text-base text-slate-700">
-                {offerState.rawMessage || String(offerState.apiError)}
+                {offerState.status === 'error'
+                  ? offerState.rawMessage
+                  : (localScanError?.userMessage ??
+                    'Failed to process credential offer.')}
               </div>
               <button
                 type="button"
-                onClick={() => void startScan()}
+                onClick={() => void handleErrorRetry()}
                 className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
               >
                 Scan again
@@ -300,15 +308,7 @@ export function ScanPage() {
             />
           )}
 
-          {showErrorCard && offerState.status === 'error' && (
-            <IssuanceErrorCard
-              apiError={offerState.apiError}
-              userMessage={offerState.rawMessage}
-              onRetry={handleErrorRetry}
-              onBack={handleErrorBack}
-            />
-          )}
-
+          {/* Camera swap button */}
           {isScannerActive && scanStatus === 'scanning' && (
             <button
               type="button"
@@ -324,18 +324,6 @@ export function ScanPage() {
               ↻
             </button>
           )}
-
-          {scanStatus === 'idle' &&
-            feedbackMessage.startsWith('Invalid') &&
-            !showErrorCard && (
-              <button
-                type="button"
-                onClick={() => void startScan()}
-                className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
-              >
-                Retry scan
-              </button>
-            )}
         </section>
       </div>
     </PageContainer>
