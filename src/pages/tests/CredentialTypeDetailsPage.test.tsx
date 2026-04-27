@@ -12,8 +12,10 @@ const mockNavigate = vi.fn()
 
 const mockOfferState: {
   offer?: StartIssuanceResponse
+  clear: () => void
 } = {
   offer: undefined,
+  clear: vi.fn(),
 }
 
 vi.mock('react-router-dom', async () => {
@@ -108,6 +110,7 @@ describe('CredentialTypeDetailsPage', () => {
     mockCancelSession.mockReset()
     mockStreamStatus = { status: 'idle' }
     mockOfferState.offer = buildOffer()
+    vi.mocked(mockOfferState.clear).mockReset()
   })
 
   afterEach(() => cleanup())

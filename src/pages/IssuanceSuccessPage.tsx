@@ -20,8 +20,7 @@ function SuccessIllustration() {
         <img
           src={checkCirclePrimary}
           alt=""
-          className="h-[35px] w-[35px] object-contain"
-          style={{ imageRendering: '-webkit-optimize-contrast' }}
+          className="h-[35px] w-[35px] object-contain image-optimize-contrast"
         />
       </div>
 
@@ -31,8 +30,7 @@ function SuccessIllustration() {
         <img
           src={illuWallet}
           alt=""
-          className="h-[132px] w-[122px] object-contain"
-          style={{ imageRendering: '-webkit-optimize-contrast' }}
+          className="h-[132px] w-[122px] object-contain image-optimize-contrast"
         />
       </div>
     </div>
