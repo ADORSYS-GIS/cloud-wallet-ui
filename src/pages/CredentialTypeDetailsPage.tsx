@@ -105,13 +105,9 @@ function ProcessingOverlay({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
         <div className="relative w-full max-w-md pb-2">
           <IssuanceErrorCard
-            apiError={status.apiError}
-            userMessage={status.message}
-            onRetry={onRetry}
-            onBack={onRestart}
-            retryLabel="Try again"
-            backLabel="Restart flow"
-            showRetry={status.canRetry}
+            error={status.apiError}
+            rawMessage={status.message}
+            onRetry={onRestart}
           />
         </div>
       </div>
