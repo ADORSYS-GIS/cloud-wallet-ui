@@ -20,8 +20,34 @@ export class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 15_000
+
+async function fetchWithTimeout(
+  input: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(408, `Request timed out after ${timeoutMs}ms`)
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`)
+  const response = await fetchWithTimeout(
+    `${getApiBaseUrl()}${path}`,
+    {},
+    REQUEST_TIMEOUT_MS
+  )
 
   if (!response.ok) {
     throw new ApiError(response.status, `GET ${path} failed with ${response.status}`)
@@ -34,13 +60,17 @@ export async function apiPost<TResponse, TBody>(
   path: string,
   body: TBody
 ): Promise<TResponse> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await fetchWithTimeout(
+    `${getApiBaseUrl()}${path}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  })
+    REQUEST_TIMEOUT_MS
+  )
 
   if (!response.ok) {
     throw new ApiError(response.status, `POST ${path} failed with ${response.status}`)

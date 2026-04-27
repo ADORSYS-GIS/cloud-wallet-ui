@@ -9,6 +9,7 @@ import { submitConsent, submitTxCode, cancelSession } from '../api/issuance-sess
 import { useSseStream } from '../hooks/useSseStream'
 
 import type { ConsentResponse, TxCodeSpec } from '../types/issuance'
+import illuWallet from '../assets/illu-wallet.png'
 
 function useSelectedType(
   session: ReturnType<typeof useCredentialOfferState>['offer'],
@@ -65,6 +66,7 @@ const STEP_LABELS: Record<string, string> = {
   requesting_credential: 'Requesting credential from issuer…',
   awaiting_deferred_credential: 'Waiting for deferred credential…',
 }
+const PROCESSING_TIMEOUT_MS = 45_000
 
 function stepLabel(step: ProcessingStep): string {
   return STEP_LABELS[step] ?? 'Processing…'
@@ -106,12 +108,28 @@ function ProcessingOverlay({
     return null
   }
 
+  if (!isError) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center px-6 text-center">
+          <div className="relative mb-16 h-52 w-52">
+            <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+            <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+            <img
+              src={illuWallet}
+              alt=""
+              className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+            />
+          </div>
+          <div className="mt-2 text-sm text-slate-500">{message}</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 text-center shadow-2xl">
-        {!isError && (
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#99e827]" />
-        )}
         {isError && (
           <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-xl">
             ⚠️
@@ -168,10 +186,34 @@ export function CredentialTypeDetailsPage() {
 
   // Overlay state
   const [overlay, setOverlay] = useState<OverlayStatus>({ kind: 'hidden' })
+  const [isCancelling, setIsCancelling] = useState(false)
+  const issueInFlightRef = useRef(false)
+  const txCodeSubmitInFlightRef = useRef(false)
+  const txCodeCancelInFlightRef = useRef(false)
 
   const doAuthRedirect = useAuthRedirect()
 
   const lastHandledSseStatus = useRef<string>('')
+
+  useEffect(() => {
+    const hasActiveProcessing =
+      overlay.kind === 'submitting' ||
+      overlay.kind === 'submitting_tx_code' ||
+      overlay.kind === 'processing'
+
+    if (!hasActiveProcessing) return
+
+    const timeoutId = window.setTimeout(() => {
+      closeStream()
+      setOverlay({
+        kind: 'failed',
+        message:
+          'The issuer is taking longer than expected to respond. Please try again.',
+      })
+    }, PROCESSING_TIMEOUT_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [overlay, closeStream])
 
   useEffect(() => {
     // Build a stable key for this status snapshot so we only act once per change.
@@ -221,6 +263,8 @@ export function CredentialTypeDetailsPage() {
   const displayRows = buildDisplayRows(selectedType)
 
   const handleIssueVc = async () => {
+    if (issueInFlightRef.current || isCancelling) return
+    issueInFlightRef.current = true
     setOverlay({ kind: 'submitting' })
 
     let consentResponse: ConsentResponse
@@ -232,63 +276,64 @@ export function CredentialTypeDetailsPage() {
       const msg =
         err instanceof Error ? err.message : 'Could not submit consent. Please try again.'
       setOverlay({ kind: 'failed', message: msg })
+      issueInFlightRef.current = false
       return
     }
 
     openStream(session.session_id)
 
-    // Handle next_action per spec:
-    switch (consentResponse.next_action) {
-      case 'redirect':
-        // Authorization code flow — open authorization_url in system browser.
-        if (consentResponse.authorization_url) {
-          doAuthRedirect(consentResponse.authorization_url)
-          setOverlay({ kind: 'processing', step: 'authorization' })
-        } else {
-          setOverlay({
-            kind: 'failed',
-            message: 'Authorization URL missing from server response.',
-          })
-        }
-        break
+    try {
+      switch (consentResponse.next_action) {
+        case 'redirect':
+          if (consentResponse.authorization_url) {
+            doAuthRedirect(consentResponse.authorization_url)
+            setOverlay({ kind: 'processing', step: 'authorization' })
+          } else {
+            setOverlay({
+              kind: 'failed',
+              message: 'Authorization URL missing from server response.',
+            })
+          }
+          break
 
-      case 'provide_tx_code': {
-        // Pre-authorized code flow — transaction code required.
-        const txSpec = session.tx_code
-        if (!txSpec) {
-          setOverlay({
-            kind: 'failed',
-            message:
-              'Server requested a transaction code but did not provide the code spec. Please restart the flow.',
-          })
-          return
+        case 'provide_tx_code': {
+          const txSpec = session.tx_code
+          if (!txSpec) {
+            setOverlay({
+              kind: 'failed',
+              message:
+                'Server requested a transaction code but did not provide the code spec. Please restart the flow.',
+            })
+            return
+          }
+          setOverlay({ kind: 'awaiting_tx_code', txCodeSpec: txSpec })
+          break
         }
-        setOverlay({ kind: 'awaiting_tx_code', txCodeSpec: txSpec })
-        break
+
+        case 'none':
+          setOverlay({ kind: 'processing', step: '' })
+          break
+
+        case 'rejected':
+          setOverlay({ kind: 'hidden' })
+          closeStream()
+          navigate(routes.scan, { replace: true })
+          break
       }
-
-      case 'none':
-        // Pre-authorized code flow without tx_code — processing started, listen on SSE.
-        setOverlay({ kind: 'processing', step: '' })
-        break
-
-      case 'rejected':
-        // User declined — session is terminated.
-        setOverlay({ kind: 'hidden' })
-        closeStream()
-        navigate(routes.scan, { replace: true })
-        break
+    } finally {
+      issueInFlightRef.current = false
     }
   }
 
   const handleTxCodeSubmit = async (code: string) => {
+    if (txCodeSubmitInFlightRef.current || isCancelling) return
     if (overlay.kind !== 'awaiting_tx_code' && overlay.kind !== 'tx_code_error') return
 
+    txCodeSubmitInFlightRef.current = true
     const txCodeSpec = overlay.txCodeSpec
     setOverlay({ kind: 'submitting_tx_code', txCodeSpec })
 
     try {
-      // Spec: POST /issuance/{session_id}/tx-code
       await submitTxCode(session.session_id, code)
       setOverlay({ kind: 'processing', step: 'exchanging_token' })
     } catch (err) {
@@ -297,18 +342,22 @@ export function CredentialTypeDetailsPage() {
           ? err.message
           : 'Invalid transaction code. Please check and try again.'
       setOverlay({ kind: 'tx_code_error', txCodeSpec, errorMessage: msg })
+    } finally {
+      txCodeSubmitInFlightRef.current = false
     }
   }
 
   const handleTxCodeCancel = async () => {
+    if (txCodeCancelInFlightRef.current || isCancelling) return
+    txCodeCancelInFlightRef.current = true
     closeStream()
     try {
-      // Spec: POST /issuance/{session_id}/cancel
       await cancelSession(session.session_id)
     } catch {
-      // Best-effort — session may already be expired/cancelled
+      void 0
     }
     navigate(routes.credentialTypes)
+    txCodeCancelInFlightRef.current = false
   }
 
   const handleOverlayRetry = () => {
@@ -317,20 +366,20 @@ export function CredentialTypeDetailsPage() {
   }
 
   const handleCancel = async () => {
+    if (isCancelling) return
+    setIsCancelling(true)
     closeStream()
     if (overlay.kind !== 'hidden') {
-      // Only cancel if a session operation is in progress
       try {
-        // Spec: POST /issuance/{session_id}/cancel
         await cancelSession(session.session_id)
       } catch {
-        // Best-effort
+        void 0
       }
     }
     navigate(routes.credentialTypes)
+    setIsCancelling(false)
   }
 
-  // Is the TX code overlay active?
   const isTxCodeActive =
     overlay.kind === 'awaiting_tx_code' ||
     overlay.kind === 'submitting_tx_code' ||
@@ -341,7 +390,6 @@ export function CredentialTypeDetailsPage() {
       <ProcessingOverlay status={overlay} onRetry={handleOverlayRetry} />
 
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e7eaed] font-serif">
-        {/* Sub-header */}
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
           <button
             type="button"
@@ -357,27 +405,26 @@ export function CredentialTypeDetailsPage() {
           <div className="w-10" />
         </div>
 
-        {/* Content */}
         <section className="flex-1 overflow-y-auto px-1 py-1">
           <div className="rounded-md bg-[#e7eaed] p-1.5">
-            {/* Issuer / credential card */}
-            <div className="mb-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm transition-all duration-200 hover:border-slate-300 hover:shadow-md">
-              <div className="flex flex-col items-start gap-1">
+            <div className="mb-3 overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-[#4b7c8c]/30 hover:bg-[#e6f4e6] active:scale-[0.98]">
+              <div className="flex items-center gap-4 px-5 py-12">
                 <IssuerAvatar
                   displayName={issuerName}
                   logoUri={issuerLogoUri}
-                  size="sm"
+                  size="md"
                 />
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold tracking-tight text-slate-900">
+                    {selectedType.display.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-[14px] leading-relaxed text-slate-500">
+                    {issuerName}
+                  </p>
+                </div>
               </div>
-              <p className="mt-2 text-[14px] md:text-[15px] font-semibold leading-tight text-slate-900">
-                {selectedType.display.name}
-              </p>
-              <p className="text-[12px] md:text-[13px] leading-tight text-slate-500">
-                {issuerName}
-              </p>
             </div>
 
-            {/* Credential type display fields */}
             <p className="mb-2 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
               Credential details:
             </p>
@@ -400,7 +447,6 @@ export function CredentialTypeDetailsPage() {
           </div>
         </section>
 
-        {/* TX Code input overlay (inline, over the camera/content area) */}
         {isTxCodeActive && (
           <div className="absolute inset-x-0 top-0 z-30 flex h-full items-start justify-center bg-black/40 pt-16">
             <div className="w-full max-w-sm px-3">
@@ -422,13 +468,12 @@ export function CredentialTypeDetailsPage() {
           </div>
         )}
 
-        {/* Actions */}
         <div className="px-2 pb-1">
           <button
             type="button"
             onClick={() => void handleIssueVc()}
-            disabled={overlay.kind !== 'hidden'}
-            className="h-9 w-full rounded-[4px] bg-[#99e827] text-[14px] font-semibold text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={overlay.kind !== 'hidden' || isCancelling}
+            className="h-9 w-full rounded-[4px] bg-[#99e827] text-[14px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Issue VC
           </button>
@@ -436,10 +481,10 @@ export function CredentialTypeDetailsPage() {
           <button
             type="button"
             onClick={() => void handleCancel()}
-            disabled={false}
-            className="mt-1 h-7 w-full rounded-[4px] bg-transparent text-[14px] text-slate-700 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200"
+            disabled={isCancelling}
+            className="mt-1 h-7 w-full rounded-[4px] bg-transparent text-[14px] text-slate-700 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Cancel
+            {isCancelling ? 'Cancelling…' : 'Cancel'}
           </button>
         </div>
       </div>

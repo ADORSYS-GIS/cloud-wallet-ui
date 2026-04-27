@@ -25,6 +25,7 @@ export function ScanPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
+  const [isRestartingScan, setIsRestartingScan] = useState(false)
 
   // Issuance offer state machine
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
@@ -33,6 +34,7 @@ export function ScanPage() {
   const readerRef = useRef<BrowserQRCodeReader | null>(null)
   const controlsRef = useRef<{ stop: () => void } | null>(null)
   const scanInProgressRef = useRef(false)
+  const startScanInFlightRef = useRef(false)
 
   const stopScanner = () => {
     controlsRef.current?.stop()
@@ -65,6 +67,8 @@ export function ScanPage() {
   }
 
   const startScan = async (mode: FacingMode = facingMode) => {
+    if (startScanInFlightRef.current) return
+    startScanInFlightRef.current = true
     setIsScannerActive(true)
     resetOffer()
     setScanStatus('idle')
@@ -74,6 +78,7 @@ export function ScanPage() {
       setIsScannerActive(false)
       setScanStatus('idle')
       setFeedbackMessage('No camera device is available on this browser.')
+      startScanInFlightRef.current = false
       return
     }
 
@@ -81,6 +86,7 @@ export function ScanPage() {
       setIsScannerActive(false)
       setScanStatus('idle')
       setFeedbackMessage('Video preview unavailable. Please reload and try again.')
+      startScanInFlightRef.current = false
       return
     }
 
@@ -108,6 +114,8 @@ export function ScanPage() {
         return
       }
       setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
+    } finally {
+      startScanInFlightRef.current = false
     }
   }
 
@@ -178,13 +186,17 @@ export function ScanPage() {
   }
 
   const handleDecline = () => {
+    if (isRestartingScan) return
+    setIsRestartingScan(true)
     resetOffer()
-    void startScan()
+    void startScan().finally(() => setIsRestartingScan(false))
   }
 
   const handleErrorRetry = () => {
+    if (isRestartingScan) return
+    setIsRestartingScan(true)
     resetOffer()
-    void startScan()
+    void startScan().finally(() => setIsRestartingScan(false))
   }
 
   const handleErrorBack = () => {
@@ -236,10 +248,15 @@ export function ScanPage() {
               </div>
               <button
                 type="button"
-                onClick={() => void startScan()}
-                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d]"
+                onClick={() => {
+                  if (isRestartingScan) return
+                  setIsRestartingScan(true)
+                  void startScan().finally(() => setIsRestartingScan(false))
+                }}
+                disabled={isRestartingScan}
+                className="mt-6 rounded-lg bg-[#99e827] px-8 py-2.5 text-base font-medium text-black shadow transition-colors hover:bg-[#66b80f] active:bg-[#5aa70d] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Scan again
+                {isRestartingScan ? 'Starting scanner…' : 'Scan again'}
               </button>
             </div>
           </div>
@@ -296,6 +313,7 @@ export function ScanPage() {
               session={offerState.session}
               onAccept={handleAccept}
               onDecline={handleDecline}
+              isBusy={isRestartingScan}
             />
           )}
 
@@ -331,10 +349,15 @@ export function ScanPage() {
             !showErrorCard && (
               <button
                 type="button"
-                onClick={() => void startScan()}
-                className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow"
+                onClick={() => {
+                  if (isRestartingScan) return
+                  setIsRestartingScan(true)
+                  void startScan().finally(() => setIsRestartingScan(false))
+                }}
+                disabled={isRestartingScan}
+                className="absolute bottom-4 right-4 z-10 rounded-lg bg-white px-3 py-2 text-sm text-slate-700 shadow disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Retry scan
+                {isRestartingScan ? 'Starting…' : 'Retry scan'}
               </button>
             )}
         </section>
