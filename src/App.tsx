@@ -27,7 +27,13 @@ function App() {
         <Routes>
           <Route
             path={routes.registration}
-            element={getStoredTenantId() ? <Navigate to={routes.home} replace /> : <RegistrationPage />}
+            element={
+              getStoredTenantId() ? (
+                <Navigate to={routes.home} replace />
+              ) : (
+                <RegistrationPage />
+              )
+            }
           />
           <Route
             path={routes.home}

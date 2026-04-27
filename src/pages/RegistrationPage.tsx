@@ -32,7 +32,9 @@ export function RegistrationPage() {
       await initAuth()
       navigate(routes.home, { replace: true })
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : 'Tenant registration failed.')
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Tenant registration failed.'
+      )
     } finally {
       setIsRegistering(false)
     }
@@ -60,7 +62,9 @@ export function RegistrationPage() {
           >
             {isRegistering ? 'Registering...' : 'Register'}
           </button>
-          {errorMessage && <p className="mt-4 max-w-md text-sm text-red-700">{errorMessage}</p>}
+          {errorMessage && (
+            <p className="mt-4 max-w-md text-sm text-red-700">{errorMessage}</p>
+          )}
         </section>
       </div>
     </PageContainer>
