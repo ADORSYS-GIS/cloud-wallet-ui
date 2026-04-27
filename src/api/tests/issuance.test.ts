@@ -4,6 +4,27 @@ import { ApiError } from '../client'
 import { ContractError } from '../validation'
 import type { StartIssuanceResponse } from '../../types/issuance'
 
+// Mock the tenant module because startIssuanceSession depends on authService,
+// which in turn depends on tenant registration.
+vi.mock('../../auth/tenant', () => ({
+  registerTenant: vi.fn(async () => ({
+    tenant_id: 'mock-tenant-id',
+    name: 'Mock Tenant',
+  })),
+  getStoredTenantId: vi.fn(() => 'mock-tenant-id'),
+  storeTenantId: vi.fn(),
+}))
+
+const MOCK_BEARER_TOKEN = 'mock.jwt.token'
+
+vi.mock('../../auth/crypto', () => ({
+  getOrCreateKeyPair: vi.fn(async () => ({
+    privateKeyJwk: { kty: 'EC' },
+    publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'x', y: 'y' },
+  })),
+  createJwt: vi.fn(async () => MOCK_BEARER_TOKEN),
+}))
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -83,7 +104,10 @@ describe('startIssuanceSession', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/issuance/start', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${MOCK_BEARER_TOKEN}`, // Added Authorization header
+      },
       body: JSON.stringify({ offer: rawOffer }),
     })
     expect(result).toEqual(minimalSession)

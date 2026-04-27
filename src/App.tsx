@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { CredentialDetailPage } from './pages/CredentialDetailPage'
 import { CredentialTypeDetailsPage } from './pages/CredentialTypeDetailsPage'
 import { CredentialsPage } from './pages/CredentialsPage'
@@ -8,26 +9,98 @@ import { routes } from './constants/routes'
 import { CredentialOfferProvider } from './state/issuance.state'
 import { CredentialTypesPage } from './pages/CredentialTypesPage'
 import { IssuanceSuccessPage } from './pages/IssuanceSuccessPage'
+import { RegistrationPage } from './pages/RegistrationPage'
+import { getStoredTenantId } from './auth/tenant'
+
+function RequireRegistration({ children }: { children: ReactNode }) {
+  const isRegistered = Boolean(getStoredTenantId())
+  if (!isRegistered) {
+    return <Navigate to={routes.registration} replace />
+  }
+  return children
+}
 
 function App() {
   return (
     <CredentialOfferProvider>
       <Router>
         <Routes>
-          <Route path={routes.home} element={<HomePage />} />
-          <Route path={routes.scan} element={<ScanPage />} />
+          <Route
+            path={routes.registration}
+            element={
+              getStoredTenantId() ? (
+                <Navigate to={routes.home} replace />
+              ) : (
+                <RegistrationPage />
+              )
+            }
+          />
+          <Route
+            path={routes.home}
+            element={
+              <RequireRegistration>
+                <HomePage />
+              </RequireRegistration>
+            }
+          />
+          <Route
+            path={routes.scan}
+            element={
+              <RequireRegistration>
+                <ScanPage />
+              </RequireRegistration>
+            }
+          />
           <Route
             path={routes.credentialTypeDetails}
-            element={<CredentialTypeDetailsPage />}
+            element={
+              <RequireRegistration>
+                <CredentialTypeDetailsPage />
+              </RequireRegistration>
+            }
           />
-          <Route path={routes.credentialTypes} element={<CredentialTypesPage />} />
-          <Route path={routes.issuanceSuccess} element={<IssuanceSuccessPage />} />
-          <Route path={routes.credentials} element={<CredentialsPage />} />
+          <Route
+            path={routes.credentialTypes}
+            element={
+              <RequireRegistration>
+                <CredentialTypesPage />
+              </RequireRegistration>
+            }
+          />
+          <Route
+            path={routes.issuanceSuccess}
+            element={
+              <RequireRegistration>
+                <IssuanceSuccessPage />
+              </RequireRegistration>
+            }
+          />
+          <Route
+            path={routes.credentials}
+            element={
+              <RequireRegistration>
+                <CredentialsPage />
+              </RequireRegistration>
+            }
+          />
           <Route
             path={`${routes.credentials}/:credentialId`}
-            element={<CredentialDetailPage />}
+            element={
+              <RequireRegistration>
+                <CredentialDetailPage />
+              </RequireRegistration>
+            }
           />
-          <Route path="*" element={<Navigate to={routes.home} replace />} />
+          <Route
+            path="*"
+            element={
+              getStoredTenantId() ? (
+                <Navigate to={routes.home} replace />
+              ) : (
+                <Navigate to={routes.registration} replace />
+              )
+            }
+          />
         </Routes>
       </Router>
     </CredentialOfferProvider>
