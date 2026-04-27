@@ -1,9 +1,5 @@
 import type { StartIssuanceResponse } from '../../types/issuance'
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
 type IssuerBadgeProps = {
   displayName: string | null
   credentialIssuer: string
@@ -100,10 +96,6 @@ function FlowBadge({ flow, txCodeRequired }: FlowBadgeProps) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Main card
-// ---------------------------------------------------------------------------
-
 type CredentialOfferCardProps = {
   session: StartIssuanceResponse
   onAccept: () => void
@@ -125,7 +117,6 @@ export function CredentialOfferCard({
 
   return (
     <div className="absolute inset-x-3 top-3 z-20 flex flex-col gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-      {/* Header */}
       <div className="border-b border-slate-100 bg-[#f6f8fa] px-4 py-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Credential Offer
@@ -137,7 +128,6 @@ export function CredentialOfferCard({
         </p>
       </div>
 
-      {/* Issuer */}
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
           Issued by
@@ -149,7 +139,6 @@ export function CredentialOfferCard({
         />
       </div>
 
-      {/* Credential types */}
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
           Credentials offered ({session.credential_types.length})
@@ -173,7 +162,6 @@ export function CredentialOfferCard({
         </div>
       </div>
 
-      {/* Flow info */}
       <div className="border-b border-slate-100 px-4 py-3">
         <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
           Authorization flow
@@ -186,7 +174,6 @@ export function CredentialOfferCard({
         )}
       </div>
 
-      {/* Actions */}
       <div className="flex gap-2 px-4 py-3">
         <button
           type="button"

@@ -6,10 +6,6 @@ import { IssuanceError } from '../../api/issuance'
 import type { StartIssuanceResponse } from '../../types/issuance'
 import { CredentialOfferProvider } from '../../state/issuance.state'
 
-// ---------------------------------------------------------------------------
-// Fixture
-// ---------------------------------------------------------------------------
-
 const minimalSession: StartIssuanceResponse = {
   session_id: 'ses_abc123',
   expires_at: '2026-04-08T14:35:00Z',
@@ -36,10 +32,6 @@ const minimalSession: StartIssuanceResponse = {
   tx_code: null,
 }
 
-// ---------------------------------------------------------------------------
-// Mock startIssuanceSession
-// ---------------------------------------------------------------------------
-
 vi.mock('../../api/issuance', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/issuance')>()
   return {
@@ -51,13 +43,8 @@ vi.mock('../../api/issuance', async (importOriginal) => {
 import { startIssuanceSession } from '../../api/issuance'
 const mockStart = vi.mocked(startIssuanceSession)
 
-// Wrap every renderHook call in the required context provider.
 const wrapper = ({ children }: { children: React.ReactNode }) =>
   React.createElement(CredentialOfferProvider, null, children)
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('useIssuanceSession', () => {
   beforeEach(() => {

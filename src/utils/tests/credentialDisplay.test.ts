@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { CredentialRecord } from '../../types/credential'
 import { credentialDisplayName, issuerDisplayLabel } from '../credentialDisplay'
 
-// ---------------------------------------------------------------------------
-// Minimal valid CredentialRecord fixture
-// ---------------------------------------------------------------------------
-
 function makeCredential(overrides: Partial<CredentialRecord> = {}): CredentialRecord {
   return {
     id: 'cred-1',
@@ -19,10 +15,6 @@ function makeCredential(overrides: Partial<CredentialRecord> = {}): CredentialRe
     ...overrides,
   }
 }
-
-// ---------------------------------------------------------------------------
-// credentialDisplayName
-// ---------------------------------------------------------------------------
 
 describe('credentialDisplayName', () => {
   it('returns the last path segment of a URL-style credential_configuration_id', () => {
@@ -51,10 +43,6 @@ describe('credentialDisplayName', () => {
     expect(credentialDisplayName(c)).toBe('Credential')
   })
 })
-
-// ---------------------------------------------------------------------------
-// issuerDisplayLabel
-// ---------------------------------------------------------------------------
 
 describe('issuerDisplayLabel', () => {
   it('returns host for an https issuer URL', () => {

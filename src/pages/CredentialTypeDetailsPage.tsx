@@ -173,7 +173,6 @@ export function CredentialTypeDetailsPage() {
     (session ? new URL(session.issuer.credential_issuer).host : 'Issuer')
   const issuerLogoUri = session?.issuer.logo_uri ?? null
 
-  // Redirect guard
   const shouldRedirect = !session || !selectedType || !optionId
   useEffect(() => {
     if (shouldRedirect) {
@@ -181,10 +180,8 @@ export function CredentialTypeDetailsPage() {
     }
   }, [navigate, shouldRedirect])
 
-  // SSE stream hook
   const { streamStatus, openStream, closeStream } = useSseStream()
 
-  // Overlay state
   const [overlay, setOverlay] = useState<OverlayStatus>({ kind: 'hidden' })
   const [isCancelling, setIsCancelling] = useState(false)
   const issueInFlightRef = useRef(false)
@@ -216,7 +213,6 @@ export function CredentialTypeDetailsPage() {
   }, [overlay, closeStream])
 
   useEffect(() => {
-    // Build a stable key for this status snapshot so we only act once per change.
     const statusKey =
       streamStatus.status === 'processing'
         ? `processing:${streamStatus.step}`
