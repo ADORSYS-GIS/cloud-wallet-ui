@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../utils/env'
+import { getBearerToken } from '../auth/authService'
 
 /**
  * Spec-compliant API client.
@@ -9,6 +10,8 @@ import { getApiBaseUrl } from '../utils/env'
  * - 204 No Content responses return `undefined` (used by DELETE/cancel endpoints).
  * - Every successful response with a body is parsed as JSON.
  * - No undocumented endpoints may be called through this module.
+ * - Every request carries an `Authorization: Bearer <JWT>` header obtained
+ *   from the auth service (spec: BearerAuth security scheme).
  */
 
 export class ApiError extends Error {
@@ -20,8 +23,17 @@ export class ApiError extends Error {
   }
 }
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getBearerToken()
+  return {
+    Authorization: `Bearer ${token}`,
+  }
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`)
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    headers: await authHeaders(),
+  })
 
   if (!response.ok) {
     throw new ApiError(response.status, `GET ${path} failed with ${response.status}`)
@@ -38,6 +50,7 @@ export async function apiPost<TResponse, TBody>(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(await authHeaders()),
     },
     body: JSON.stringify(body),
   })
