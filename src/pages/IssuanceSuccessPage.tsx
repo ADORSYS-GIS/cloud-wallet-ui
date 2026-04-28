@@ -58,7 +58,7 @@ export function IssuanceSuccessPage() {
 
   return (
     <PageContainer fullWidth>
-      <div className="flex min-h-screen w-full flex-col bg-[#e7eaed] font-serif">
+      <div className="flex min-h-screen w-full flex-col bg-[#e9ecef] font-serif">
         <section
           className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-8 pt-10"
           aria-labelledby="issuance-success-heading"
