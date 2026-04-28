@@ -37,7 +37,9 @@ export function ScanPage() {
     if (offerState.status === 'success' && offerState.session) {
       const { credential_types } = offerState.session
       if (credential_types.length === 1) {
-        navigate(credentialTypeDetailsPath(credential_types[0].credential_configuration_id))
+        navigate(
+          credentialTypeDetailsPath(credential_types[0].credential_configuration_id)
+        )
       } else {
         navigate(routes.credentialTypes)
       }
@@ -235,7 +237,11 @@ export function ScanPage() {
         {showErrorCard && (
           <IssuanceErrorCard
             error={offerState.status === 'error' ? offerState.apiError : null}
-            rawMessage={offerState.status === 'error' ? offerState.rawMessage : localScanError?.userMessage}
+            rawMessage={
+              offerState.status === 'error'
+                ? offerState.rawMessage
+                : localScanError?.userMessage
+            }
             onRetry={handleErrorRetry}
           />
         )}
