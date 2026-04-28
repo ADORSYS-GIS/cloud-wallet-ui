@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { PageContainer } from '../components/layout/PageContainer'
 import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
-import { routes } from '../constants/routes'
+import { credentialTypeDetailsPath, routes } from '../constants/routes'
 import { useIssuanceSession } from '../hooks/useIssuanceSession'
 import type { IssuanceApiError } from '../types/issuance'
 import { issuanceUserMessage } from '../utils/issuanceErrors'
@@ -35,7 +35,12 @@ export function ScanPage() {
 
   useEffect(() => {
     if (offerState.status === 'success' && offerState.session) {
-      navigate(routes.credentialTypes)
+      const { credential_types } = offerState.session
+      if (credential_types.length === 1) {
+        navigate(credentialTypeDetailsPath(credential_types[0].credential_configuration_id))
+      } else {
+        navigate(routes.credentialTypes)
+      }
     }
   }, [offerState, navigate])
 
@@ -230,11 +235,7 @@ export function ScanPage() {
         {showErrorCard && (
           <IssuanceErrorCard
             error={offerState.status === 'error' ? offerState.apiError : null}
-            rawMessage={
-              offerState.status === 'error'
-                ? offerState.rawMessage
-                : localScanError?.userMessage
-            }
+            rawMessage={offerState.status === 'error' ? offerState.rawMessage : localScanError?.userMessage}
             onRetry={handleErrorRetry}
           />
         )}
