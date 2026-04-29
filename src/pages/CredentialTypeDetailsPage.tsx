@@ -547,7 +547,7 @@ export function CredentialTypeDetailsPage() {
             type="button"
             onClick={() => void handleIssueVc()}
             disabled={overlay.kind !== 'hidden' || isCancelling}
-            className="h-9 w-full rounded-[4px] bg-[#99e827] text-[14px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-9 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Issue VC
           </button>
@@ -556,7 +556,7 @@ export function CredentialTypeDetailsPage() {
             type="button"
             onClick={() => void handleCancel()}
             disabled={isCancelling}
-            className="mt-1 h-7 w-full rounded-[4px] bg-transparent text-[14px] text-slate-700 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-1 h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isCancelling ? 'Cancelling…' : 'Cancel'}
           </button>

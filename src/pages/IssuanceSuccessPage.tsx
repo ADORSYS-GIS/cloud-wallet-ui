@@ -58,7 +58,7 @@ export function IssuanceSuccessPage() {
 
   return (
     <PageContainer fullWidth>
-      <div className="flex min-h-screen w-full flex-col bg-[#e9ecef] font-serif">
+      <div className="flex min-h-screen w-full flex-col bg-[#ffffff] font-serif">
         <section
           className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-8 pt-10"
           aria-labelledby="issuance-success-heading"
@@ -66,24 +66,24 @@ export function IssuanceSuccessPage() {
           <SuccessIllustration />
           <h1
             id="issuance-success-heading"
-            className="mt-12 text-center text-[clamp(18px,2.6vw,24px)] font-semibold leading-tight text-slate-900"
+            className="mt-12 text-center text-[clamp(18px,2.6vw,24px)] font-normal leading-tight text-slate-900"
           >
             Credential added to your wallet
           </h1>
         </section>
 
-        <div className="w-full px-2 pb-2.5">
+        <div className="px-2 pb-2.5">
           <button
             type="button"
             onClick={viewCredential}
-            className="w-full rounded-md border border-slate-500 bg-[#e7eaed] py-3 text-center text-[clamp(14px,1.8vw,18px)] font-normal text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.08)] transition-colors duration-200 hover:bg-[#dfe3e7]"
+            className="h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             View Credential
           </button>
           <button
             type="button"
             onClick={() => navigate(routes.credentials)}
-            className="mt-2 w-full rounded-md bg-[#99e827] py-3 text-center text-[clamp(16px,2vw,20px)] font-normal text-slate-900 shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors duration-200 hover:bg-[#8bdc1d]"
+            className="mt-1 h-9 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Done
           </button>
