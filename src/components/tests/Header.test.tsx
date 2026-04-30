@@ -70,9 +70,7 @@ describe('Header', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Install app' }))
 
     expect(installApp).toHaveBeenCalledOnce()
-    expect(
-      screen.queryByText(/Install prompt is unavailable right now\./i)
-    ).toBeNull()
+    expect(screen.queryByText(/Install prompt is unavailable right now\./i)).toBeNull()
   })
 
   it('toggles iOS install instructions when iOS install flow is used', () => {
@@ -96,9 +94,7 @@ describe('Header', () => {
   it('shows fallback hint when install prompt is unavailable', () => {
     render(<Header />)
     fireEvent.click(screen.getByRole('button', { name: 'Install app' }))
-    expect(
-      screen.getByText(/Install prompt is unavailable right now\./i)
-    ).toBeDefined()
+    expect(screen.getByText(/Install prompt is unavailable right now\./i)).toBeDefined()
   })
 
   it('hides banner and main header when props disable them', () => {

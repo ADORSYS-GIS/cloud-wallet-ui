@@ -123,7 +123,9 @@ describe('parseCredentialOfferInput', () => {
 
   it('accepts allowlisted hosts regardless of path shape', () => {
     vi.stubEnv('VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS', 'issuer.example.com')
-    const parsed = parseCredentialOfferInput('https://issuer.example.com/not-an-offer-path')
+    const parsed = parseCredentialOfferInput(
+      'https://issuer.example.com/not-an-offer-path'
+    )
     expect(parsed).not.toBeNull()
   })
 
@@ -156,7 +158,9 @@ describe('parseCredentialOfferInput', () => {
   })
 
   it('rejects unsupported URL schemes', () => {
-    expect(parseCredentialOfferInput('ftp://issuer.example.com/credential-offer/1')).toBeNull()
+    expect(
+      parseCredentialOfferInput('ftp://issuer.example.com/credential-offer/1')
+    ).toBeNull()
   })
 
   it('rejects credential_offer payload with invalid credential_issuer URL', () => {

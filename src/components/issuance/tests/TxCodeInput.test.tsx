@@ -152,5 +152,4 @@ describe('TxCodeInput', () => {
     const alert = await screen.findByRole('alert')
     expect(alert.textContent ?? '').toContain('Please enter the transaction code.')
   })
-
 })

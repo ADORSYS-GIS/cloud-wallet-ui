@@ -77,10 +77,7 @@ describe('issuanceUserMessage', () => {
   it.each([
     ['unauthorized', 'Authentication failed.'],
     ['issuer_metadata_fetch_failed', 'Could not reach the credential issuer.'],
-    [
-      'auth_server_metadata_fetch_failed',
-      'Could not reach the authorization server.',
-    ],
+    ['auth_server_metadata_fetch_failed', 'Could not reach the authorization server.'],
     ['invalid_tx_code', 'transaction code is invalid'],
     ['session_not_found', 'issuance session expired'],
     ['invalid_session_state', 'issuance step is no longer valid'],

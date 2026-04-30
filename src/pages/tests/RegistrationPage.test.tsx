@@ -10,7 +10,8 @@ import { getStoredTenantId, registerTenant, storeTenantId } from '../../auth/ten
 const navigateMock = vi.fn()
 
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  const actual =
+    await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
   return {
     ...actual,
     useNavigate: () => navigateMock,
@@ -98,7 +99,9 @@ describe('RegistrationPage', () => {
   })
 
   it('ignores repeated register clicks while request is in flight', async () => {
-    let resolveRegistration: ((value: { tenant_id: string; name: string }) => void) | null = null
+    let resolveRegistration:
+      | ((value: { tenant_id: string; name: string }) => void)
+      | null = null
     mockedRegisterTenant.mockReturnValue(
       new Promise((resolve) => {
         resolveRegistration = resolve

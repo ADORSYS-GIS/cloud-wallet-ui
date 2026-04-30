@@ -44,6 +44,8 @@ describe('IssuanceErrorCard', () => {
       />
     )
 
-    expect(screen.getByText('The transaction code is invalid. Check it and try again.')).toBeDefined()
+    expect(
+      screen.getByText('The transaction code is invalid. Check it and try again.')
+    ).toBeDefined()
   })
 })

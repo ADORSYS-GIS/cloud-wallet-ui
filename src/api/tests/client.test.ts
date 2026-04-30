@@ -80,9 +80,9 @@ describe('api client', () => {
       ) as unknown as typeof fetch
     )
 
-    await expect(apiPost<undefined, { x: number }>('/sessions/cancel', { x: 1 })).resolves.toBe(
-      undefined
-    )
+    await expect(
+      apiPost<undefined, { x: number }>('/sessions/cancel', { x: 1 })
+    ).resolves.toBe(undefined)
   })
 
   it('apiPost throws ApiError with parsed error details', async () => {

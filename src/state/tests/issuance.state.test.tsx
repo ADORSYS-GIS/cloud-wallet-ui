@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import {
-  CredentialOfferProvider,
-  useCredentialOfferState,
-} from '../issuance.state'
+import { CredentialOfferProvider, useCredentialOfferState } from '../issuance.state'
 
 function HookConsumer() {
   const state = useCredentialOfferState()

@@ -82,7 +82,10 @@ describe('CredentialDetailPage', () => {
     render(
       <MemoryRouter initialEntries={['/credentials/cred-1']}>
         <Routes>
-          <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
+          <Route
+            path={`${routes.credentials}/:credentialId`}
+            element={<CredentialDetailPage />}
+          />
         </Routes>
       </MemoryRouter>
     )
@@ -100,7 +103,10 @@ describe('CredentialDetailPage', () => {
     render(
       <MemoryRouter initialEntries={['/credentials/cred-1']}>
         <Routes>
-          <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
+          <Route
+            path={`${routes.credentials}/:credentialId`}
+            element={<CredentialDetailPage />}
+          />
           <Route path={routes.credentials} element={<div>Credentials list</div>} />
         </Routes>
       </MemoryRouter>
@@ -121,7 +127,10 @@ describe('CredentialDetailPage', () => {
     render(
       <MemoryRouter initialEntries={['/credentials/cred-1']}>
         <Routes>
-          <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
+          <Route
+            path={`${routes.credentials}/:credentialId`}
+            element={<CredentialDetailPage />}
+          />
         </Routes>
       </MemoryRouter>
     )
@@ -155,7 +164,10 @@ describe('CredentialDetailPage', () => {
     render(
       <MemoryRouter initialEntries={['/credentials/cred-1']}>
         <Routes>
-          <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
+          <Route
+            path={`${routes.credentials}/:credentialId`}
+            element={<CredentialDetailPage />}
+          />
         </Routes>
       </MemoryRouter>
     )
@@ -174,7 +186,10 @@ describe('CredentialDetailPage', () => {
     render(
       <MemoryRouter initialEntries={['/credentials/cred-1']}>
         <Routes>
-          <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
+          <Route
+            path={`${routes.credentials}/:credentialId`}
+            element={<CredentialDetailPage />}
+          />
         </Routes>
       </MemoryRouter>
     )
@@ -192,7 +207,10 @@ describe('CredentialDetailPage', () => {
     render(
       <MemoryRouter initialEntries={['/credentials/cred-1']}>
         <Routes>
-          <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
+          <Route
+            path={`${routes.credentials}/:credentialId`}
+            element={<CredentialDetailPage />}
+          />
         </Routes>
       </MemoryRouter>
     )
@@ -211,7 +229,10 @@ describe('CredentialDetailPage', () => {
     render(
       <MemoryRouter initialEntries={['/credentials/cred-1']}>
         <Routes>
-          <Route path={`${routes.credentials}/:credentialId`} element={<CredentialDetailPage />} />
+          <Route
+            path={`${routes.credentials}/:credentialId`}
+            element={<CredentialDetailPage />}
+          />
           <Route path={routes.credentials} element={<div>Credentials list</div>} />
         </Routes>
       </MemoryRouter>
