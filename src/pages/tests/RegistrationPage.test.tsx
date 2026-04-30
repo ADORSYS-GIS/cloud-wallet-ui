@@ -99,9 +99,7 @@ describe('RegistrationPage', () => {
   })
 
   it('ignores repeated register clicks while request is in flight', async () => {
-    let resolveRegistration:
-      | ((value: { tenant_id: string; name: string }) => void)
-      | null = null
+    let resolveRegistration: (value: { tenant_id: string; name: string }) => void = () => {}
     mockedRegisterTenant.mockReturnValue(
       new Promise((resolve) => {
         resolveRegistration = resolve
@@ -115,7 +113,7 @@ describe('RegistrationPage', () => {
 
     expect(mockedRegisterTenant).toHaveBeenCalledTimes(1)
 
-    resolveRegistration?.({ tenant_id: 'tenant-1', name: 'DATEV Cloud Wallet' })
+    resolveRegistration({ tenant_id: 'tenant-1', name: 'DATEV Cloud Wallet' })
     await waitFor(() => {
       expect(mockedInitAuth).toHaveBeenCalledOnce()
     })
