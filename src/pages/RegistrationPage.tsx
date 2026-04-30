@@ -42,7 +42,7 @@ export function RegistrationPage() {
 
   return (
     <PageContainer fullWidth>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e7eaed] font-serif">
+      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e9ecef] font-serif">
         {/* Sub-header */}
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-5">
           <div className="w-10" />
@@ -58,7 +58,7 @@ export function RegistrationPage() {
             type="button"
             onClick={() => void handleRegister()}
             disabled={isRegistering}
-            className="min-w-[220px] rounded-md bg-[#59ff20] px-10 py-2 text-[24px] font-semibold leading-none text-black shadow disabled:cursor-not-allowed disabled:opacity-70"
+            className="min-w-[220px] rounded-md bg-[#99e827] px-10 py-2 text-[20px] font-normal leading-none text-black shadow transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isRegistering ? 'Registering...' : 'Register'}
           </button>

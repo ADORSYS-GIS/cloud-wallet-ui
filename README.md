@@ -1,51 +1,68 @@
 # Cloud Wallet UI
 
-A cloud wallet is a digital wallet hosted in the cloud that lets users securely store, manage, and use identity credentials from any device.
+Cloud Wallet UI is the frontend application for the EUDI Cloud Wallet experience.  
+It allows users to register a wallet tenant, scan credential offers, complete issuance flows, and view stored credentials.
 
-## Tech stack
+## Table of contents
 
-- React 19 + TypeScript + Vite
+- [Technology stack](#technology-stack)
+- [Getting started](#getting-started)
+- [Available scripts](#available-scripts)
+- [Environment configuration](#environment-configuration)
+- [Application routes](#application-routes)
+- [Issuance flow](#issuance-flow)
+- [Project structure](#project-structure)
+
+## Technology stack
+
+- React 19
+- TypeScript
+- Vite
 - Tailwind CSS
 - ESLint (flat config)
 - Prettier
+- Vitest
 
-## Quick start
+## Getting started
+
+### Prerequisites
+
+- Node.js 20+ (recommended)
+- npm 10+ (recommended)
+
+### Installation and local run
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Scripts
+The app runs with Vite's default development server and hot module replacement.
 
-- `npm run dev`: start local development server.
-- `npm run build`: type-check and create production build.
-- `npm run lint`: run ESLint with warnings treated as errors.
-- `npm run lint:fix`: auto-fix lint violations where possible.
-- `npm run format`: check code formatting with Prettier.
-- `npm run format:write`: write formatting changes.
-- `npm run test`: run unit tests with Vitest.
+## Available scripts
 
-## Project structure
+- `npm run dev` - Start the local development server.
+- `npm run build` - Type-check and produce a production build.
+- `npm run lint` - Run ESLint (warnings treated as errors).
+- `npm run lint:fix` - Auto-fix lint issues where possible.
+- `npm run format` - Check formatting with Prettier.
+- `npm run format:write` - Write formatting updates.
+- `npm run test` - Run unit tests with Vitest.
 
-```txt
-src/
-  api/          # API clients and endpoint modules
-  components/   # Reusable UI components
-  constants/    # App constants (routes, keys)
-  hooks/        # Custom React hooks
-  pages/        # Page-level components
-  */tests/      # Unit tests grouped per feature area
-  types/        # Shared TypeScript types
-  utils/        # Utility helpers
-```
+## Environment configuration
 
-## Environment variables
+The application uses Vite environment variables.
 
-- `VITE_API_BASE_URL`: backend host/base URL. The app automatically appends `/api/v1` when missing (defaults to `http://localhost:3000` -> `http://localhost:3000/api/v1`).
-- `VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS` (optional): comma-separated allowlist of `host[:port]` values for accepting _plain https_ QR payloads as credential-offer URLs. If not set, the app only accepts plain `https` payloads whose path contains `credential-offer` (conservative default). `openid-credential-offer://...` links are accepted regardless.
+- `VITE_API_BASE_URL`  
+  Backend base URL. When `/api/v1` is missing, the app appends it automatically.  
+  Example: `http://localhost:3000` becomes `http://localhost:3000/api/v1`.
 
-Create a `.env` file in project root:
+- `VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS` (optional)  
+  Comma-separated allowlist of `host[:port]` values for plain `https` credential-offer payloads.  
+  If omitted, the app only accepts conservative plain-HTTPS offers (path must contain `credential-offer`).  
+  `openid-credential-offer://...` links remain accepted regardless.
+
+Create `.env` in the project root:
 
 ```bash
 VITE_API_BASE_URL=http://localhost:3000
@@ -55,6 +72,46 @@ VITE_API_BASE_URL=http://localhost:3000
 
 You can also copy `.env.example` to `.env` (or `.env.local`) and adjust values.
 
-## GitFlow
+## Application routes
 
-Branching model and release workflow are documented in `docs/gitflow.md`.
+| Route                              | Purpose                                                |
+| ---------------------------------- | ------------------------------------------------------ |
+| `/registration`                    | Initial tenant registration (first-time users).        |
+| `/`                                | Home screen and entry point to scanning.               |
+| `/scan`                            | QR scanner and credential-offer intake.                |
+| `/credential-types`                | Credential types offered by issuer.                    |
+| `/credential-types/:optionId`      | Selected credential type details and issuance actions. |
+| `/issuance/success/:credentialId?` | Success state after issuance.                          |
+| `/credentials`                     | Wallet credential list or empty state.                 |
+| `/credentials/:credentialId`       | Credential details with reveal/hide controls.          |
+
+All routes except `/registration` are protected and require a stored tenant ID.
+
+## Issuance flow
+
+1. User scans a credential-offer QR code on `/scan`.
+2. Wallet validates and submits the offer to create an issuance session.
+3. User accepts the offer and selects a credential type.
+4. User starts issuance on the credential details screen.
+5. Flow continues through one of:
+   - redirect-based authorization,
+   - pre-authorized flow with transaction code, or
+   - direct issuance.
+6. SSE events update processing state until completion or failure.
+7. On success, user is redirected to `/issuance/success` and can open credential details.
+
+## Project structure
+
+```txt
+src/
+  api/          # API clients and endpoint modules
+  auth/         # Tenant registration and auth initialization
+  components/   # Reusable UI components
+  constants/    # App constants (routes, keys)
+  hooks/        # Custom React hooks
+  pages/        # Page-level components
+  state/        # Issuance flow state store/provider
+  types/        # Shared TypeScript types
+  utils/        # Utility helpers and parsers
+  */tests/      # Unit tests grouped by feature
+```
