@@ -88,6 +88,19 @@ describe('registerTenant', () => {
     await expect(registerTenant('Test')).rejects.toThrow('400')
   })
 
+  it('includes response body text in thrown error when available', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 409,
+      text: async () => 'tenant name already exists',
+    }))
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(registerTenant('Test')).rejects.toThrow(
+      'Tenant registration failed with HTTP 409: tenant name already exists'
+    )
+  })
+
   it('throws when tenant_id is missing from the response', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
