@@ -99,7 +99,10 @@ describe('RegistrationPage', () => {
   })
 
   it('ignores repeated register clicks while request is in flight', async () => {
-    let resolveRegistration: (value: { tenant_id: string; name: string }) => void = () => {}
+    let resolveRegistration: (value: {
+      tenant_id: string
+      name: string
+    }) => void = () => {}
     mockedRegisterTenant.mockReturnValue(
       new Promise((resolve) => {
         resolveRegistration = resolve
