@@ -69,7 +69,11 @@ vi.mock('../../state/issuance.state', () => ({
 }))
 
 vi.mock('../../components/Footer', () => ({
-  Footer: () => <div data-testid="footer" />,
+  Footer: ({ onScanClick }: { onScanClick: () => void }) => (
+    <button type="button" onClick={onScanClick}>
+      Footer Scan
+    </button>
+  ),
 }))
 
 function renderPage() {
@@ -197,5 +201,19 @@ describe('CredentialTypesPage', () => {
         replace: true,
       })
     })
+  })
+
+  it('navigates to scan from header back button', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(mockNavigate).toHaveBeenCalledWith(routes.scan)
+  })
+
+  it('navigates to scan when footer scan is clicked', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Footer Scan' }))
+    expect(mockNavigate).toHaveBeenCalledWith(routes.scan)
   })
 })

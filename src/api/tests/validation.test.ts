@@ -132,6 +132,91 @@ describe('validateStartIssuanceResponse', () => {
     expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
   })
 
+  it('throws ContractError when issuer.display_name is neither string nor null', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      issuer: {
+        ...validStartIssuanceResponse.issuer,
+        display_name: 42,
+      },
+    }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tx_code.length is not number|null', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: { input_mode: 'numeric', length: '6', description: null },
+    }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when display.logo exists but is not an object', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          display: {
+            ...validStartIssuanceResponse.credential_types[0].display,
+            logo: 'https://issuer.example.eu/logo.svg',
+          },
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
+  it('accepts display object with only required name field', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          display: { name: 'Only Name' },
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+  })
+
+  it('accepts display.logo object without alt_text', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          display: {
+            name: 'EU Personal ID',
+            logo: { uri: 'https://issuer.example.eu/logo.svg' },
+          },
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+  })
+
+  it('accepts display.logo object with alt_text', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          display: {
+            name: 'EU Personal ID',
+            logo: {
+              uri: 'https://issuer.example.eu/logo.svg',
+              alt_text: 'Issuer mark',
+            },
+          },
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+  })
+
   it('throws ContractError when the response is null', () => {
     expect(() => validateStartIssuanceResponse(null)).toThrow(ContractError)
   })
@@ -220,6 +305,30 @@ describe('validateCredentialListResponse', () => {
     } catch (err) {
       expect(err).toBeInstanceOf(Error)
       expect((err as Error).message).toContain('credentials[1]')
+    }
+  })
+
+  it('stringifies non-Error throws while preserving credentials index', () => {
+    const badRecord = {
+      get id() {
+        throw 'id getter failed'
+      },
+      credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
+      format: 'dc+sd-jwt',
+      issuer: 'https://issuer.example.eu',
+      status: 'active',
+      issued_at: '2026-04-08T14:35:00Z',
+      expires_at: null,
+      claims: {},
+    }
+
+    try {
+      validateCredentialListResponse({ credentials: [badRecord] })
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(Error)
+      expect((err as Error).message).toContain('credentials[0]')
+      expect((err as Error).message).toContain('id getter failed')
     }
   })
 

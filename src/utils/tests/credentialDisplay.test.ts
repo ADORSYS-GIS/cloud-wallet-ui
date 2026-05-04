@@ -55,6 +55,10 @@ describe('issuerDisplayLabel', () => {
     expect(issuerDisplayLabel('did:example:123')).toBe('did:example:123')
   })
 
+  it('returns raw string for malformed URL input', () => {
+    expect(issuerDisplayLabel('not a valid URL %%')).toBe('not a valid URL %%')
+  })
+
   it('returns host including port when present', () => {
     expect(issuerDisplayLabel('https://issuer.example.com:8443/oid4vci')).toBe(
       'issuer.example.com:8443'
