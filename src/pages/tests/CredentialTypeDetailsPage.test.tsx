@@ -59,7 +59,7 @@ function buildOffer(
 ): StartIssuanceResponse {
   return {
     session_id: 'ses_123',
-    expires_at: '2026-04-08T14:35:00Z',
+    expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     issuer: {
       credential_issuer: 'https://issuer.example.org',
       display_name: 'Example Issuer',
@@ -144,6 +144,14 @@ describe('CredentialTypeDetailsPage', () => {
     renderPage()
     expect(screen.getByRole('button', { name: 'Issue VC' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy()
+  })
+
+  it('navigates to credential types when header back button is clicked', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
   })
 
   it('does NOT render claims from a non-spec extension field', () => {
@@ -339,6 +347,37 @@ describe('CredentialTypeDetailsPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
   })
 
+  it('still navigates to credential types when cancelSession fails from tx-code modal', async () => {
+    const offerWithTxCode = buildOffer({
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: { input_mode: 'numeric', length: 6, description: null },
+    })
+    mockOfferState.offer = offerWithTxCode
+
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'provide_tx_code',
+    } as ConsentResponse)
+    mockCancelSession.mockRejectedValueOnce(new Error('cancel failed'))
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transaction Code Required')).toBeTruthy()
+    })
+
+    const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
+    await user.click(cancelButtons[0])
+
+    await waitFor(() => {
+      expect(mockCancelSession).toHaveBeenCalledWith('ses_123')
+    })
+    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
+  })
+
   it('shows error overlay when consent API call fails', async () => {
     mockSubmitConsent.mockRejectedValueOnce(new Error('Network error'))
 
@@ -468,6 +507,44 @@ describe('CredentialTypeDetailsPage', () => {
     }
   })
 
+  it('blocks issuance submission when the session is expired', async () => {
+    mockOfferState.offer = buildOffer({ expires_at: '2020-01-01T00:00:00Z' })
+
+    const user = userEvent.setup()
+    renderPage()
+
+    const issueButton = screen.getByRole('button', { name: 'Issue VC' })
+    expect(issueButton.hasAttribute('disabled')).toBe(true)
+
+    await user.click(issueButton)
+    expect(mockSubmitConsent).not.toHaveBeenCalled()
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'This issuance session has expired. Please restart the flow and scan again.'
+        )
+      ).toBeTruthy()
+    })
+  })
+
+  it('shows expiry error when cancel is clicked after session expiry', async () => {
+    mockOfferState.offer = buildOffer({ expires_at: '2020-01-01T00:00:00Z' })
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(mockCancelSession).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'This issuance session has expired. Please restart the flow and scan again.'
+        )
+      ).toBeTruthy()
+    })
+  })
+
   it('falls back to issuer host when display_name is missing', () => {
     mockOfferState.offer = buildOffer({
       issuer: {
@@ -496,6 +573,36 @@ describe('CredentialTypeDetailsPage', () => {
         screen.getByText('Authorization URL missing from server response.')
       ).toBeTruthy()
     })
+  })
+
+  it('calls cancelSession when main cancel button is clicked while tx-code modal is open', async () => {
+    const offerWithTxCode = buildOffer({
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: { input_mode: 'numeric', length: 6, description: null },
+    })
+    mockOfferState.offer = offerWithTxCode
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'provide_tx_code',
+    } as ConsentResponse)
+    mockCancelSession.mockResolvedValueOnce(undefined)
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transaction Code Required')).toBeTruthy()
+    })
+
+    const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
+    await user.click(cancelButtons[1])
+
+    await waitFor(() => {
+      expect(mockCancelSession).toHaveBeenCalledWith('ses_123')
+    })
+    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
   })
 
   it('redirects browser when consent next_action is redirect with authorization_url', async () => {
@@ -661,6 +768,104 @@ describe('CredentialTypeDetailsPage', () => {
     })
   })
 
+  it('transitions to session-expired state when expires_at is reached', async () => {
+    vi.useFakeTimers()
+    try {
+      const expiresSoon = new Date(Date.now() + 1_200).toISOString()
+      mockOfferState.offer = buildOffer({ expires_at: expiresSoon })
+      renderPage()
+
+      expect(
+        screen.queryByText(
+          'This issuance session has expired. Please restart the flow and scan again.'
+        )
+      ).toBeNull()
+
+      await act(async () => {
+        vi.advanceTimersByTime(2_000)
+      })
+
+      expect(
+        screen.getByText(
+          'This issuance session has expired. Please restart the flow and scan again.'
+        )
+      ).toBeTruthy()
+      expect(
+        screen.getByRole('button', { name: 'Issue VC' }).hasAttribute('disabled')
+      ).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('blocks tx-code submit path after session expires', async () => {
+    const user = userEvent.setup()
+    const offerWithTxCode = buildOffer({
+      expires_at: new Date(Date.now() + 100).toISOString(),
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: { input_mode: 'numeric', length: 6, description: null },
+    })
+    mockOfferState.offer = offerWithTxCode
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'provide_tx_code',
+    } as ConsentResponse)
+
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transaction Code Required')).toBeTruthy()
+    })
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+    })
+
+    expect(mockSubmitTxCode).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Submit Code' })).toBeNull()
+    expect(
+      screen.getByText(
+        'This issuance session has expired. Please restart the flow and scan again.'
+      )
+    ).toBeTruthy()
+  })
+
+  it('blocks tx-code cancel path after session expires', async () => {
+    const user = userEvent.setup()
+    const offerWithTxCode = buildOffer({
+      expires_at: new Date(Date.now() + 100).toISOString(),
+      flow: 'pre_authorized_code',
+      tx_code_required: true,
+      tx_code: { input_mode: 'numeric', length: 6, description: null },
+    })
+    mockOfferState.offer = offerWithTxCode
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'provide_tx_code',
+    } as ConsentResponse)
+
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Transaction Code Required')).toBeTruthy()
+    })
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+    })
+
+    expect(mockCancelSession).not.toHaveBeenCalled()
+    expect(screen.queryByText('Transaction Code Required')).toBeNull()
+    expect(
+      screen.getByText(
+        'This issuance session has expired. Please restart the flow and scan again.'
+      )
+    ).toBeTruthy()
+  })
+
   it('prevents duplicate tx-code submission while submit is in flight', async () => {
     const offerWithTxCode = buildOffer({
       flow: 'pre_authorized_code',
@@ -735,13 +940,19 @@ describe('CredentialTypeDetailsPage', () => {
   })
 
   it('restarts flow from failure overlay scan-again action', async () => {
-    mockSubmitConsent.mockRejectedValueOnce(new Error('Network error'))
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'redirect',
+      authorization_url: null,
+    } as unknown as ConsentResponse)
 
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: 'Issue VC' }))
     await waitFor(() => {
-      expect(screen.getByText('Network error')).toBeTruthy()
+      expect(
+        screen.getByText('Authorization URL missing from server response.')
+      ).toBeTruthy()
     })
 
     await user.click(screen.getByRole('button', { name: 'Scan again' }))

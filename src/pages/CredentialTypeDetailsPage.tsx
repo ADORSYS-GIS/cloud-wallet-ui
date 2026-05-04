@@ -69,6 +69,8 @@ const STEP_LABELS: Record<string, string> = {
   awaiting_deferred_credential: 'Waiting for deferred credential…',
 }
 const PROCESSING_TIMEOUT_MS = 45_000
+const SESSION_EXPIRED_MESSAGE =
+  'This issuance session has expired. Please restart the flow and scan again.'
 
 function stepLabel(step: ProcessingStep): string {
   return STEP_LABELS[step] ?? 'Processing…'
@@ -107,14 +109,13 @@ function ProcessingOverlay({
           <IssuanceErrorCard
             error={status.apiError}
             rawMessage={status.message}
-            onRetry={onRestart}
+            onRetry={status.canRetry ? onRetry : onRestart}
           />
         </div>
       </div>
     )
   }
 
-  const isError = false
   const message =
     status.kind === 'submitting'
       ? 'Submitting consent…'
@@ -130,39 +131,19 @@ function ProcessingOverlay({
     return null
   }
 
-  if (!isError) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center px-6 text-center">
-          <div className="relative mb-16 h-52 w-52">
-            <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
-            <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
-            <img
-              src={illuWallet}
-              alt=""
-              className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
-            />
-          </div>
-          <div className="mt-2 text-sm text-slate-500">{message}</div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 text-center shadow-2xl">
-        {isError && (
-          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-xl">
-            ⚠️
-          </div>
-        )}
-        <p className="text-sm leading-relaxed text-slate-700">{message}</p>
-        {isError && (
-          <button type="button" onClick={onRetry} className="mt-4 w-full">
-            Retry
-          </button>
-        )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+      <div className="flex flex-col items-center px-6 text-center">
+        <div className="relative mb-16 h-52 w-52">
+          <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+          <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+          <img
+            src={illuWallet}
+            alt=""
+            className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+          />
+        </div>
+        <div className="mt-2 text-sm text-slate-500">{message}</div>
       </div>
     </div>
   )
@@ -202,13 +183,55 @@ export function CredentialTypeDetailsPage() {
 
   const [overlay, setOverlay] = useState<OverlayStatus>({ kind: 'hidden' })
   const [isCancelling, setIsCancelling] = useState(false)
+  const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
   const issueInFlightRef = useRef(false)
   const txCodeSubmitInFlightRef = useRef(false)
   const txCodeCancelInFlightRef = useRef(false)
 
   const doAuthRedirect = useAuthRedirect()
+  const sessionExpiresAtMs = useMemo(
+    () => Date.parse(session?.expires_at ?? ''),
+    [session]
+  )
+  const isSessionExpired =
+    Number.isFinite(sessionExpiresAtMs) && nowTimestamp >= sessionExpiresAtMs
 
   const lastHandledSseStatus = useRef<string>('')
+  const hasShownExpiryErrorRef = useRef(false)
+
+  const showSessionExpiredError = useCallback(() => {
+    const apiError: IssuanceApiError = {
+      httpStatus: 0,
+      error: 'invalid_session_state',
+      error_description: SESSION_EXPIRED_MESSAGE,
+    }
+    setOverlay({
+      kind: 'failed',
+      apiError,
+      message: SESSION_EXPIRED_MESSAGE,
+      canRetry: false,
+      retryAction: null,
+    })
+  }, [])
+
+  useEffect(() => {
+    hasShownExpiryErrorRef.current = false
+    const intervalId = window.setInterval(() => {
+      const now = Date.now()
+      setNowTimestamp(now)
+      if (
+        Number.isFinite(sessionExpiresAtMs) &&
+        now >= sessionExpiresAtMs &&
+        !hasShownExpiryErrorRef.current
+      ) {
+        closeStream()
+        showSessionExpiredError()
+        hasShownExpiryErrorRef.current = true
+      }
+    }, 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [sessionExpiresAtMs, closeStream, showSessionExpiredError])
 
   useEffect(() => {
     const hasActiveProcessing =
@@ -297,6 +320,10 @@ export function CredentialTypeDetailsPage() {
 
   const handleIssueVc = async () => {
     if (issueInFlightRef.current || isCancelling) return
+    if (isSessionExpired) {
+      showSessionExpiredError()
+      return
+    }
     issueInFlightRef.current = true
     setOverlay({ kind: 'submitting' })
 
@@ -386,6 +413,10 @@ export function CredentialTypeDetailsPage() {
   const handleTxCodeSubmit = async (code: string) => {
     if (txCodeSubmitInFlightRef.current || isCancelling) return
     if (overlay.kind !== 'awaiting_tx_code' && overlay.kind !== 'tx_code_error') return
+    if (isSessionExpired) {
+      showSessionExpiredError()
+      return
+    }
 
     txCodeSubmitInFlightRef.current = true
     const txCodeSpec = overlay.txCodeSpec
@@ -407,6 +438,10 @@ export function CredentialTypeDetailsPage() {
 
   const handleTxCodeCancel = async () => {
     if (txCodeCancelInFlightRef.current || isCancelling) return
+    if (isSessionExpired) {
+      showSessionExpiredError()
+      return
+    }
     txCodeCancelInFlightRef.current = true
     closeStream()
     try {
@@ -418,16 +453,6 @@ export function CredentialTypeDetailsPage() {
     txCodeCancelInFlightRef.current = false
   }
 
-  const handleOverlayRetry = () => {
-    if (overlay.kind === 'failed' && overlay.retryAction === 'issue_vc') {
-      setOverlay({ kind: 'hidden' })
-      void handleIssueVc()
-      return
-    }
-    setOverlay({ kind: 'hidden' })
-    closeStream()
-  }
-
   const handleRestartFlow = () => {
     closeStream()
     offerState.clear()
@@ -435,8 +460,21 @@ export function CredentialTypeDetailsPage() {
     navigate(routes.scan, { replace: true })
   }
 
+  const handleOverlayRetry = () => {
+    if (overlay.kind === 'failed' && overlay.retryAction === 'issue_vc') {
+      setOverlay({ kind: 'hidden' })
+      void handleIssueVc()
+      return
+    }
+    handleRestartFlow()
+  }
+
   const handleCancel = async () => {
     if (isCancelling) return
+    if (isSessionExpired) {
+      showSessionExpiredError()
+      return
+    }
     setIsCancelling(true)
     closeStream()
     if (overlay.kind !== 'hidden') {
@@ -546,7 +584,7 @@ export function CredentialTypeDetailsPage() {
           <button
             type="button"
             onClick={() => void handleIssueVc()}
-            disabled={overlay.kind !== 'hidden' || isCancelling}
+            disabled={overlay.kind !== 'hidden' || isCancelling || isSessionExpired}
             className="h-9 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Issue VC
