@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { getApiBaseUrl } from '../utils/env'
+import { getBearerToken } from '../auth/authService'
 import type {
   ConsentResponse,
   SseEvent,
@@ -21,9 +22,10 @@ export type UseSseStreamReturn = {
 }
 
 /**
- * Parse a raw SSE frame string into an SseEvent.
- * SSE frames look like:
- *   event: processing\ndata: {...}\n\n
+ * Parse a single SSE frame (text between double-newline boundaries) into an
+ * SseEvent. Expects the format emitted by the server:
+ *   event: <type>\n
+ *   data: <json>\n
  */
 function parseSseFrame(raw: string): SseEvent | null {
   const lines = raw.split('\n')
@@ -52,6 +54,13 @@ function parseSseFrame(raw: string): SseEvent | null {
  * Hook that manages an SSE connection for real-time issuance session updates.
  *
  * Spec: GET /issuance/{session_id}/events
+ * Auth: BearerAuth (global, per OpenAPI spec — Authorization: Bearer <jwt>)
+ *
+ * The native browser EventSource API does not support custom request headers
+ * and therefore cannot satisfy the spec's BearerAuth requirement. This
+ * implementation uses fetch() + ReadableStream instead, which allows the
+ * Authorization: Bearer header to be sent on the SSE request exactly as the
+ * OpenAPI contract specifies.
  *
  * The frontend MUST open this stream immediately after receiving a successful
  * /consent response and maintain the connection until a terminal event
@@ -59,11 +68,11 @@ function parseSseFrame(raw: string): SseEvent | null {
  */
 export function useSseStream(): UseSseStreamReturn {
   const [streamStatus, setStreamStatus] = useState<SseStreamStatus>({ status: 'idle' })
-  const esRef = useRef<EventSource | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   const closeStream = useCallback(() => {
-    esRef.current?.close()
-    esRef.current = null
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
   }, [])
 
   const openStream = useCallback(
@@ -71,56 +80,128 @@ export function useSseStream(): UseSseStreamReturn {
       closeStream()
       setStreamStatus({ status: 'connecting' })
 
-      const url = `${getApiBaseUrl()}/issuance/${encodeURIComponent(sessionId)}/events`
-      const es = new EventSource(url)
-      esRef.current = es
+      const controller = new AbortController()
+      abortControllerRef.current = controller
 
-      const handleEvent = (type: string, data: string) => {
-        const frame = parseSseFrame(`event: ${type}\ndata: ${data}`)
-        if (!frame) return
-
-        if (frame.event === 'processing') {
-          const e = frame as SseProcessingFrame
-          setStreamStatus({ status: 'processing', step: e.step ?? '' })
-        } else if (frame.event === 'completed') {
-          const e = frame as SseCompletedEvent
-          setStreamStatus({
-            status: 'completed',
-            credentialIds: e.credential_ids,
-            credentialTypes: e.credential_types,
-          })
-          closeStream()
-        } else if (frame.event === 'failed') {
-          const e = frame as SseFailedEvent
+      void (async () => {
+        // Obtain the bearer JWT before opening the connection so the
+        // Authorization header can be sent on the very first request,
+        // exactly as the OpenAPI BearerAuth security scheme requires.
+        let token: string
+        try {
+          token = await getBearerToken()
+        } catch {
           setStreamStatus({
             status: 'failed',
-            error: e.error,
-            errorDescription: e.error_description,
-            step: e.step,
+            error: 'unauthorized',
+            errorDescription: 'Could not obtain authentication token for SSE stream.',
+            step: 'internal',
           })
-          closeStream()
+          return
         }
-      }
 
-      es.addEventListener('processing', (ev: MessageEvent) => {
-        handleEvent('processing', ev.data as string)
-      })
-      es.addEventListener('completed', (ev: MessageEvent) => {
-        handleEvent('completed', ev.data as string)
-      })
-      es.addEventListener('failed', (ev: MessageEvent) => {
-        handleEvent('failed', ev.data as string)
-      })
+        const url = `${getApiBaseUrl()}/issuance/${encodeURIComponent(sessionId)}/events`
 
-      es.onerror = () => {
-        setStreamStatus({
-          status: 'failed',
-          error: 'internal_error',
-          errorDescription: 'Connection to server lost.',
-          step: 'internal',
-        })
-        closeStream()
-      }
+        let response: Response
+        try {
+          response = await fetch(url, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'text/event-stream',
+            },
+            signal: controller.signal,
+          })
+        } catch {
+          if (controller.signal.aborted) return
+          setStreamStatus({
+            status: 'failed',
+            error: 'internal_error',
+            errorDescription: 'Connection to server lost.',
+            step: 'internal',
+          })
+          return
+        }
+
+        if (!response.ok) {
+          setStreamStatus({
+            status: 'failed',
+            error: response.status === 401 ? 'unauthorized' : 'internal_error',
+            errorDescription:
+              response.status === 401
+                ? 'Authentication failed for SSE stream.'
+                : `SSE connection failed with status ${response.status}.`,
+            step: 'internal',
+          })
+          return
+        }
+
+        if (!response.body) {
+          setStreamStatus({
+            status: 'failed',
+            error: 'internal_error',
+            errorDescription: 'SSE response body is unavailable.',
+            step: 'internal',
+          })
+          return
+        }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+
+            if (done || controller.signal.aborted) break
+
+            buffer += decoder.decode(value, { stream: true })
+
+            // SSE frames are delimited by double newlines.
+            const frames = buffer.split(/\n\n/)
+            // Retain the last (potentially incomplete) chunk in the buffer.
+            buffer = frames.pop() ?? ''
+
+            for (const frame of frames) {
+              if (!frame.trim()) continue
+              const event = parseSseFrame(frame)
+              if (!event) continue
+
+              if (event.event === 'processing') {
+                const e = event as SseProcessingFrame
+                setStreamStatus({ status: 'processing', step: e.step ?? '' })
+              } else if (event.event === 'completed') {
+                const e = event as SseCompletedEvent
+                setStreamStatus({
+                  status: 'completed',
+                  credentialIds: e.credential_ids,
+                  credentialTypes: e.credential_types,
+                })
+                return
+              } else if (event.event === 'failed') {
+                const e = event as SseFailedEvent
+                setStreamStatus({
+                  status: 'failed',
+                  error: e.error,
+                  errorDescription: e.error_description,
+                  step: e.step,
+                })
+                return
+              }
+            }
+          }
+        } catch {
+          if (controller.signal.aborted) return
+          setStreamStatus({
+            status: 'failed',
+            error: 'internal_error',
+            errorDescription: 'Connection to server lost.',
+            step: 'internal',
+          })
+        } finally {
+          reader.releaseLock()
+        }
+      })()
     },
     [closeStream]
   )
