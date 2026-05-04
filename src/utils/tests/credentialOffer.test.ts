@@ -108,4 +108,70 @@ describe('parseCredentialOfferInput', () => {
     )
     expect(parsed).not.toBeNull()
   })
+
+  it('rejects credential_offer objects with invalid credential_configuration_ids types', () => {
+    const offer = encodeURIComponent(
+      JSON.stringify({
+        credential_issuer: 'https://issuer.example.com',
+        credential_configuration_ids: ['valid-id', 123],
+      })
+    )
+    const input = `openid-credential-offer://?credential_offer=${offer}`
+
+    expect(parseCredentialOfferInput(input)).toBeNull()
+  })
+
+  it('accepts allowlisted hosts regardless of path shape', () => {
+    vi.stubEnv('VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS', 'issuer.example.com')
+    const parsed = parseCredentialOfferInput(
+      'https://issuer.example.com/not-an-offer-path'
+    )
+    expect(parsed).not.toBeNull()
+  })
+
+  it('rejects openid-credential-offer URI with insecure credential_offer_uri', () => {
+    const input =
+      'openid-credential-offer://?credential_offer_uri=' +
+      encodeURIComponent('http://issuer.example.com/credential-offer/abc')
+    expect(parseCredentialOfferInput(input)).toBeNull()
+  })
+
+  it('rejects openid-credential-offer URI with no params', () => {
+    expect(parseCredentialOfferInput('openid-credential-offer://')).toBeNull()
+  })
+
+  it('rejects openid-credential-offer URI with unrelated params only', () => {
+    expect(parseCredentialOfferInput('openid-credential-offer://?foo=bar')).toBeNull()
+  })
+
+  it('rejects credential_offer payloads that decode to non-objects', () => {
+    const payload = encodeURIComponent('"just-a-string"')
+    expect(
+      parseCredentialOfferInput(`openid-credential-offer://?credential_offer=${payload}`)
+    ).toBeNull()
+  })
+
+  it('rejects malformed encoded credential_offer payload', () => {
+    expect(
+      parseCredentialOfferInput('openid-credential-offer://?credential_offer=%E0%A4%A')
+    ).toBeNull()
+  })
+
+  it('rejects unsupported URL schemes', () => {
+    expect(
+      parseCredentialOfferInput('ftp://issuer.example.com/credential-offer/1')
+    ).toBeNull()
+  })
+
+  it('rejects credential_offer payload with invalid credential_issuer URL', () => {
+    const offer = encodeURIComponent(
+      JSON.stringify({
+        credential_issuer: 'not-a-valid-url',
+        credential_configuration_ids: ['MyCredential'],
+      })
+    )
+    expect(
+      parseCredentialOfferInput(`openid-credential-offer://?credential_offer=${offer}`)
+    ).toBeNull()
+  })
 })

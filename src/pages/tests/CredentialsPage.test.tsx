@@ -74,6 +74,25 @@ describe('CredentialsPage', () => {
     ).toBeDefined()
   })
 
+  it('navigates to scan page when empty-state CTA is clicked', () => {
+    mockedUseCredentials.mockReturnValue({
+      credentials: [],
+      loading: false,
+    })
+
+    render(
+      <MemoryRouter initialEntries={[routes.credentials]}>
+        <Routes>
+          <Route path={routes.credentials} element={<CredentialsPage />} />
+          <Route path={routes.scan} element={<div>Scan page</div>} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add your first Credential' }))
+    expect(screen.getByText('Scan page')).toBeDefined()
+  })
+
   it('renders credentials list using the last segment of credential_configuration_id as title', () => {
     mockedUseCredentials.mockReturnValue({
       loading: false,
@@ -150,5 +169,60 @@ describe('CredentialsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /mDL/i }))
 
     expect(screen.getByText('Credential details view')).toBeDefined()
+  })
+
+  it('shows loading state while credentials are being fetched', () => {
+    mockedUseCredentials.mockReturnValue({
+      loading: true,
+      credentials: [],
+    })
+
+    render(
+      <MemoryRouter initialEntries={[routes.credentials]}>
+        <Routes>
+          <Route path={routes.credentials} element={<CredentialsPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Loading credentials…')).toBeDefined()
+  })
+
+  it('navigates to home from header back button', () => {
+    mockedUseCredentials.mockReturnValue({
+      loading: false,
+      credentials: [],
+    })
+
+    render(
+      <MemoryRouter initialEntries={[routes.credentials]}>
+        <Routes>
+          <Route path={routes.credentials} element={<CredentialsPage />} />
+          <Route path={routes.home} element={<div>Home page</div>} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to home' }))
+    expect(screen.getByText('Home page')).toBeDefined()
+  })
+
+  it('navigates to scan page from footer scan button', () => {
+    mockedUseCredentials.mockReturnValue({
+      loading: false,
+      credentials: [],
+    })
+
+    render(
+      <MemoryRouter initialEntries={[routes.credentials]}>
+        <Routes>
+          <Route path={routes.credentials} element={<CredentialsPage />} />
+          <Route path={routes.scan} element={<div>Scan destination</div>} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan credential offer QR' }))
+    expect(screen.getByText('Scan destination')).toBeDefined()
   })
 })
