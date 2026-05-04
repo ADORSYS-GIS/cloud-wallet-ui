@@ -140,10 +140,10 @@ describe('CredentialTypeDetailsPage', () => {
     expect(screen.getByText('Logo Alt Text')).toBeTruthy()
   })
 
-  it('renders Issue VC and Cancel buttons', () => {
+  it('renders Issue VC and Reject buttons on the consent screen', () => {
     renderPage()
     expect(screen.getByRole('button', { name: 'Issue VC' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeTruthy()
   })
 
   it('does NOT render claims from a non-spec extension field', () => {
@@ -296,14 +296,23 @@ describe('CredentialTypeDetailsPage', () => {
     })
   })
 
-  it('calls cancelSession and navigates to credential types on Cancel click', async () => {
-    mockCancelSession.mockResolvedValueOnce(undefined)
+  it('calls POST /consent with accepted=false on Reject without cancelSession or SSE', async () => {
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'rejected',
+    } as ConsentResponse)
 
     const user = userEvent.setup()
     renderPage()
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Reject' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
+    await waitFor(() => {
+      expect(mockSubmitConsent).toHaveBeenCalledWith('ses_123', false, [])
+    })
+    expect(mockCancelSession).not.toHaveBeenCalled()
+    expect(mockOpenStream).not.toHaveBeenCalled()
+    expect(mockOfferState.clear).toHaveBeenCalled()
+    expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
   })
 
   it('calls cancelSession when cancelling from TX code screen', async () => {
@@ -514,7 +523,7 @@ describe('CredentialTypeDetailsPage', () => {
     })
   })
 
-  it('navigates to scan when consent result is rejected', async () => {
+  it('navigates to scan when user rejects via Reject button', async () => {
     mockSubmitConsent.mockResolvedValueOnce({
       session_id: 'ses_123',
       next_action: 'rejected',
@@ -522,7 +531,7 @@ describe('CredentialTypeDetailsPage', () => {
 
     const user = userEvent.setup()
     renderPage()
-    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
+    await user.click(screen.getByRole('button', { name: 'Reject' }))
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
@@ -726,12 +735,55 @@ describe('CredentialTypeDetailsPage', () => {
     expect(mockCancelSession).toHaveBeenCalledTimes(1)
   })
 
-  it('does not call cancelSession when cancelling from hidden overlay state', async () => {
+  it('shows declining overlay while reject consent is in flight', async () => {
+    mockSubmitConsent.mockReturnValue(
+      new Promise<ConsentResponse>(() => {
+        /* unresolved */
+      })
+    )
+
     const user = userEvent.setup()
     renderPage()
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(mockCancelSession).not.toHaveBeenCalled()
-    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
+    await user.click(screen.getByRole('button', { name: 'Reject' }))
+
+    expect(screen.getByText('Declining offer…')).toBeTruthy()
+  })
+
+  it('shows error when reject consent returns unexpected next_action', async () => {
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'none',
+    } as ConsentResponse)
+
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Reject' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /The server returned an unexpected response after declining the offer/i
+        )
+      ).toBeTruthy()
+    })
+    expect(mockOpenStream).not.toHaveBeenCalled()
+    expect(mockOfferState.clear).not.toHaveBeenCalled()
+  })
+
+  it('prevents duplicate Reject clicks while consent is in flight', async () => {
+    mockSubmitConsent.mockReturnValue(
+      new Promise<ConsentResponse>(() => {
+        /* unresolved */
+      })
+    )
+
+    const user = userEvent.setup()
+    renderPage()
+    const rejectButton = screen.getByRole('button', { name: 'Reject' })
+    await user.click(rejectButton)
+    await user.click(rejectButton)
+
+    expect(mockSubmitConsent).toHaveBeenCalledTimes(1)
   })
 
   it('restarts flow from failure overlay scan-again action', async () => {
