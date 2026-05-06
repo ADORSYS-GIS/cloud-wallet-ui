@@ -76,7 +76,7 @@ function stepLabel(step: ProcessingStep): string {
 
 type OverlayStatus =
   | { kind: 'hidden' }
-  | { kind: 'submitting' }
+  | { kind: 'submitting'; consentIntent: 'accept' | 'reject' }
   | { kind: 'awaiting_tx_code'; txCodeSpec: TxCodeSpec }
   | { kind: 'submitting_tx_code'; txCodeSpec: TxCodeSpec }
   | { kind: 'tx_code_error'; txCodeSpec: TxCodeSpec; errorMessage: string }
@@ -117,7 +117,9 @@ function ProcessingOverlay({
   const isError = false
   const message =
     status.kind === 'submitting'
-      ? 'Submitting consent…'
+      ? status.consentIntent === 'reject'
+        ? 'Declining offer…'
+        : 'Submitting consent…'
       : status.kind === 'processing'
         ? stepLabel(status.step)
         : ''
@@ -202,7 +204,8 @@ export function CredentialTypeDetailsPage() {
 
   const [overlay, setOverlay] = useState<OverlayStatus>({ kind: 'hidden' })
   const [isCancelling, setIsCancelling] = useState(false)
-  const issueInFlightRef = useRef(false)
+  /** Guards POST /consent for both accept (Issue VC) and reject flows. */
+  const consentInFlightRef = useRef(false)
   const txCodeSubmitInFlightRef = useRef(false)
   const txCodeCancelInFlightRef = useRef(false)
 
@@ -296,9 +299,9 @@ export function CredentialTypeDetailsPage() {
   const displayRows = buildDisplayRows(selectedType)
 
   const handleIssueVc = async () => {
-    if (issueInFlightRef.current || isCancelling) return
-    issueInFlightRef.current = true
-    setOverlay({ kind: 'submitting' })
+    if (consentInFlightRef.current || isCancelling) return
+    consentInFlightRef.current = true
+    setOverlay({ kind: 'submitting', consentIntent: 'accept' })
 
     let consentResponse: ConsentResponse
     try {
@@ -318,15 +321,22 @@ export function CredentialTypeDetailsPage() {
         canRetry: true,
         retryAction: 'issue_vc',
       })
-      issueInFlightRef.current = false
+      consentInFlightRef.current = false
       return
     }
 
-    openStream(session.session_id)
-
     try {
       switch (consentResponse.next_action) {
+        case 'rejected':
+          // Defensive: accepting a subset should not yield rejected; if it does, treat like decline.
+          closeStream()
+          offerState.clear()
+          setOverlay({ kind: 'hidden' })
+          navigate(routes.scan, { replace: true })
+          break
+
         case 'redirect':
+          openStream(session.session_id)
           if (consentResponse.authorization_url) {
             doAuthRedirect(consentResponse.authorization_url)
             setOverlay({ kind: 'processing', step: 'authorization' })
@@ -347,6 +357,7 @@ export function CredentialTypeDetailsPage() {
           break
 
         case 'provide_tx_code': {
+          openStream(session.session_id)
           const txSpec = session.tx_code
           if (!txSpec) {
             const apiError: IssuanceApiError = {
@@ -369,17 +380,68 @@ export function CredentialTypeDetailsPage() {
         }
 
         case 'none':
+          openStream(session.session_id)
           setOverlay({ kind: 'processing', step: '' })
-          break
-
-        case 'rejected':
-          setOverlay({ kind: 'hidden' })
-          closeStream()
-          navigate(routes.scan, { replace: true })
           break
       }
     } finally {
-      issueInFlightRef.current = false
+      consentInFlightRef.current = false
+    }
+  }
+
+  /**
+   * User explicitly declines the credential offer (spec: POST …/consent with accepted=false).
+   * This is distinct from operational {@link handleCancel} / {@link cancelSession}, which aborts
+   * an in-flight issuance after consent has already been accepted.
+   */
+  const handleReject = async () => {
+    if (consentInFlightRef.current || isCancelling) return
+    consentInFlightRef.current = true
+    closeStream()
+    setOverlay({ kind: 'submitting', consentIntent: 'reject' })
+
+    let consentResponse: ConsentResponse
+    try {
+      consentResponse = await submitConsent(session.session_id, false, [])
+    } catch (err) {
+      const apiError = toIssuanceApiError(err)
+      const message =
+        apiError.httpStatus === 0 && err instanceof Error
+          ? err.message
+          : issuanceUserMessage(apiError)
+      setOverlay({
+        kind: 'failed',
+        apiError,
+        message,
+        canRetry: false,
+        retryAction: null,
+      })
+      consentInFlightRef.current = false
+      return
+    }
+
+    try {
+      if (consentResponse.next_action === 'rejected') {
+        offerState.clear()
+        setOverlay({ kind: 'hidden' })
+        navigate(routes.scan, { replace: true })
+        return
+      }
+      const apiError: IssuanceApiError = {
+        httpStatus: 0,
+        error: 'invalid_request',
+        error_description:
+          'The server returned an unexpected response after declining the offer. Please try again.',
+      }
+      setOverlay({
+        kind: 'failed',
+        apiError,
+        message: issuanceUserMessage(apiError),
+        canRetry: false,
+        retryAction: null,
+      })
+    } finally {
+      consentInFlightRef.current = false
     }
   }
 
@@ -552,14 +614,29 @@ export function CredentialTypeDetailsPage() {
             Issue VC
           </button>
 
-          <button
-            type="button"
-            onClick={() => void handleCancel()}
-            disabled={isCancelling}
-            className="mt-1 h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isCancelling ? 'Cancelling…' : 'Cancel'}
-          </button>
+          {overlay.kind === 'hidden' ? (
+            <button
+              type="button"
+              onClick={() => void handleReject()}
+              disabled={isCancelling}
+              className="mt-1 h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Reject
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleCancel()}
+              disabled={
+                isCancelling ||
+                overlay.kind === 'submitting' ||
+                overlay.kind === 'submitting_tx_code'
+              }
+              className="mt-1 h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isCancelling ? 'Cancelling…' : 'Cancel'}
+            </button>
+          )}
         </div>
       </div>
     </PageContainer>
