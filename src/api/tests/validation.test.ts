@@ -80,6 +80,11 @@ describe('validateStartIssuanceResponse', () => {
     expect(() => validateStartIssuanceResponse(rest)).toThrow(ContractError)
   })
 
+  it('throws ContractError when expires_at is not a valid date-time', () => {
+    const input = { ...validStartIssuanceResponse, expires_at: 'not-a-date' }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
   it('throws ContractError when credential_types is empty', () => {
     const input = { ...validStartIssuanceResponse, credential_types: [] }
     expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)

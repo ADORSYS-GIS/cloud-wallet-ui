@@ -69,6 +69,8 @@ const STEP_LABELS: Record<string, string> = {
   awaiting_deferred_credential: 'Waiting for deferred credential…',
 }
 const PROCESSING_TIMEOUT_MS = 45_000
+const SESSION_EXPIRED_MESSAGE =
+  'This issuance session has expired. Please restart the flow and scan again.'
 
 function stepLabel(step: ProcessingStep): string {
   return STEP_LABELS[step] ?? 'Processing…'
@@ -76,7 +78,7 @@ function stepLabel(step: ProcessingStep): string {
 
 type OverlayStatus =
   | { kind: 'hidden' }
-  | { kind: 'submitting'; consentIntent: 'accept' | 'reject' }
+  | { kind: 'submitting'; consentIntent: 'accept' }
   | { kind: 'awaiting_tx_code'; txCodeSpec: TxCodeSpec }
   | { kind: 'submitting_tx_code'; txCodeSpec: TxCodeSpec }
   | { kind: 'tx_code_error'; txCodeSpec: TxCodeSpec; errorMessage: string }
@@ -107,19 +109,16 @@ function ProcessingOverlay({
           <IssuanceErrorCard
             error={status.apiError}
             rawMessage={status.message}
-            onRetry={onRestart}
+            onRetry={status.canRetry ? onRetry : onRestart}
           />
         </div>
       </div>
     )
   }
 
-  const isError = false
   const message =
     status.kind === 'submitting'
-      ? status.consentIntent === 'reject'
-        ? 'Declining offer…'
-        : 'Submitting consent…'
+      ? 'Submitting consent…'
       : status.kind === 'processing'
         ? stepLabel(status.step)
         : ''
@@ -132,39 +131,19 @@ function ProcessingOverlay({
     return null
   }
 
-  if (!isError) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center px-6 text-center">
-          <div className="relative mb-16 h-52 w-52">
-            <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
-            <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
-            <img
-              src={illuWallet}
-              alt=""
-              className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
-            />
-          </div>
-          <div className="mt-2 text-sm text-slate-500">{message}</div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-6 text-center shadow-2xl">
-        {isError && (
-          <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-xl">
-            ⚠️
-          </div>
-        )}
-        <p className="text-sm leading-relaxed text-slate-700">{message}</p>
-        {isError && (
-          <button type="button" onClick={onRetry} className="mt-4 w-full">
-            Retry
-          </button>
-        )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+      <div className="flex flex-col items-center px-6 text-center">
+        <div className="relative mb-16 h-52 w-52">
+          <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+          <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+          <img
+            src={illuWallet}
+            alt=""
+            className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+          />
+        </div>
+        <div className="mt-2 text-sm text-slate-500">{message}</div>
       </div>
     </div>
   )
@@ -204,14 +183,56 @@ export function CredentialTypeDetailsPage() {
 
   const [overlay, setOverlay] = useState<OverlayStatus>({ kind: 'hidden' })
   const [isCancelling, setIsCancelling] = useState(false)
-  /** Guards POST /consent for both accept (Issue VC) and reject flows. */
+  const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
+  /** Guards POST /consent for accept (Issue VC). */
   const consentInFlightRef = useRef(false)
   const txCodeSubmitInFlightRef = useRef(false)
   const txCodeCancelInFlightRef = useRef(false)
 
   const doAuthRedirect = useAuthRedirect()
+  const sessionExpiresAtMs = useMemo(
+    () => Date.parse(session?.expires_at ?? ''),
+    [session]
+  )
+  const isSessionExpired =
+    Number.isFinite(sessionExpiresAtMs) && nowTimestamp >= sessionExpiresAtMs
 
   const lastHandledSseStatus = useRef<string>('')
+  const hasShownExpiryErrorRef = useRef(false)
+
+  const showSessionExpiredError = useCallback(() => {
+    const apiError: IssuanceApiError = {
+      httpStatus: 0,
+      error: 'invalid_session_state',
+      error_description: SESSION_EXPIRED_MESSAGE,
+    }
+    setOverlay({
+      kind: 'failed',
+      apiError,
+      message: SESSION_EXPIRED_MESSAGE,
+      canRetry: false,
+      retryAction: null,
+    })
+  }, [])
+
+  useEffect(() => {
+    hasShownExpiryErrorRef.current = false
+    const intervalId = window.setInterval(() => {
+      const now = Date.now()
+      setNowTimestamp(now)
+      if (
+        Number.isFinite(sessionExpiresAtMs) &&
+        now >= sessionExpiresAtMs &&
+        !hasShownExpiryErrorRef.current
+      ) {
+        closeStream()
+        showSessionExpiredError()
+        hasShownExpiryErrorRef.current = true
+      }
+    }, 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [sessionExpiresAtMs, closeStream, showSessionExpiredError])
 
   useEffect(() => {
     const hasActiveProcessing =
@@ -300,6 +321,10 @@ export function CredentialTypeDetailsPage() {
 
   const handleIssueVc = async () => {
     if (consentInFlightRef.current || isCancelling) return
+    if (isSessionExpired) {
+      showSessionExpiredError()
+      return
+    }
     consentInFlightRef.current = true
     setOverlay({ kind: 'submitting', consentIntent: 'accept' })
 
@@ -389,65 +414,13 @@ export function CredentialTypeDetailsPage() {
     }
   }
 
-  /**
-   * User explicitly declines the credential offer (spec: POST …/consent with accepted=false).
-   * This is distinct from operational {@link handleCancel} / {@link cancelSession}, which aborts
-   * an in-flight issuance after consent has already been accepted.
-   */
-  const handleReject = async () => {
-    if (consentInFlightRef.current || isCancelling) return
-    consentInFlightRef.current = true
-    closeStream()
-    setOverlay({ kind: 'submitting', consentIntent: 'reject' })
-
-    let consentResponse: ConsentResponse
-    try {
-      consentResponse = await submitConsent(session.session_id, false, [])
-    } catch (err) {
-      const apiError = toIssuanceApiError(err)
-      const message =
-        apiError.httpStatus === 0 && err instanceof Error
-          ? err.message
-          : issuanceUserMessage(apiError)
-      setOverlay({
-        kind: 'failed',
-        apiError,
-        message,
-        canRetry: false,
-        retryAction: null,
-      })
-      consentInFlightRef.current = false
-      return
-    }
-
-    try {
-      if (consentResponse.next_action === 'rejected') {
-        offerState.clear()
-        setOverlay({ kind: 'hidden' })
-        navigate(routes.scan, { replace: true })
-        return
-      }
-      const apiError: IssuanceApiError = {
-        httpStatus: 0,
-        error: 'invalid_request',
-        error_description:
-          'The server returned an unexpected response after declining the offer. Please try again.',
-      }
-      setOverlay({
-        kind: 'failed',
-        apiError,
-        message: issuanceUserMessage(apiError),
-        canRetry: false,
-        retryAction: null,
-      })
-    } finally {
-      consentInFlightRef.current = false
-    }
-  }
-
   const handleTxCodeSubmit = async (code: string) => {
     if (txCodeSubmitInFlightRef.current || isCancelling) return
     if (overlay.kind !== 'awaiting_tx_code' && overlay.kind !== 'tx_code_error') return
+    if (isSessionExpired) {
+      showSessionExpiredError()
+      return
+    }
 
     txCodeSubmitInFlightRef.current = true
     const txCodeSpec = overlay.txCodeSpec
@@ -469,6 +442,10 @@ export function CredentialTypeDetailsPage() {
 
   const handleTxCodeCancel = async () => {
     if (txCodeCancelInFlightRef.current || isCancelling) return
+    if (isSessionExpired) {
+      showSessionExpiredError()
+      return
+    }
     txCodeCancelInFlightRef.current = true
     closeStream()
     try {
@@ -480,16 +457,6 @@ export function CredentialTypeDetailsPage() {
     txCodeCancelInFlightRef.current = false
   }
 
-  const handleOverlayRetry = () => {
-    if (overlay.kind === 'failed' && overlay.retryAction === 'issue_vc') {
-      setOverlay({ kind: 'hidden' })
-      void handleIssueVc()
-      return
-    }
-    setOverlay({ kind: 'hidden' })
-    closeStream()
-  }
-
   const handleRestartFlow = () => {
     closeStream()
     offerState.clear()
@@ -497,16 +464,66 @@ export function CredentialTypeDetailsPage() {
     navigate(routes.scan, { replace: true })
   }
 
+  const handleOverlayRetry = () => {
+    if (overlay.kind === 'failed' && overlay.retryAction === 'issue_vc') {
+      setOverlay({ kind: 'hidden' })
+      void handleIssueVc()
+      return
+    }
+    handleRestartFlow()
+  }
+
   const handleCancel = async () => {
     if (isCancelling) return
+    if (isSessionExpired) {
+      showSessionExpiredError()
+      return
+    }
     setIsCancelling(true)
     closeStream()
-    if (overlay.kind !== 'hidden') {
+    if (overlay.kind === 'hidden') {
       try {
-        await cancelSession(session.session_id)
-      } catch {
-        void 0
+        const consentResponse = await submitConsent(session.session_id, false, [])
+        if (consentResponse.next_action === 'rejected') {
+          offerState.clear()
+          navigate(routes.scan, { replace: true })
+        } else {
+          const apiError: IssuanceApiError = {
+            httpStatus: 0,
+            error: 'invalid_request',
+            error_description:
+              'The server returned an unexpected response after declining the offer. Please try again.',
+          }
+          setOverlay({
+            kind: 'failed',
+            apiError,
+            message: issuanceUserMessage(apiError),
+            canRetry: false,
+            retryAction: null,
+          })
+        }
+      } catch (err) {
+        const apiError = toIssuanceApiError(err)
+        const message =
+          apiError.httpStatus === 0 && err instanceof Error
+            ? err.message
+            : issuanceUserMessage(apiError)
+        setOverlay({
+          kind: 'failed',
+          apiError,
+          message,
+          canRetry: false,
+          retryAction: null,
+        })
       }
+      setIsCancelling(false)
+      return
+    }
+
+    try {
+      await cancelSession(session.session_id)
+    } catch {
+      void 0
     }
     navigate(routes.credentialTypes)
     setIsCancelling(false)
@@ -562,7 +579,7 @@ export function CredentialTypeDetailsPage() {
             </div>
 
             <p className="mb-2 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
-              Credential details:
+              Here is the digital identity info:
             </p>
             <ul className="space-y-px">
               {displayRows.map((row, index) => (
@@ -608,35 +625,24 @@ export function CredentialTypeDetailsPage() {
           <button
             type="button"
             onClick={() => void handleIssueVc()}
-            disabled={overlay.kind !== 'hidden' || isCancelling}
+            disabled={overlay.kind !== 'hidden' || isCancelling || isSessionExpired}
             className="h-9 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Issue VC
           </button>
 
-          {overlay.kind === 'hidden' ? (
-            <button
-              type="button"
-              onClick={() => void handleReject()}
-              disabled={isCancelling}
-              className="mt-1 h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Reject
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void handleCancel()}
-              disabled={
-                isCancelling ||
-                overlay.kind === 'submitting' ||
-                overlay.kind === 'submitting_tx_code'
-              }
-              className="mt-1 h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isCancelling ? 'Cancelling…' : 'Cancel'}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => void handleCancel()}
+            disabled={
+              isCancelling ||
+              overlay.kind === 'submitting' ||
+              overlay.kind === 'submitting_tx_code'
+            }
+            className="mt-1 h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isCancelling ? 'Cancelling…' : 'Cancel'}
+          </button>
         </div>
       </div>
     </PageContainer>

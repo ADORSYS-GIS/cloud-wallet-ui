@@ -42,6 +42,14 @@ function requireString(ctx: string, field: string, value: unknown): string {
   return value
 }
 
+function requireDateTimeString(ctx: string, field: string, value: unknown): string {
+  const dateTime = requireString(ctx, field, value)
+  if (!Number.isFinite(Date.parse(dateTime))) {
+    throw new ContractError(ctx, field, value)
+  }
+  return dateTime
+}
+
 function requireStringOrNull(ctx: string, field: string, value: unknown): string | null {
   if (value !== null && typeof value !== 'string')
     throw new ContractError(ctx, field, value)
@@ -174,7 +182,7 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
   const obj = requireObject(ctx, 'response', raw)
 
   const session_id = requireString(ctx, 'session_id', obj.session_id)
-  const expires_at = requireString(ctx, 'expires_at', obj.expires_at)
+  const expires_at = requireDateTimeString(ctx, 'expires_at', obj.expires_at)
   const issuer = validateIssuerSummary(obj.issuer)
 
   const rawTypes = requireArray(ctx, 'credential_types', obj.credential_types)
