@@ -78,7 +78,7 @@ function stepLabel(step: ProcessingStep): string {
 
 type OverlayStatus =
   | { kind: 'hidden' }
-  | { kind: 'submitting' }
+  | { kind: 'submitting'; consentIntent: 'accept' }
   | { kind: 'awaiting_tx_code'; txCodeSpec: TxCodeSpec }
   | { kind: 'submitting_tx_code'; txCodeSpec: TxCodeSpec }
   | { kind: 'tx_code_error'; txCodeSpec: TxCodeSpec; errorMessage: string }
@@ -184,7 +184,8 @@ export function CredentialTypeDetailsPage() {
   const [overlay, setOverlay] = useState<OverlayStatus>({ kind: 'hidden' })
   const [isCancelling, setIsCancelling] = useState(false)
   const [nowTimestamp, setNowTimestamp] = useState(() => Date.now())
-  const issueInFlightRef = useRef(false)
+  /** Guards POST /consent for accept (Issue VC). */
+  const consentInFlightRef = useRef(false)
   const txCodeSubmitInFlightRef = useRef(false)
   const txCodeCancelInFlightRef = useRef(false)
 
@@ -319,13 +320,13 @@ export function CredentialTypeDetailsPage() {
   const displayRows = buildDisplayRows(selectedType)
 
   const handleIssueVc = async () => {
-    if (issueInFlightRef.current || isCancelling) return
+    if (consentInFlightRef.current || isCancelling) return
     if (isSessionExpired) {
       showSessionExpiredError()
       return
     }
-    issueInFlightRef.current = true
-    setOverlay({ kind: 'submitting' })
+    consentInFlightRef.current = true
+    setOverlay({ kind: 'submitting', consentIntent: 'accept' })
 
     let consentResponse: ConsentResponse
     try {
@@ -345,15 +346,22 @@ export function CredentialTypeDetailsPage() {
         canRetry: true,
         retryAction: 'issue_vc',
       })
-      issueInFlightRef.current = false
+      consentInFlightRef.current = false
       return
     }
 
-    openStream(session.session_id)
-
     try {
       switch (consentResponse.next_action) {
+        case 'rejected':
+          // Defensive: accepting a subset should not yield rejected; if it does, treat like decline.
+          closeStream()
+          offerState.clear()
+          setOverlay({ kind: 'hidden' })
+          navigate(routes.scan, { replace: true })
+          break
+
         case 'redirect':
+          openStream(session.session_id)
           if (consentResponse.authorization_url) {
             doAuthRedirect(consentResponse.authorization_url)
             setOverlay({ kind: 'processing', step: 'authorization' })
@@ -374,6 +382,7 @@ export function CredentialTypeDetailsPage() {
           break
 
         case 'provide_tx_code': {
+          openStream(session.session_id)
           const txSpec = session.tx_code
           if (!txSpec) {
             const apiError: IssuanceApiError = {
@@ -396,17 +405,12 @@ export function CredentialTypeDetailsPage() {
         }
 
         case 'none':
+          openStream(session.session_id)
           setOverlay({ kind: 'processing', step: '' })
-          break
-
-        case 'rejected':
-          setOverlay({ kind: 'hidden' })
-          closeStream()
-          navigate(routes.scan, { replace: true })
           break
       }
     } finally {
-      issueInFlightRef.current = false
+      consentInFlightRef.current = false
     }
   }
 
@@ -477,12 +481,49 @@ export function CredentialTypeDetailsPage() {
     }
     setIsCancelling(true)
     closeStream()
-    if (overlay.kind !== 'hidden') {
+    if (overlay.kind === 'hidden') {
       try {
-        await cancelSession(session.session_id)
-      } catch {
-        void 0
+        const consentResponse = await submitConsent(session.session_id, false, [])
+        if (consentResponse.next_action === 'rejected') {
+          offerState.clear()
+          navigate(routes.scan, { replace: true })
+        } else {
+          const apiError: IssuanceApiError = {
+            httpStatus: 0,
+            error: 'invalid_request',
+            error_description:
+              'The server returned an unexpected response after declining the offer. Please try again.',
+          }
+          setOverlay({
+            kind: 'failed',
+            apiError,
+            message: issuanceUserMessage(apiError),
+            canRetry: false,
+            retryAction: null,
+          })
+        }
+      } catch (err) {
+        const apiError = toIssuanceApiError(err)
+        const message =
+          apiError.httpStatus === 0 && err instanceof Error
+            ? err.message
+            : issuanceUserMessage(apiError)
+        setOverlay({
+          kind: 'failed',
+          apiError,
+          message,
+          canRetry: false,
+          retryAction: null,
+        })
       }
+      setIsCancelling(false)
+      return
+    }
+
+    try {
+      await cancelSession(session.session_id)
+    } catch {
+      void 0
     }
     navigate(routes.credentialTypes)
     setIsCancelling(false)
@@ -593,7 +634,11 @@ export function CredentialTypeDetailsPage() {
           <button
             type="button"
             onClick={() => void handleCancel()}
-            disabled={isCancelling}
+            disabled={
+              isCancelling ||
+              overlay.kind === 'submitting' ||
+              overlay.kind === 'submitting_tx_code'
+            }
             className="mt-1 h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isCancelling ? 'Cancelling…' : 'Cancel'}

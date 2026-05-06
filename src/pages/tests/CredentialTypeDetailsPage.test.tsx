@@ -140,7 +140,7 @@ describe('CredentialTypeDetailsPage', () => {
     expect(screen.getByText('Logo Alt Text')).toBeTruthy()
   })
 
-  it('renders Issue VC and Cancel buttons', () => {
+  it('renders Issue VC and Cancel buttons on the consent screen', () => {
     renderPage()
     expect(screen.getByRole('button', { name: 'Issue VC' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy()
@@ -304,14 +304,23 @@ describe('CredentialTypeDetailsPage', () => {
     })
   })
 
-  it('calls cancelSession and navigates to credential types on Cancel click', async () => {
-    mockCancelSession.mockResolvedValueOnce(undefined)
+  it('submits declined consent when cancelling from idle state', async () => {
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'rejected',
+    } as ConsentResponse)
 
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
+    await waitFor(() => {
+      expect(mockSubmitConsent).toHaveBeenCalledWith('ses_123', false, [])
+    })
+    expect(mockCancelSession).not.toHaveBeenCalled()
+    expect(mockOpenStream).not.toHaveBeenCalled()
+    expect(mockOfferState.clear).toHaveBeenCalled()
+    expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
   })
 
   it('calls cancelSession when cancelling from TX code screen', async () => {
@@ -528,12 +537,12 @@ describe('CredentialTypeDetailsPage', () => {
     })
   })
 
-  it('shows expiry error when cancel is clicked after session expiry', async () => {
+  it('shows expiry error when back is clicked after session expiry', async () => {
     mockOfferState.offer = buildOffer({ expires_at: '2020-01-01T00:00:00Z' })
 
     const user = userEvent.setup()
     renderPage()
-    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Back' }))
 
     expect(mockCancelSession).not.toHaveBeenCalled()
     await waitFor(() => {
@@ -618,21 +627,6 @@ describe('CredentialTypeDetailsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Processing…')).toBeTruthy()
-    })
-  })
-
-  it('navigates to scan when consent result is rejected', async () => {
-    mockSubmitConsent.mockResolvedValueOnce({
-      session_id: 'ses_123',
-      next_action: 'rejected',
-    } as ConsentResponse)
-
-    const user = userEvent.setup()
-    renderPage()
-    await user.click(screen.getByRole('button', { name: 'Issue VC' }))
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
     })
   })
 
@@ -931,12 +925,25 @@ describe('CredentialTypeDetailsPage', () => {
     expect(mockCancelSession).toHaveBeenCalledTimes(1)
   })
 
-  it('does not call cancelSession when cancelling from hidden overlay state', async () => {
+  it('shows error when idle cancel consent returns unexpected next_action', async () => {
+    mockSubmitConsent.mockResolvedValueOnce({
+      session_id: 'ses_123',
+      next_action: 'none',
+    } as ConsentResponse)
+
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(mockCancelSession).not.toHaveBeenCalled()
-    expect(mockNavigate).toHaveBeenCalledWith(routes.credentialTypes)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /The server returned an unexpected response after declining the offer/i
+        )
+      ).toBeTruthy()
+    })
+    expect(mockOpenStream).not.toHaveBeenCalled()
+    expect(mockOfferState.clear).not.toHaveBeenCalled()
   })
 
   it('restarts flow from failure overlay scan-again action', async () => {
