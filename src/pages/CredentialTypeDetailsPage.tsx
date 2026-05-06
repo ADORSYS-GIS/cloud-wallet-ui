@@ -579,7 +579,7 @@ export function CredentialTypeDetailsPage() {
             </div>
 
             <p className="mb-2 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
-              Credential details:
+              Here is the digital identity info:
             </p>
             <ul className="space-y-px">
               {displayRows.map((row, index) => (
