@@ -56,7 +56,7 @@ const minimalSession: StartIssuanceResponse = {
   credential_types: [
     {
       credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-      format: 'dc+sd-jwt',
+      format: 'vc+sd-jwt',
       display: {
         name: 'EU Personal ID',
         description: 'Official EU personal identity document',
