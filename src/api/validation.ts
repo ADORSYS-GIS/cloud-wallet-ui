@@ -151,8 +151,12 @@ function validateCredentialTypeDisplay(
 ): CredentialTypeDisplay {
   const ctx = `CredentialTypeDisplay[${index}]`
   const obj = requireObject(ctx, 'credential_type', raw)
-  const id = requireString(ctx, 'credential_configuration_id', obj.credential_configuration_id)
-  
+  const id = requireString(
+    ctx,
+    'credential_configuration_id',
+    obj.credential_configuration_id
+  )
+
   // Handle null display by providing a default
   let display: CredentialDisplay
   if (obj.display === null || obj.display === undefined) {
@@ -160,7 +164,7 @@ function validateCredentialTypeDisplay(
   } else {
     display = validateCredentialDisplay(obj.display)
   }
-  
+
   return {
     credential_configuration_id: id,
     format: requireString(ctx, 'format', obj.format),
