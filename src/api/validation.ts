@@ -146,18 +146,29 @@ function validateCredentialDisplay(raw: unknown): CredentialDisplay {
 
 function validateCredentialTypeDisplay(
   raw: unknown,
-  index: number
+  index: number,
+  fallback_name: string
 ): CredentialTypeDisplay {
   const ctx = `CredentialTypeDisplay[${index}]`
   const obj = requireObject(ctx, 'credential_type', raw)
+  const id = requireString(
+    ctx,
+    'credential_configuration_id',
+    obj.credential_configuration_id
+  )
+
+  // Handle null display by providing a default
+  let display: CredentialDisplay
+  if (obj.display === null || obj.display === undefined) {
+    display = { name: fallback_name }
+  } else {
+    display = validateCredentialDisplay(obj.display)
+  }
+
   return {
-    credential_configuration_id: requireString(
-      ctx,
-      'credential_configuration_id',
-      obj.credential_configuration_id
-    ),
+    credential_configuration_id: id,
     format: requireString(ctx, 'format', obj.format),
-    display: validateCredentialDisplay(obj.display),
+    display,
   }
 }
 
@@ -187,7 +198,16 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
 
   const rawTypes = requireArray(ctx, 'credential_types', obj.credential_types)
   if (rawTypes.length === 0) throw new ContractError(ctx, 'credential_types', rawTypes)
-  const credential_types = rawTypes.map((ct, i) => validateCredentialTypeDisplay(ct, i))
+  const credential_types = rawTypes.map((ct, i) => {
+    // Extract id first to handle null display fallback
+    const ctObj = requireObject(`credential_types[${i}]`, 'credential_type', ct)
+    const id = requireString(
+      `credential_types[${i}]`,
+      'credential_configuration_id',
+      ctObj.credential_configuration_id
+    )
+    return validateCredentialTypeDisplay(ct, i, id)
+  })
 
   const flow = requireString(ctx, 'flow', obj.flow)
   if (!ISSUANCE_FLOWS.includes(flow as IssuanceFlow))

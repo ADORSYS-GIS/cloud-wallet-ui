@@ -1,4 +1,5 @@
-import type { StartIssuanceResponse } from '../../types/issuance'
+import { useState } from 'react'
+import type { CredentialLogo, StartIssuanceResponse } from '../../types/issuance'
 
 type IssuerBadgeProps = {
   displayName: string | null
@@ -40,6 +41,7 @@ type CredentialTypePillProps = {
   backgroundColor?: string
   textColor?: string
   format: string
+  logo?: CredentialLogo | null
 }
 
 function CredentialTypePill({
@@ -47,15 +49,27 @@ function CredentialTypePill({
   backgroundColor,
   textColor,
   format,
+  logo,
 }: CredentialTypePillProps) {
   const bg = backgroundColor ?? '#4b7c8c'
   const fg = textColor ?? '#ffffff'
+  const [imgFailed, setImgFailed] = useState(false)
 
   return (
     <div
       className={`flex items-center justify-between gap-3 rounded-lg px-4 py-3 bg-[${bg}] text-[${fg}]`}
     >
-      <span className="text-sm font-semibold leading-snug">{name}</span>
+      <div className="flex items-center gap-3 min-w-0">
+        {logo?.uri && !imgFailed && (
+          <img
+            src={logo.uri}
+            alt={logo.alt_text ?? `${name} logo`}
+            className="h-6 w-6 shrink-0 rounded object-contain bg-white/20"
+            onError={() => setImgFailed(true)}
+          />
+        )}
+        <span className="text-sm font-semibold leading-snug truncate">{name}</span>
+      </div>
       <span className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium opacity-70 bg-black/18">
         {format}
       </span>
@@ -139,6 +153,7 @@ export function CredentialOfferCard({ session }: CredentialOfferCardProps) {
                 backgroundColor={ct.display.background_color}
                 textColor={ct.display.text_color}
                 format={ct.format}
+                logo={ct.display.logo}
               />
               {ct.display.description && (
                 <p className="mt-1 px-1 text-xs leading-snug text-slate-500">
