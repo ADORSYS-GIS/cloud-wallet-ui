@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getCredentialById } from '../api/credentials'
+import { getApiBaseUrl } from '../utils/env'
+import { getBearerToken } from '../auth/authService'
+import { validateCredentialRecord } from '../api/validation'
 import type { CredentialRecord } from '../types/credential'
 
 type DetailState = {
@@ -16,26 +18,49 @@ export function useCredentialDetail(id: string): DetailState {
   })
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
+    const { signal } = controller
 
-    getCredentialById(id)
-      .then((data) => {
-        if (!cancelled) {
-          setState({ credential: data, loading: false, error: null })
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
+    void (async () => {
+      try {
+        const token = await getBearerToken()
+        if (signal.aborted) return
+
+        const response = await fetch(
+          `${getApiBaseUrl()}/credentials/${encodeURIComponent(id)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal,
+          }
+        )
+        if (signal.aborted) return
+
+        if (!response.ok) {
           setState({
             credential: null,
             loading: false,
-            error: err instanceof Error ? err : new Error('Failed to load credential'),
+            error: new Error(`Failed to load credential (HTTP ${response.status})`),
           })
+          return
         }
-      })
+
+        const raw = (await response.json()) as unknown
+        if (signal.aborted) return
+
+        const credential = validateCredentialRecord(raw)
+        setState({ credential, loading: false, error: null })
+      } catch (err: unknown) {
+        if (signal.aborted) return
+        setState({
+          credential: null,
+          loading: false,
+          error: err instanceof Error ? err : new Error('Failed to load credential'),
+        })
+      }
+    })()
 
     return () => {
-      cancelled = true
+      controller.abort()
     }
   }, [id])
 

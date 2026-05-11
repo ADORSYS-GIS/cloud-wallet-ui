@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getCredentials } from '../api/credentials'
+import { getApiBaseUrl } from '../utils/env'
+import { getBearerToken } from '../auth/authService'
+import { validateCredentialListResponse } from '../api/validation'
 import type { CredentialRecord } from '../types/credential'
 
 type CredentialsState = {
@@ -12,27 +14,43 @@ export function useCredentials(): CredentialsState {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
+    const { signal } = controller
 
-    getCredentials()
-      .then((res) => {
-        if (!cancelled) {
-          setCredentials(res.credentials)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
+    void (async () => {
+      try {
+        const token = await getBearerToken()
+        if (signal.aborted) return
+
+        const response = await fetch(`${getApiBaseUrl()}/credentials`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal,
+        })
+        if (signal.aborted) return
+
+        if (!response.ok) {
           setCredentials([])
+          setLoading(false)
+          return
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
+
+        const raw = (await response.json()) as unknown
+        if (signal.aborted) return
+
+        const data = validateCredentialListResponse(raw)
+        setCredentials(data.credentials)
+      } catch {
+        if (signal.aborted) return
+        setCredentials([])
+      } finally {
+        if (!signal.aborted) {
           setLoading(false)
         }
-      })
+      }
+    })()
 
     return () => {
-      cancelled = true
+      controller.abort()
     }
   }, [])
 
