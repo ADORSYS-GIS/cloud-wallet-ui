@@ -132,10 +132,7 @@ function validateCredentialDisplay(raw: unknown): CredentialDisplay {
     const logoObj = requireObject(ctx, 'logo', obj.logo)
     logo = {
       uri: requireString(ctx, 'logo.uri', logoObj.uri),
-      alt_text:
-        logoObj.alt_text !== undefined
-          ? requireString(ctx, 'logo.alt_text', logoObj.alt_text)
-          : undefined,
+      alt_text: requireString(ctx, 'logo.alt_text', logoObj.alt_text),
     }
   } else if (obj.logo === null) {
     logo = null

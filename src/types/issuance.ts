@@ -6,7 +6,7 @@ export type IssuerSummary = {
 
 export type CredentialLogo = {
   uri: string
-  alt_text?: string
+  alt_text: string
 }
 
 export type CredentialDisplay = {
