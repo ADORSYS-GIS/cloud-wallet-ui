@@ -208,9 +208,12 @@ describe('useCredentialDetail — request deduplication', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentialDetail } = await import('../useCredentialDetail')
-    const { result, rerender } = renderHook(({ id }: { id: string }) => useCredentialDetail(id), {
-      initialProps: { id: 'cred-1' },
-    })
+    const { result, rerender } = renderHook(
+      ({ id }: { id: string }) => useCredentialDetail(id),
+      {
+        initialProps: { id: 'cred-1' },
+      }
+    )
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(fetchMock).toHaveBeenCalledTimes(1)
