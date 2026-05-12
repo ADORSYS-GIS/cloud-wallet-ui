@@ -34,6 +34,14 @@ export class ApiError extends Error {
 
 const REQUEST_TIMEOUT_MS = 15_000
 
+/** OpenAPI: 502 on issuance routes when metadata endpoints are unreachable. */
+const HTTP_STATUS_BAD_GATEWAY = 502
+
+const GATEWAY_METADATA_ERROR_CODES = new Set([
+  'issuer_metadata_fetch_failed',
+  'auth_server_metadata_fetch_failed',
+])
+
 async function fetchWithTimeout(
   input: string,
   init: RequestInit,
@@ -75,16 +83,39 @@ async function parseApiErrorPayload(response: Response): Promise<ApiErrorPayload
   }
 }
 
+function messageForBadGateway(
+  method: 'GET' | 'POST',
+  path: string,
+  payload: ApiErrorPayload
+): string {
+  if (payload.errorDescription) {
+    return payload.errorDescription
+  }
+  if (payload.errorCode && GATEWAY_METADATA_ERROR_CODES.has(payload.errorCode)) {
+    return payload.errorCode === 'issuer_metadata_fetch_failed'
+      ? 'Could not reach the credential issuer metadata endpoint (502 Bad Gateway).'
+      : 'Could not reach the authorization server metadata endpoint (502 Bad Gateway).'
+  }
+  if (payload.errorCode) {
+    return `${method} ${path} failed with 502 (${payload.errorCode}).`
+  }
+  return `The wallet backend could not reach the credential issuer or authorization server (${method} ${path}, 502). Please try again.`
+}
+
 async function buildApiError(
   method: 'GET' | 'POST',
   path: string,
   response: Response
 ): Promise<ApiError> {
-  const { errorCode, errorDescription } = await parseApiErrorPayload(response)
+  const payload = await parseApiErrorPayload(response)
   const fallbackMessage = `${method} ${path} failed with ${response.status}`
-  return new ApiError(response.status, errorDescription ?? fallbackMessage, {
-    errorCode,
-    errorDescription,
+  const message =
+    response.status === HTTP_STATUS_BAD_GATEWAY
+      ? messageForBadGateway(method, path, payload)
+      : (payload.errorDescription ?? fallbackMessage)
+  return new ApiError(response.status, message, {
+    errorCode: payload.errorCode,
+    errorDescription: payload.errorDescription,
   })
 }
 async function authHeaders(): Promise<Record<string, string>> {

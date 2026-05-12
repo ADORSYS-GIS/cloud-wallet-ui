@@ -112,4 +112,50 @@ describe('issuanceUserMessage', () => {
       })
     ).toContain('could not be completed')
   })
+
+  describe('502 Bad Gateway (OpenAPI issuance/start)', () => {
+    it('shows issuer-focused lead and appends server error_description for issuer_metadata_fetch_failed', () => {
+      const msg = issuanceUserMessage({
+        httpStatus: 502,
+        error: 'issuer_metadata_fetch_failed',
+        error_description:
+          'Could not reach https://issuer.example.eu/.well-known/openid-credential-issuer',
+      })
+      expect(msg).toContain('credential issuer')
+      expect(msg).toContain('Your wallet is working')
+      expect(msg).toContain(
+        'https://issuer.example.eu/.well-known/openid-credential-issuer'
+      )
+    })
+
+    it('shows authorization-server lead for auth_server_metadata_fetch_failed', () => {
+      const msg = issuanceUserMessage({
+        httpStatus: 502,
+        error: 'auth_server_metadata_fetch_failed',
+        error_description: null,
+      })
+      expect(msg).toContain('authorization server')
+      expect(msg).toContain('Your wallet is working')
+    })
+
+    it('uses error_description alone for unknown 502 error codes when description is set', () => {
+      expect(
+        issuanceUserMessage({
+          httpStatus: 502,
+          error: 'internal_error',
+          error_description: 'Upstream timeout contacting partner.',
+        })
+      ).toBe('Upstream timeout contacting partner.')
+    })
+
+    it('uses generic issuer-side copy for 502 when code and description are missing', () => {
+      expect(
+        issuanceUserMessage({
+          httpStatus: 502,
+          error: 'internal_error',
+          error_description: null,
+        })
+      ).toMatch(/not caused by your wallet/i)
+    })
+  })
 })

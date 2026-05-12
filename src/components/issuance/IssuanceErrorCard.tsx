@@ -28,7 +28,7 @@ export function IssuanceErrorCard({
             className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
           />
         </div>
-        <div className="text-base text-slate-700">{message}</div>
+        <div className="whitespace-pre-line text-base text-slate-700">{message}</div>
         <button
           type="button"
           onClick={onRetry}
