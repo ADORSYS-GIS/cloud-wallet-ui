@@ -204,12 +204,17 @@ function CredentialDetailBody({ credentialId }: { credentialId: string }) {
 
 function CredentialDetailContent({ credential }: { credential: CredentialRecord }) {
   return (
-    <section className="flex-1 overflow-y-auto bg-white">
-      <div className="bg-[#E9ECEF] py-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 bg-[#E9ECEF] py-4">
         <CredentialHeaderCard credential={credential} />
       </div>
-      <ClaimsSection claims={credential.claims} />
-    </section>
+      <section
+        className="min-h-0 flex-1 overflow-y-auto bg-white"
+        aria-label="Credential claims"
+      >
+        <ClaimsSection claims={credential.claims} />
+      </section>
+    </div>
   )
 }
 
