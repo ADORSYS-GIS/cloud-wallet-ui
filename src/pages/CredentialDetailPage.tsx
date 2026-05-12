@@ -158,30 +158,32 @@ function CredentialDetailBody({ credentialId }: { credentialId: string }) {
 
   return (
     <PageContainer fullWidth={true}>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
-        <Header
-          title={headerTitle}
-          hidePwaBanner={true}
-          leftSlot={
-            <button
-              type="button"
-              onClick={() => navigate(routes.credentials)}
-              className="h-10 w-10 rounded-full text-4xl leading-none text-white"
-              aria-label="Back to credentials"
-            >
-              ‹
-            </button>
-          }
-        />
+      <div className="flex h-dvh w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
+        <div className="shrink-0">
+          <Header
+            title={headerTitle}
+            hidePwaBanner={true}
+            leftSlot={
+              <button
+                type="button"
+                onClick={() => navigate(routes.credentials)}
+                className="h-10 w-10 rounded-full text-4xl leading-none text-white"
+                aria-label="Back to credentials"
+              >
+                ‹
+              </button>
+            }
+          />
+        </div>
 
         {loading && (
-          <section className="flex flex-1 items-center justify-center bg-[#E9ECEF] text-slate-600">
+          <section className="flex min-h-0 flex-1 items-center justify-center bg-[#E9ECEF] text-slate-600">
             Loading…
           </section>
         )}
 
         {!loading && error && (
-          <section className="flex flex-1 flex-col items-center justify-center gap-3 bg-[#E9ECEF] px-4 text-center">
+          <section className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-[#E9ECEF] px-4 text-center">
             <p className="text-slate-800">Could not open this credential.</p>
             <p className="text-sm text-slate-600">{error.message}</p>
             <button
