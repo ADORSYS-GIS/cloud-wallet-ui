@@ -182,7 +182,7 @@ describe('validateStartIssuanceResponse', () => {
     expect(() => validateStartIssuanceResponse(input)).not.toThrow()
   })
 
-  it('accepts display.logo object without alt_text', () => {
+  it('throws ContractError when display.logo object omits alt_text', () => {
     const input = {
       ...validStartIssuanceResponse,
       credential_types: [
@@ -195,7 +195,7 @@ describe('validateStartIssuanceResponse', () => {
         },
       ],
     }
-    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
   })
 
   it('accepts display.logo object with alt_text', () => {
