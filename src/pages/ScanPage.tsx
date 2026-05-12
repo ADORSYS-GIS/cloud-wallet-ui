@@ -10,6 +10,7 @@ import type { IssuanceApiError } from '../types/issuance'
 import { issuanceUserMessage } from '../utils/issuanceErrors'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
 import illuWallet from '../assets/illu-wallet.png'
+import { E2E_SCAN_SAMPLE_OFFER } from '../e2e/scan-sample-offer'
 
 type ScanStatus = 'idle' | 'scanning' | 'processing' | 'done'
 type FacingMode = 'environment' | 'user'
@@ -304,6 +305,31 @@ export function ScanPage() {
             </button>
           )}
         </section>
+
+        {import.meta.env.VITE_E2E === 'true' && !showFullscreenStatus && (
+          <>
+            <button
+              type="button"
+              data-testid="e2e-simulate-scan"
+              tabIndex={-1}
+              aria-hidden
+              className="sr-only"
+              onClick={() => void handleDecodedValue(E2E_SCAN_SAMPLE_OFFER)}
+            >
+              E2E simulate scan
+            </button>
+            <button
+              type="button"
+              data-testid="e2e-simulate-invalid-offer"
+              tabIndex={-1}
+              aria-hidden
+              className="sr-only"
+              onClick={() => void handleDecodedValue('not-a-credential-offer')}
+            >
+              E2E simulate invalid offer
+            </button>
+          </>
+        )}
       </div>
     </PageContainer>
   )
