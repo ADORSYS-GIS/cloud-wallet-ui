@@ -42,12 +42,12 @@ function baseOffer(
     credential_types: [
       {
         credential_configuration_id: 'pid',
-        format: 'vc+sd-jwt',
+        format: 'dc+sd-jwt',
         display: { name: 'Personal ID' },
       },
       {
         credential_configuration_id: 'address',
-        format: 'vc+sd-jwt',
+        format: 'dc+sd-jwt',
         display: { name: 'Address Credential' },
       },
     ],
@@ -145,7 +145,7 @@ describe('CredentialTypesPage', () => {
       credential_types: [
         {
           credential_configuration_id: 'a',
-          format: 'vc+sd-jwt',
+          format: 'dc+sd-jwt',
           display: { name: 'Type A' },
         },
       ],
@@ -165,7 +165,7 @@ describe('CredentialTypesPage', () => {
       credential_types: [
         {
           credential_configuration_id: 'pid',
-          format: 'vc+sd-jwt',
+          format: 'dc+sd-jwt',
           display: { name: 'Personal ID' },
         },
       ],
