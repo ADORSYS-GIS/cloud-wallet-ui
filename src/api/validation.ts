@@ -26,6 +26,9 @@ import type {
   CredentialDisplay,
   TxCodeSpec,
   IssuanceFlow,
+  ConsentResponse,
+  ConsentNextAction,
+  TxCodeResponse,
 } from '../types/issuance'
 
 export class ContractError extends Error {
@@ -97,6 +100,12 @@ const CREDENTIAL_FORMATS: CredentialFormat[] = [
 ]
 const ISSUANCE_FLOWS: IssuanceFlow[] = ['authorization_code', 'pre_authorized_code']
 const TX_CODE_INPUT_MODES = ['numeric', 'text'] as const
+const CONSENT_NEXT_ACTIONS: ConsentNextAction[] = [
+  'redirect',
+  'provide_tx_code',
+  'none',
+  'rejected',
+]
 
 function validateIssuerSummary(raw: unknown): IssuerSummary {
   const ctx = 'IssuerSummary'
@@ -143,29 +152,18 @@ function validateCredentialDisplay(raw: unknown): CredentialDisplay {
 
 function validateCredentialTypeDisplay(
   raw: unknown,
-  index: number,
-  fallback_name: string
+  index: number
 ): CredentialTypeDisplay {
   const ctx = `CredentialTypeDisplay[${index}]`
   const obj = requireObject(ctx, 'credential_type', raw)
-  const id = requireString(
-    ctx,
-    'credential_configuration_id',
-    obj.credential_configuration_id
-  )
-
-  // Handle null display by providing a default
-  let display: CredentialDisplay
-  if (obj.display === null || obj.display === undefined) {
-    display = { name: fallback_name }
-  } else {
-    display = validateCredentialDisplay(obj.display)
-  }
-
   return {
-    credential_configuration_id: id,
+    credential_configuration_id: requireString(
+      ctx,
+      'credential_configuration_id',
+      obj.credential_configuration_id
+    ),
     format: requireString(ctx, 'format', obj.format),
-    display,
+    display: validateCredentialDisplay(obj.display),
   }
 }
 
@@ -195,16 +193,7 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
 
   const rawTypes = requireArray(ctx, 'credential_types', obj.credential_types)
   if (rawTypes.length === 0) throw new ContractError(ctx, 'credential_types', rawTypes)
-  const credential_types = rawTypes.map((ct, i) => {
-    // Extract id first to handle null display fallback
-    const ctObj = requireObject(`credential_types[${i}]`, 'credential_type', ct)
-    const id = requireString(
-      `credential_types[${i}]`,
-      'credential_configuration_id',
-      ctObj.credential_configuration_id
-    )
-    return validateCredentialTypeDisplay(ct, i, id)
-  })
+  const credential_types = rawTypes.map((ct, i) => validateCredentialTypeDisplay(ct, i))
 
   const flow = requireString(ctx, 'flow', obj.flow)
   if (!ISSUANCE_FLOWS.includes(flow as IssuanceFlow))
@@ -225,6 +214,39 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
     flow: flow as IssuanceFlow,
     tx_code_required,
     tx_code,
+  }
+}
+
+export function validateConsentResponse(raw: unknown): ConsentResponse {
+  const ctx = 'ConsentResponse'
+  const obj = requireObject(ctx, 'response', raw)
+
+  const session_id = requireString(ctx, 'session_id', obj.session_id)
+
+  const next_action = requireString(ctx, 'next_action', obj.next_action)
+  if (!CONSENT_NEXT_ACTIONS.includes(next_action as ConsentNextAction)) {
+    throw new ContractError(ctx, 'next_action', next_action)
+  }
+
+  // authorization_url is optional per OpenAPI spec; validate as string when present
+  let authorization_url: string | undefined
+  if (obj.authorization_url !== undefined) {
+    authorization_url = requireString(ctx, 'authorization_url', obj.authorization_url)
+  }
+
+  return {
+    session_id,
+    next_action: next_action as ConsentNextAction,
+    ...(authorization_url !== undefined ? { authorization_url } : {}),
+  }
+}
+
+export function validateTxCodeResponse(raw: unknown): TxCodeResponse {
+  const ctx = 'TxCodeResponse'
+  const obj = requireObject(ctx, 'response', raw)
+
+  return {
+    session_id: requireString(ctx, 'session_id', obj.session_id),
   }
 }
 
