@@ -231,7 +231,7 @@ export function validateConsentResponse(raw: unknown): ConsentResponse {
     throw new ContractError(ctx, 'next_action', next_action)
   }
 
-  // authorization_url is only present (and required) when next_action === 'redirect'
+  // authorization_url is optional per OpenAPI spec; validate as string when present
   let authorization_url: string | undefined
   if (obj.authorization_url !== undefined) {
     authorization_url = requireString(ctx, 'authorization_url', obj.authorization_url)
