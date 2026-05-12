@@ -1,8 +1,6 @@
 import type { Page } from '@playwright/test'
 
-import {
-  E2E_CREDENTIAL_CONFIGURATION_ID,
-} from '../../src/e2e/scan-sample-offer'
+import { E2E_CREDENTIAL_CONFIGURATION_ID } from '../../src/e2e/scan-sample-offer'
 
 /** Must match `session_id` returned from mocked `POST /issuance/start`. */
 export const E2E_SESSION_ID = 'ses_e2e_playwright_session'
