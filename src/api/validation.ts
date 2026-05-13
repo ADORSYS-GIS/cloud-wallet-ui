@@ -30,6 +30,7 @@ import type {
   ConsentNextAction,
   TxCodeResponse,
 } from '../types/issuance'
+import type { TenantRegistrationResponse } from '../auth/tenant'
 
 export class ContractError extends Error {
   constructor(context: string, field: string, received: unknown) {
@@ -295,4 +296,24 @@ export function validateCredentialListResponse(raw: unknown): CredentialListResp
       }
     }),
   }
+}
+
+/**
+ * Validates a tenant registration response against the OpenAPI spec.
+ * Per the spec, both tenant_id (UUID format) and name (string) are required.
+ */
+export function validateTenantRegistrationResponse(raw: unknown): TenantRegistrationResponse {
+  const ctx = 'TenantRegistrationResponse'
+  const obj = requireObject(ctx, 'response', raw)
+
+  const tenant_id = requireString(ctx, 'tenant_id', obj.tenant_id)
+  // Validate UUID format (8-4-4-4-12 pattern)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(tenant_id)) {
+    throw new ContractError(ctx, 'tenant_id', tenant_id)
+  }
+
+  const name = requireString(ctx, 'name', obj.name)
+
+  return { tenant_id, name }
 }

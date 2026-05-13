@@ -4,6 +4,7 @@ import {
   validateStartIssuanceResponse,
   validateCredentialRecord,
   validateCredentialListResponse,
+  validateTenantRegistrationResponse,
 } from '../validation'
 import type { StartIssuanceResponse } from '../../types/issuance'
 import type { CredentialRecord } from '../../types/credential'
@@ -334,5 +335,76 @@ describe('validateCredentialListResponse', () => {
 
   it('throws ContractError when the response has no credentials field', () => {
     expect(() => validateCredentialListResponse({ items: [] })).toThrow()
+  })
+})
+
+describe('validateTenantRegistrationResponse', () => {
+  const validTenantResponse = {
+    tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    name: 'adorsys GmbH',
+  }
+
+  it('accepts a valid tenant registration response', () => {
+    const result = validateTenantRegistrationResponse(validTenantResponse)
+    expect(result).toEqual(validTenantResponse)
+  })
+
+  it('throws ContractError when tenant_id is missing', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { tenant_id: _, ...rest } = validTenantResponse
+    expect(() => validateTenantRegistrationResponse(rest)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id is not a string', () => {
+    const input = { ...validTenantResponse, tenant_id: 123 }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id is not a valid UUID format', () => {
+    const input = { ...validTenantResponse, tenant_id: 'not-a-uuid' }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id has invalid UUID pattern (missing dashes)', () => {
+    const input = { ...validTenantResponse, tenant_id: 'f47ac10b58cc4372a5670e02b2c3d479' }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id has invalid UUID pattern (wrong length)', () => {
+    const input = { ...validTenantResponse, tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d47' }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('accepts valid UUID with uppercase letters', () => {
+    const input = {
+      ...validTenantResponse,
+      tenant_id: 'F47AC10B-58CC-4372-A567-0E02B2C3D479',
+    }
+    const result = validateTenantRegistrationResponse(input)
+    expect(result.tenant_id).toBe('F47AC10B-58CC-4372-A567-0E02B2C3D479')
+  })
+
+  it('throws ContractError when name is missing', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { name: _, ...rest } = validTenantResponse
+    expect(() => validateTenantRegistrationResponse(rest)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when name is not a string', () => {
+    const input = { ...validTenantResponse, name: 123 }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('accepts empty string for name (valid per OpenAPI spec)', () => {
+    const input = { ...validTenantResponse, name: '' }
+    const result = validateTenantRegistrationResponse(input)
+    expect(result.name).toBe('')
+  })
+
+  it('throws ContractError when response is not an object', () => {
+    expect(() => validateTenantRegistrationResponse(null)).toThrow(ContractError)
+    expect(() => validateTenantRegistrationResponse('string')).toThrow(ContractError)
+    expect(() => validateTenantRegistrationResponse(123)).toThrow(ContractError)
+    expect(() => validateTenantRegistrationResponse([])).toThrow(ContractError)
   })
 })
