@@ -366,12 +366,18 @@ describe('validateTenantRegistrationResponse', () => {
   })
 
   it('throws ContractError when tenant_id has invalid UUID pattern (missing dashes)', () => {
-    const input = { ...validTenantResponse, tenant_id: 'f47ac10b58cc4372a5670e02b2c3d479' }
+    const input = {
+      ...validTenantResponse,
+      tenant_id: 'f47ac10b58cc4372a5670e02b2c3d479',
+    }
     expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
   })
 
   it('throws ContractError when tenant_id has invalid UUID pattern (wrong length)', () => {
-    const input = { ...validTenantResponse, tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d47' }
+    const input = {
+      ...validTenantResponse,
+      tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d47',
+    }
     expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
   })
 

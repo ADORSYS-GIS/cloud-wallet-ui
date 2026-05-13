@@ -302,7 +302,9 @@ export function validateCredentialListResponse(raw: unknown): CredentialListResp
  * Validates a tenant registration response against the OpenAPI spec.
  * Per the spec, both tenant_id (UUID format) and name (string) are required.
  */
-export function validateTenantRegistrationResponse(raw: unknown): TenantRegistrationResponse {
+export function validateTenantRegistrationResponse(
+  raw: unknown
+): TenantRegistrationResponse {
   const ctx = 'TenantRegistrationResponse'
   const obj = requireObject(ctx, 'response', raw)
 

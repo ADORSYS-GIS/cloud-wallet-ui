@@ -67,7 +67,10 @@ describe('registerTenant', () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       status: 201,
-      json: async () => ({ tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 'Test' }),
+      json: async () => ({
+        tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        name: 'Test',
+      }),
     }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
@@ -139,7 +142,10 @@ describe('registerTenant', () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       status: 201,
-      json: async () => ({ tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', name: 123 }),
+      json: async () => ({
+        tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        name: 123,
+      }),
     }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
