@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { getApiBaseUrl } from '../utils/env'
 import { getBearerToken } from '../auth/authService'
 import type { ConsentResponse, SseEvent } from '../types/issuance'
-import { parseValidatedSsePayload } from '../utils/sseEventValidation'
+import { parseValidatedSsePayload } from '../api/validation'
 
 export type SseStreamStatus =
   | { status: 'idle' }
@@ -49,7 +49,14 @@ function parseSseFrame(raw: string): SseEvent | null {
   try {
     const payload = JSON.parse(dataStr) as Record<string, unknown>
     return parseValidatedSsePayload(eventType, payload)
-  } catch {
+  } catch (error) {
+    const dataPreview =
+      dataStr.length > 512 ? `${dataStr.slice(0, 512)}… (truncated)` : dataStr
+    console.warn('[useSseStream] Invalid SSE event: malformed JSON in data line', {
+      eventType,
+      dataPreview,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return null
   }
 }

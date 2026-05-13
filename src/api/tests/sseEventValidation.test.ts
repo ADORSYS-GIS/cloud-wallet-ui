@@ -4,7 +4,7 @@ import {
   validateSseCompletedEvent,
   validateSseFailedEvent,
   validateSseProcessingEvent,
-} from '../sseEventValidation'
+} from '../validation'
 
 const CRED_UUID = 'c3d4e5f6-7890-abcd-ef12-3456789abcde'
 const CRED_UUID_2 = 'a1b2c3d4-e5f6-4789-abcd-ef1234567890'

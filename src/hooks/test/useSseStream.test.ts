@@ -443,6 +443,7 @@ describe('useSseStream — edge cases and error handling', () => {
   })
 
   it('handles invalid JSON in SSE frame gracefully', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
       pull(controller) {
@@ -462,6 +463,16 @@ describe('useSseStream — edge cases and error handling', () => {
 
     // Should remain in connecting state since the invalid frame is skipped
     await waitFor(() => expect(result.current.streamStatus.status).toBe('connecting'))
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[useSseStream] Invalid SSE event: malformed JSON in data line',
+      expect.objectContaining({
+        eventType: 'processing',
+        dataPreview: 'invalid json here',
+        error: expect.any(String),
+      })
+    )
+    warnSpy.mockRestore()
   })
 
   it('handles SSE frame with missing event type', async () => {
