@@ -63,7 +63,7 @@ function CredentialTypePill({
         {logo?.uri && !imgFailed && (
           <img
             src={logo.uri}
-            alt={logo.alt_text ?? `${name} logo`}
+            alt={logo.alt_text}
             className="h-6 w-6 shrink-0 rounded object-contain bg-white/20"
             onError={() => setImgFailed(true)}
           />
