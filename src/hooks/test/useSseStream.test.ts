@@ -11,6 +11,7 @@ vi.mock('../../auth/authService', () => ({
 
 vi.mock('../../utils/env', () => ({
   getApiBaseUrl: vi.fn(() => 'http://api.test/api/v1'),
+  isDebugApiEnabled: vi.fn(() => false),
 }))
 
 import { getBearerToken } from '../../auth/authService'
