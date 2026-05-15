@@ -12,8 +12,7 @@ export function credentialDeleteErrorMessage(error: unknown): string {
 
     if (error.status === 403) {
       return (
-        error.errorDescription ??
-        'You do not have permission to remove this credential.'
+        error.errorDescription ?? 'You do not have permission to remove this credential.'
       )
     }
 

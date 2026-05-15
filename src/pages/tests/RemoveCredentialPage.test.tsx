@@ -132,7 +132,10 @@ describe('RemoveCredentialPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove from wallet' }))
 
     expect(screen.getByRole('button', { name: 'Removing…' })).toBeDefined()
-    expect(screen.getByRole('button', { name: 'Removing…' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Removing…' })).toHaveProperty(
+      'disabled',
+      true
+    )
 
     resolveDelete?.()
     await waitFor(() => {

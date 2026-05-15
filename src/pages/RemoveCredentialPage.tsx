@@ -103,11 +103,13 @@ export function RemoveCredentialPage() {
                 <BulletList items={NOT_LOST_ITEMS} />
               </RemoveCredentialAccordion>
 
-              <RemoveCredentialAccordion title="How to get this credential back" defaultExpanded>
+              <RemoveCredentialAccordion
+                title="How to get this credential back"
+                defaultExpanded
+              >
                 <BulletList items={RESTORE_ITEMS} />
               </RemoveCredentialAccordion>
             </div>
-
           </section>
 
           <div className="shrink-0 border-t border-slate-200 bg-[#E9ECEF] px-2 pb-1">
