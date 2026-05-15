@@ -65,6 +65,20 @@ function parseSseFrame(raw: string): SseEvent | null {
  * The frontend MUST open this stream immediately after receiving a successful
  * /consent response and maintain the connection until a terminal event
  * (completed or failed) is received.
+ *
+ * --- SSE duration vs. JWT TTL ---
+ * Per the OpenAPI spec (`expires_at` on StartIssuanceResponse), each issuance
+ * session expires 15 minutes after creation. The JWT Bearer token issued by
+ * `authService` has a TTL of 1 hour (TOKEN_TTL_SECONDS = 3600), with a
+ * proactive-refresh buffer of 60 seconds. Because the maximum SSE stream
+ * duration is bounded by the 15-minute session TTL, the token obtained once
+ * before opening the connection will always remain valid for the entire
+ * lifetime of the stream — no mid-stream token refresh is required.
+ *
+ * If a future spec revision introduces deferred-credential polling that could
+ * outlast the 1-hour JWT TTL, this hook must be updated to: (1) track token
+ * expiry, (2) close the current stream before expiry, and (3) re-open it with
+ * a fresh token obtained via `getBearerToken()`.
  */
 export function useSseStream(): UseSseStreamReturn {
   const [streamStatus, setStreamStatus] = useState<SseStreamStatus>({ status: 'idle' })
@@ -87,6 +101,9 @@ export function useSseStream(): UseSseStreamReturn {
         // Obtain the bearer JWT before opening the connection so the
         // Authorization header can be sent on the very first request,
         // exactly as the OpenAPI BearerAuth security scheme requires.
+        //
+        // The session TTL is 15 minutes (spec: expires_at), which is well
+        // within the 1-hour JWT TTL, so no mid-stream refresh is needed.
         let token: string
         try {
           token = await getBearerToken()

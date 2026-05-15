@@ -56,6 +56,25 @@ export async function getOrCreateKeyPair(): Promise<StoredKeyPair> {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh))
   return fresh
 }
+
+/**
+ * Remove the persisted key pair from localStorage.
+ *
+ * Use this for explicit logout flows or in tests that need a clean slate.
+ * Note: clearing the persisted key pair does NOT invalidate any JWTs already
+ * issued with the old key — the backend will reject them once the key is gone.
+ * Always pair this with a fresh tenant registration if the backend enforces
+ * key-bound authentication.
+ *
+ * This function only removes the localStorage entry; it does NOT reset the
+ * in-memory `keyPairPromise` cache in `authService`. Call
+ * `resetAuthState()` from `authService` alongside this function to ensure
+ * a fully clean auth state.
+ */
+export function clearPersistedKeyPair(): void {
+  localStorage.removeItem(STORAGE_KEY)
+}
+
 export async function createJwt(
   tenantId: string,
   keyPair: StoredKeyPair,

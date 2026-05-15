@@ -9,7 +9,12 @@
  *    Tokens are cached and regenerated when they are within 60 s of expiry.
  */
 
-import { getOrCreateKeyPair, createJwt, type StoredKeyPair } from './crypto'
+import {
+  getOrCreateKeyPair,
+  createJwt,
+  clearPersistedKeyPair,
+  type StoredKeyPair,
+} from './crypto'
 import {
   registerTenant,
   storeTenantId,
@@ -101,12 +106,35 @@ export async function getBearerToken(): Promise<string> {
 }
 
 /**
- * Clear all cached auth state (token + init promise).
- * Useful in tests and when the user explicitly logs out.
- * Does NOT remove persisted localStorage keys.
+ * Clear all in-memory cached auth state (token + init promise + key pair promise).
+ *
+ * IMPORTANT: This resets in-memory state only. It does NOT remove the
+ * persisted key pair from localStorage. After calling this function:
+ * - The next call to `getBearerToken()` will re-run `initAuth()`, which will
+ *   reload the key pair from localStorage and reuse the stored tenant_id.
+ * - A new JWT will be generated (the cached token is cleared), but it will
+ *   be signed with the same key pair that was already registered with the
+ *   backend.
+ *
+ * Use cases:
+ * - Testing: reset between test cases without touching localStorage.
+ * - Forcing a fresh token to be generated (e.g. after detecting expiry).
+ *
+ * To also remove the persisted key pair (e.g. for explicit logout or test
+ * isolation that requires a brand-new key), call `clearPersistedKeyPair()`
+ * from `./crypto` in addition to this function.
  */
 export function resetAuthState(): void {
   cachedToken = null
   initPromise = null
   keyPairPromise = null
 }
+
+/**
+ * Re-export `clearPersistedKeyPair` for callers that need a fully clean auth
+ * slate (e.g. logout flows that must invalidate the old key on the backend,
+ * or integration tests that require a new key pair per run).
+ *
+ * Always call `resetAuthState()` alongside this to clear the in-memory cache.
+ */
+export { clearPersistedKeyPair }
