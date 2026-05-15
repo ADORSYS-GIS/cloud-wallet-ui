@@ -56,7 +56,7 @@ const minimalSession: StartIssuanceResponse = {
   credential_types: [
     {
       credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-      format: 'vc+sd-jwt',
+      format: 'dc+sd-jwt',
       display: {
         name: 'EU Personal ID',
         description: 'Official EU personal identity document',
@@ -162,7 +162,7 @@ describe('startIssuanceSession', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('throws ApiError when the server returns 502', async () => {
+  it('throws ApiError when the server returns 502 with empty ErrorResponse', async () => {
     const fetchMock = vi.fn(async () => mockResponse({ ok: false, status: 502 }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
@@ -171,7 +171,35 @@ describe('startIssuanceSession', () => {
     )
     expect(err).toBeInstanceOf(ApiError)
     expect((err as ApiError).status).toBe(502)
+    expect((err as ApiError).errorCode).toBeNull()
+    expect((err as ApiError).message).toContain('502')
+    expect((err as ApiError).message).toContain('credential issuer')
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('parses 502 issuer_metadata_fetch_failed ErrorResponse into ApiError', async () => {
+    const fetchMock = vi.fn(async () =>
+      mockResponse({
+        ok: false,
+        status: 502,
+        json: async () => ({
+          error: 'issuer_metadata_fetch_failed',
+          error_description:
+            'Could not reach https://issuer.example.eu/.well-known/openid-credential-issuer',
+        }),
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    const err = await startIssuanceSession('openid-credential-offer://?x=y').catch(
+      (e) => e
+    )
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).status).toBe(502)
+    expect((err as ApiError).errorCode).toBe('issuer_metadata_fetch_failed')
+    expect((err as ApiError).errorDescription).toBe(
+      'Could not reach https://issuer.example.eu/.well-known/openid-credential-issuer'
+    )
   })
 
   it('returns session with tx_code when pre-authorized flow requires one', async () => {

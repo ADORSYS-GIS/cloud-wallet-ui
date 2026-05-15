@@ -40,6 +40,9 @@ function sseFrame(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 }
 
+/** OpenAPI `format: uuid` examples for `SseCompletedEvent.credential_ids`. */
+const CRED_UUID = 'c3d4e5f6-7890-abcd-ef12-3456789abcde'
+
 type MockFetchOptions = {
   ok?: boolean
   status?: number
@@ -219,7 +222,7 @@ describe('useSseStream — event handling', () => {
       sseFrame('completed', {
         session_id: 'ses_done',
         state: 'completed',
-        credential_ids: ['cred-uuid-1'],
+        credential_ids: [CRED_UUID],
         credential_types: ['eu.europa.ec.eudi.pid.1'],
       })
     )
@@ -234,7 +237,7 @@ describe('useSseStream — event handling', () => {
     await waitFor(() => expect(result.current.streamStatus.status).toBe('completed'))
 
     if (result.current.streamStatus.status === 'completed') {
-      expect(result.current.streamStatus.credentialIds).toEqual(['cred-uuid-1'])
+      expect(result.current.streamStatus.credentialIds).toEqual([CRED_UUID])
       expect(result.current.streamStatus.credentialTypes).toEqual([
         'eu.europa.ec.eudi.pid.1',
       ])
@@ -285,7 +288,7 @@ describe('useSseStream — event handling', () => {
       sseFrame('completed', {
         session_id: 'ses_multi',
         state: 'completed',
-        credential_ids: ['cred-1'],
+        credential_ids: [CRED_UUID],
         credential_types: ['eu.europa.ec.eudi.pid.1'],
       })
     )
@@ -441,6 +444,7 @@ describe('useSseStream — edge cases and error handling', () => {
   })
 
   it('handles invalid JSON in SSE frame gracefully', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
       pull(controller) {
@@ -460,6 +464,16 @@ describe('useSseStream — edge cases and error handling', () => {
 
     // Should remain in connecting state since the invalid frame is skipped
     await waitFor(() => expect(result.current.streamStatus.status).toBe('connecting'))
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[useSseStream] Invalid SSE event: malformed JSON in data line',
+      expect.objectContaining({
+        eventType: 'processing',
+        dataPreview: 'invalid json here',
+        error: expect.any(String),
+      })
+    )
+    warnSpy.mockRestore()
   })
 
   it('handles SSE frame with missing event type', async () => {
@@ -530,7 +544,9 @@ describe('useSseStream — edge cases and error handling', () => {
         readCount++
         if (readCount === 1) {
           controller.enqueue(
-            encoder.encode('event: processing\ndata: {"step": "test"}\n\n')
+            encoder.encode(
+              'event: processing\ndata: {"session_id":"ses_readerror","state":"processing","step":"requesting_credential"}\n\n'
+            )
           )
         } else {
           throw new Error('Read error')
@@ -573,7 +589,9 @@ describe('useSseStream — edge cases and error handling', () => {
               throw new Error('Aborted')
             }
             controller.enqueue(
-              encoder.encode('event: processing\ndata: {"step": "test"}\n\n')
+              encoder.encode(
+                'event: processing\ndata: {"session_id":"ses_abort","state":"processing","step":"requesting_credential"}\n\n'
+              )
             )
           },
         }),
@@ -792,11 +810,10 @@ describe('useSseStream — additional edge cases', () => {
     await waitFor(() => expect(result.current.streamStatus.status).toBe('connecting'))
   })
 
-  it('handles processing event with missing step field', async () => {
+  it('ignores processing event that omits required OpenAPI fields', async () => {
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
       pull(controller) {
-        // Processing event without step - should default to empty string
         controller.enqueue(
           encoder.encode('event: processing\ndata: {"session_id": "test"}\n\n')
         )
@@ -811,11 +828,7 @@ describe('useSseStream — additional edge cases', () => {
       result.current.openStream('ses_no_step')
     })
 
-    await waitFor(() => expect(result.current.streamStatus.status).toBe('processing'))
-
-    if (result.current.streamStatus.status === 'processing') {
-      expect(result.current.streamStatus.step).toBe('')
-    }
+    await waitFor(() => expect(result.current.streamStatus.status).toBe('connecting'))
   })
 
   it('handles fetch error when aborted during request', async () => {
@@ -858,7 +871,7 @@ describe('useSseStream — additional edge cases', () => {
         // Send data that ends with double newline (complete frame, empty buffer)
         controller.enqueue(
           encoder.encode(
-            'event: completed\ndata: {"session_id": "test", "credential_ids": ["c1"], "credential_types": ["t1"]}\n\n'
+            `event: completed\ndata: {"session_id": "test", "state": "completed", "credential_ids": ["${CRED_UUID}"], "credential_types": ["t1"]}\n\n`
           )
         )
         controller.close()
@@ -943,7 +956,9 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
       pull(controller) {
         // Frame with data field - tests line 38 (else if branch)
         controller.enqueue(
-          encoder.encode('event: processing\ndata: {"step": "test_step"}\n\n')
+          encoder.encode(
+            'event: processing\ndata: {"session_id":"ses_data","state":"processing","step":"requesting_credential"}\n\n'
+          )
         )
         controller.close()
       },
@@ -959,7 +974,7 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
     await waitFor(() => expect(result.current.streamStatus.status).toBe('processing'))
 
     if (result.current.streamStatus.status === 'processing') {
-      expect(result.current.streamStatus.step).toBe('test_step')
+      expect(result.current.streamStatus.step).toBe('requesting_credential')
     }
   })
 
@@ -970,7 +985,7 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
         // Frame with event field - tests line 37 (if branch)
         controller.enqueue(
           encoder.encode(
-            'event: completed\ndata: {"credential_ids": ["c1"], "credential_types": ["t1"]}\n\n'
+            `event: completed\ndata: {"session_id":"ses_ev","state":"completed","credential_ids":["${CRED_UUID}"],"credential_types":["t1"]}\n\n`
           )
         )
         controller.close()
@@ -994,7 +1009,7 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
         // Multiple complete frames ending with \n\n - buffer should become empty string
         controller.enqueue(
           encoder.encode(
-            'event: processing\ndata: {"step": "step1"}\n\nevent: completed\ndata: {"credential_ids": ["c1"], "credential_types": ["t1"]}\n\n'
+            `event: processing\ndata: {"session_id":"ses_mf","state":"processing","step":"exchanging_token"}\n\nevent: completed\ndata: {"session_id":"ses_mf","state":"completed","credential_ids":["${CRED_UUID}"],"credential_types":["t1"]}\n\n`
           )
         )
         controller.close()
@@ -1018,7 +1033,7 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
         // Single completed event - the return statement on line 181 should execute
         controller.enqueue(
           encoder.encode(
-            'event: completed\ndata: {"credential_ids": ["cred-123"], "credential_types": ["type-1"]}\n\n'
+            `event: completed\ndata: {"session_id":"ses_ret","state":"completed","credential_ids":["${CRED_UUID}"],"credential_types":["type-1"]}\n\n`
           )
         )
         controller.close()
@@ -1035,7 +1050,7 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
     await waitFor(() => expect(result.current.streamStatus.status).toBe('completed'))
 
     if (result.current.streamStatus.status === 'completed') {
-      expect(result.current.streamStatus.credentialIds).toEqual(['cred-123'])
+      expect(result.current.streamStatus.credentialIds).toEqual([CRED_UUID])
       expect(result.current.streamStatus.credentialTypes).toEqual(['type-1'])
     }
   })
@@ -1047,7 +1062,7 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
         // Single failed event - the return statement should execute
         controller.enqueue(
           encoder.encode(
-            'event: failed\ndata: {"error": "test_error", "error_description": "Test desc", "step": "test_step"}\n\n'
+            'event: failed\ndata: {"session_id":"ses_f","state":"failed","error": "test_error", "error_description": "Test desc", "step": "internal"}\n\n'
           )
         )
         controller.close()
@@ -1066,7 +1081,7 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
     if (result.current.streamStatus.status === 'failed') {
       expect(result.current.streamStatus.error).toBe('test_error')
       expect(result.current.streamStatus.errorDescription).toBe('Test desc')
-      expect(result.current.streamStatus.step).toBe('test_step')
+      expect(result.current.streamStatus.step).toBe('internal')
     }
   })
 
@@ -1108,7 +1123,7 @@ describe('useSseStream — final edge cases for 100% coverage', () => {
         // Frame with comment line (starts with :) and empty line - should be ignored
         controller.enqueue(
           encoder.encode(
-            ': this is a comment\nevent: processing\ndata: {"step": "test"}\n\n'
+            ': this is a comment\nevent: processing\ndata: {"session_id":"ses_comment","state":"processing","step":"requesting_credential"}\n\n'
           )
         )
         controller.close()

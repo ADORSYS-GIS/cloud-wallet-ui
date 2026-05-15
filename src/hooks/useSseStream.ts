@@ -2,12 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { debugLogSse } from '../utils/debugApiLogger'
 import { getApiBaseUrl } from '../utils/env'
 import { getBearerToken } from '../auth/authService'
-import type {
-  ConsentResponse,
-  SseEvent,
-  SseCompletedEvent,
-  SseFailedEvent,
-} from '../types/issuance'
+import type { ConsentResponse, SseEvent } from '../types/issuance'
+import { parseValidatedSsePayload } from '../api/validation'
 
 export type SseStreamStatus =
   | { status: 'idle' }
@@ -23,10 +19,18 @@ export type UseSseStreamReturn = {
 }
 
 /**
- * Parse a single SSE frame (text between double-newline boundaries) into an
- * SseEvent. Expects the format emitted by the server:
- *   event: <type>\n
- *   data: <json>\n
+ * Parse a single SSE frame (text between double-newline boundaries).
+ * Expects: `event: <type>` + `data: <json>` lines.
+ *
+ * After JSON parse, the payload is validated against OpenAPI `SseProcessingEvent`,
+ * `SseCompletedEvent`, and `SseFailedEvent` (see `parseValidatedSsePayload`).
+ * The `event:` line is the source of truth for the event kind; it is merged as
+ * `event` over the parsed object so a conflicting `event` field in JSON cannot
+ * override the frame.
+ *
+ * Invalid frames (malformed JSON, unknown `event:` type, or schema mismatch)
+ * return `null` and emit `console.warn` — the stream reader continues so the
+ * app does not crash.
  */
 function parseSseFrame(raw: string): SseEvent | null {
   const lines = raw.split('\n')
@@ -45,8 +49,15 @@ function parseSseFrame(raw: string): SseEvent | null {
 
   try {
     const payload = JSON.parse(dataStr) as Record<string, unknown>
-    return { event: eventType, ...payload } as SseEvent
-  } catch {
+    return parseValidatedSsePayload(eventType, payload)
+  } catch (error) {
+    const dataPreview =
+      dataStr.length > 512 ? `${dataStr.slice(0, 512)}… (truncated)` : dataStr
+    console.warn('[useSseStream] Invalid SSE event: malformed JSON in data line', {
+      eventType,
+      dataPreview,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return null
   }
 }
@@ -66,6 +77,11 @@ function parseSseFrame(raw: string): SseEvent | null {
  * The frontend MUST open this stream immediately after receiving a successful
  * /consent response and maintain the connection until a terminal event
  * (completed or failed) is received.
+ *
+ * **SSE validation:** Each `data:` JSON object is validated to match the
+ * OpenAPI event schemas before updating React state. Non-conforming events are
+ * ignored after `console.warn` so bad server output cannot throw inside the
+ * reader loop.
  *
  * When `VITE_DEBUG_API=true`, SSE requests (redacted auth), HTTP response status,
  * and parsed event payloads are logged via `console.debug`.
@@ -185,23 +201,20 @@ export function useSseStream(): UseSseStreamReturn {
               debugLogSse(`event:${event.event}`, event)
 
               if (event.event === 'processing') {
-                const e = event as SseProcessingFrame
-                setStreamStatus({ status: 'processing', step: e.step ?? '' })
+                setStreamStatus({ status: 'processing', step: event.step })
               } else if (event.event === 'completed') {
-                const e = event as SseCompletedEvent
                 setStreamStatus({
                   status: 'completed',
-                  credentialIds: e.credential_ids,
-                  credentialTypes: e.credential_types,
+                  credentialIds: event.credential_ids,
+                  credentialTypes: event.credential_types,
                 })
                 return
               } else if (event.event === 'failed') {
-                const e = event as SseFailedEvent
                 setStreamStatus({
                   status: 'failed',
-                  error: e.error,
-                  errorDescription: e.error_description,
-                  step: e.step,
+                  error: event.error,
+                  errorDescription: event.error_description,
+                  step: event.step,
                 })
                 return
               }
@@ -225,8 +238,6 @@ export function useSseStream(): UseSseStreamReturn {
 
   return { streamStatus, openStream, closeStream }
 }
-
-type SseProcessingFrame = { event: string; step: string }
 
 /**
  * Hook that orchestrates the full post-consent flow:

@@ -68,7 +68,7 @@ function buildOffer(
     credential_types: [
       {
         credential_configuration_id: 'identity_credential',
-        format: 'vc+sd-jwt',
+        format: 'dc+sd-jwt',
         display: {
           name: 'Identity Credential',
           description: 'Official identity document',
@@ -1024,7 +1024,7 @@ describe('CredentialTypeDetailsPage', () => {
       credential_types: [
         {
           credential_configuration_id: 'identity_credential',
-          format: 'vc+sd-jwt',
+          format: 'dc+sd-jwt',
           display: { name: 'Identity Credential' },
         },
       ],
