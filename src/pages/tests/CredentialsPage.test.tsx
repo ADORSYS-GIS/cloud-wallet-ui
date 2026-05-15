@@ -4,6 +4,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { routes } from '../../constants/routes'
 import { useCredentials } from '../../hooks/useCredentials'
+import {
+  clearRemovedCredentials,
+  markCredentialRemoved,
+} from '../../state/deletedCredentials'
 import { CredentialsPage } from '../CredentialsPage'
 import type { CredentialRecord } from '../../types/credential'
 
@@ -33,6 +37,7 @@ describe('CredentialsPage', () => {
   })
 
   beforeEach(() => {
+    clearRemovedCredentials()
     vi.clearAllMocks()
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -224,5 +229,32 @@ describe('CredentialsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Scan credential offer QR' }))
     expect(screen.getByText('Scan destination')).toBeDefined()
+  })
+
+  it('hides credential marked as removed in session without refetching', () => {
+    markCredentialRemoved('cred-1')
+    mockedUseCredentials.mockReturnValue({
+      loading: false,
+      credentials: [
+        makeCredential({ id: 'cred-1' }),
+        makeCredential({
+          id: 'cred-2',
+          credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
+        }),
+      ],
+    })
+
+    render(
+      <MemoryRouter initialEntries={[routes.credentials]}>
+        <Routes>
+          <Route path={routes.credentials} element={<CredentialsPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByRole('button', { name: /mDL/i })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: /eu\.europa\.ec\.eudi\.pid\.1/i })
+    ).toBeDefined()
   })
 })

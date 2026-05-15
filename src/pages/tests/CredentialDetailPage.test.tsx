@@ -241,4 +241,30 @@ describe('CredentialDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to credentials' }))
     expect(screen.getByText('Credentials list')).toBeDefined()
   })
+
+  it('navigates to remove credential page from footer action', () => {
+    mockedUseCredentialDetail.mockReturnValue({
+      credential: sampleCredential(),
+      loading: false,
+      error: null,
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/credentials/cred-1']}>
+        <Routes>
+          <Route
+            path={`${routes.credentials}/:credentialId`}
+            element={<CredentialDetailPage />}
+          />
+          <Route
+            path={`${routes.credentials}/:credentialId/remove`}
+            element={<div>Remove credential page</div>}
+          />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Credential' }))
+    expect(screen.getByText('Remove credential page')).toBeDefined()
+  })
 })

@@ -5,7 +5,7 @@ import { getBearerToken } from '../auth/authService'
  * Spec-compliant API client.
  *
  * Contract rules enforced here:
- * - Only the HTTP methods defined in the OpenAPI spec are used (GET, POST).
+ * - Only the HTTP methods defined in the OpenAPI spec are used (GET, POST, DELETE).
  * - Non-2xx responses always throw — no fallback, no retry, no method switching.
  * - 204 No Content responses return `undefined` (used by DELETE/cancel endpoints).
  * - Every successful response with a body is parsed as JSON.
@@ -84,7 +84,7 @@ async function parseApiErrorPayload(response: Response): Promise<ApiErrorPayload
 }
 
 function messageForBadGateway(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   payload: ApiErrorPayload
 ): string {
@@ -103,7 +103,7 @@ function messageForBadGateway(
 }
 
 async function buildApiError(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   response: Response
 ): Promise<ApiError> {
@@ -168,4 +168,30 @@ export async function apiPost<TResponse, TBody>(
   }
 
   return (await response.json()) as TResponse
+}
+
+export async function apiDelete(path: string): Promise<void> {
+  const response = await fetchWithTimeout(
+    `${getApiBaseUrl()}${path}`,
+    {
+      method: 'DELETE',
+      headers: await authHeaders(),
+    },
+    REQUEST_TIMEOUT_MS
+  )
+
+  if (!response.ok) {
+    throw await buildApiError('DELETE', path, response)
+  }
+
+  // 204 No Content — expected for credential deletion.
+  if (response.status === 204) {
+    return
+  }
+
+  // Some DELETE endpoints may return 200 with an empty body; ignore if no content.
+  const contentType = response.headers.get('content-type')
+  if (contentType?.includes('application/json')) {
+    await response.json()
+  }
 }

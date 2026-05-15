@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Header } from '../components/Header'
 import { IssuerAvatar } from '../components/issuance/IssuerAvater'
 import { PageContainer } from '../components/layout/PageContainer'
-import { routes } from '../constants/routes'
+import { credentialRemovePath, routes } from '../constants/routes'
 import { useCredentialDetail } from '../hooks/useCredentialDetail'
 import type { CredentialRecord } from '../types/credential'
 import { credentialDisplayName, issuerDisplayLabel } from '../utils/credentialDisplay'
@@ -205,6 +205,8 @@ function CredentialDetailBody({ credentialId }: { credentialId: string }) {
 }
 
 function CredentialDetailContent({ credential }: { credential: CredentialRecord }) {
+  const navigate = useNavigate()
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 bg-[#E9ECEF] py-4">
@@ -216,6 +218,15 @@ function CredentialDetailContent({ credential }: { credential: CredentialRecord 
       >
         <ClaimsSection claims={credential.claims} />
       </section>
+      <div className="shrink-0 border-t border-slate-200 bg-[#E9ECEF] px-2 pb-1">
+        <button
+          type="button"
+          onClick={() => navigate(credentialRemovePath(credential.id))}
+          className="h-9 w-full rounded-md bg-red-600 text-center text-base font-semibold text-white shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors hover:bg-red-700"
+        >
+          Remove Credential
+        </button>
+      </div>
     </div>
   )
 }

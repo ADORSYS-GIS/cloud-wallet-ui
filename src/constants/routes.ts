@@ -16,6 +16,10 @@ export function credentialDetailPath(id: string) {
   return `${routes.credentials}/${encodeURIComponent(id)}`
 }
 
+export function credentialRemovePath(id: string) {
+  return `${routes.credentials}/${encodeURIComponent(id)}/remove`
+}
+
 export function issuanceSuccessPath(credentialId?: string) {
   return credentialId
     ? `/issuance/success/${encodeURIComponent(credentialId)}`
