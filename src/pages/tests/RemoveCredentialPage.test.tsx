@@ -84,7 +84,7 @@ describe('RemoveCredentialPage', () => {
     ).toBeDefined()
     expect(
       screen.getByText(
-        'You will have to go the organization that issued you this credential and request it again'
+        'You will need to contact the organization that issued this credential and request it again.'
       )
     ).toBeDefined()
   })

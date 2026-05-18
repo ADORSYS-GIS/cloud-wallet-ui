@@ -13,6 +13,7 @@ export function CredentialsPage() {
   const navigate = useNavigate()
   const { credentials, loading } = useCredentials()
 
+  // After delete we navigate here without refetching; filter session-removed IDs.
   const visibleCredentials = useMemo(
     () => credentials.filter((credential) => !isCredentialRemoved(credential.id)),
     [credentials]

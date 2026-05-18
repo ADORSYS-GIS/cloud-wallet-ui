@@ -27,7 +27,7 @@ export function credentialDeleteErrorMessage(error: unknown): string {
     }
 
     if (error.status === 405 || error.status === 501) {
-      return 'Removing credentials is not available right now. Please try again later.'
+      return 'Failed to delete credential, please try again'
     }
 
     if (error.status === 408) {

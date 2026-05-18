@@ -218,7 +218,7 @@ function CredentialDetailContent({ credential }: { credential: CredentialRecord 
       >
         <ClaimsSection claims={credential.claims} />
       </section>
-      <div className="shrink-0 border-t border-slate-200 bg-[#E9ECEF] px-2 pb-1">
+      <div className="shrink-0 border-t border-slate-200 bg-[#E9ECEF] px-2 pb-2">
         <button
           type="button"
           onClick={() => navigate(credentialRemovePath(credential.id))}

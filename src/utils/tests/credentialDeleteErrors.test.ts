@@ -33,7 +33,7 @@ describe('credentialDeleteErrorMessage', () => {
     const error = new ApiError(501, 'DELETE /credentials/id failed with 501')
 
     expect(credentialDeleteErrorMessage(error)).toBe(
-      'Removing credentials is not available right now. Please try again later.'
+      'Failed to delete credential, please try again'
     )
   })
 
