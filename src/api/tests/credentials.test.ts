@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getCredentials } from '../credentials'
+import { deleteCredential, getCredentials } from '../credentials'
 import { ApiError } from '../client'
 vi.mock('../../auth/authService', () => ({
   getBearerToken: vi.fn(async () => 'mock.jwt.token'),
@@ -38,6 +38,10 @@ function makeResponse(
 /** Extract the URL that was passed to fetch in the Nth call (0-indexed). */
 function calledUrl(fetchMock: ReturnType<typeof vi.fn>, callIndex = 0): string {
   return (fetchMock.mock.calls[callIndex] as [string, unknown])[0]
+}
+
+function calledInit(fetchMock: ReturnType<typeof vi.fn>, callIndex = 0): RequestInit {
+  return (fetchMock.mock.calls[callIndex] as [string, RequestInit])[1]
 }
 
 describe('getCredentials — no filters', () => {
@@ -289,5 +293,70 @@ describe('getCredentials — combined filters', () => {
     expect(url).not.toContain('credential_types')
     expect(url).not.toContain('format')
     expect(url).not.toContain('issuer')
+  })
+})
+
+describe('deleteCredential', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_API_BASE_URL', 'http://api.test')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+    vi.restoreAllMocks()
+  })
+
+  it('calls DELETE /credentials/{id} and resolves on 204', async () => {
+    const credentialId = 'c3d4e5f6-7890-abcd-ef12-3456789abcde'
+    const fetchMock = vi.fn(async () =>
+      makeResponse({ ok: true, status: 204, json: async () => ({}) })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await deleteCredential(credentialId)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(calledUrl(fetchMock)).toBe(
+      `http://api.test/api/v1/credentials/${encodeURIComponent(credentialId)}`
+    )
+    expect(calledInit(fetchMock).method).toBe('DELETE')
+  })
+
+  it('throws ApiError on 403 forbidden', async () => {
+    const fetchMock = vi.fn(async () =>
+      makeResponse({
+        ok: false,
+        status: 403,
+        json: async () => ({
+          error: 'forbidden',
+          error_description: 'You cannot delete this credential.',
+        }),
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteCredential('cred-forbidden')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('throws ApiError on 404 not found', async () => {
+    const fetchMock = vi.fn(async () =>
+      makeResponse({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: 'credential_not_found',
+          error_description:
+            'No credential with that ID exists for the authenticated tenant.',
+        }),
+      })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteCredential('missing-id')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 404,
+      errorCode: 'credential_not_found',
+    })
   })
 })

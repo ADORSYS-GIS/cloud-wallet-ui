@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, apiGet, apiPost } from '../client'
+import { ApiError, apiDelete, apiGet, apiPost } from '../client'
 
 vi.mock('../../auth/authService', () => ({
   getBearerToken: vi.fn(async () => 'mock.jwt.token'),
@@ -80,6 +80,45 @@ describe('api client', () => {
       name: 'ApiError',
       status: 404,
       message: 'GET /missing failed with 404',
+    })
+  })
+
+  it('apiDelete resolves for 204 No Content', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        makeResponse({
+          ok: true,
+          status: 204,
+          json: async () => ({}),
+        })
+      ) as unknown as typeof fetch
+    )
+
+    await expect(apiDelete('/credentials/cred-1')).resolves.toBeUndefined()
+  })
+
+  it('apiDelete throws ApiError with parsed error details', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        makeResponse({
+          ok: false,
+          status: 404,
+          json: async () => ({
+            error: 'credential_not_found',
+            error_description: 'Credential missing',
+          }),
+        })
+      ) as unknown as typeof fetch
+    )
+
+    await expect(apiDelete('/credentials/missing')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 404,
+      errorCode: 'credential_not_found',
+      errorDescription: 'Credential missing',
+      message: 'Credential missing',
     })
   })
 
