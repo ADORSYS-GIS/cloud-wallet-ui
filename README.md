@@ -62,12 +62,17 @@ The application uses Vite environment variables.
   If omitted, the app only accepts conservative plain-HTTPS offers (path must contain `credential-offer`).  
   `openid-credential-offer://...` links remain accepted regardless.
 
+- `VITE_DEBUG_API` (optional)  
+  Set to `true` to enable **`console.debug`** logging of all traffic from `apiGet` / `apiPost` and the issuance SSE stream (`useSseStream`): request method and path, redacted headers (`Authorization` is never logged in full), response status and JSON bodies, and parsed SSE events.  
+  **Do not** enable in production builds. Leave unset (default) so no API traffic is logged.
+
 Create `.env` in the project root:
 
 ```bash
 VITE_API_BASE_URL=http://localhost:3000
 # Optional:
 # VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS=issuer.example.com,wallet.example.org
+# VITE_DEBUG_API=true
 ```
 
 You can also copy `.env.example` to `.env` (or `.env.local`) and adjust values.

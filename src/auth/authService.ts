@@ -54,6 +54,13 @@ async function ensureKeyPair(): Promise<StoredKeyPair> {
 /**
  * Register a new tenant or reuse an existing tenant_id.
  * Returns the tenant_id that should be used as the `sub` claim.
+ *
+ * Tenant registration is only triggered from `initAuth()` behind the module-level
+ * `initPromise` singleton, so concurrent `initAuth()` calls cannot both pass the
+ * “no stored tenant” check and invoke `registerTenant()` twice.
+ *
+ * `registerTenant()` uses raw `fetch` for POST /tenants (OpenAPI `security: []`);
+ * it must never go through `apiPost`, which always attaches Bearer auth.
  */
 async function ensureTenantId(): Promise<string> {
   const existing = getStoredTenantId()
@@ -70,13 +77,15 @@ async function ensureTenantId(): Promise<string> {
  * Must be called once at app startup (before any authenticated API requests).
  * Idempotent — safe to call multiple times; registration only happens once.
  *
+ * Concurrent callers share one `initPromise`, which serializes the first-run path
+ * (including `ensureTenantId()`) so only one tenant registration runs per session.
+ *
  * Returns the tenant_id for informational use; callers do NOT need to store it.
  */
 export async function initAuth(): Promise<string> {
   if (!initPromise) {
     initPromise = (async () => {
-      // Kick off both in parallel — key pair generation is independent of
-      // tenant registration.
+      // Key pair work is independent of tenant registration; run both in parallel.
       const [tenantId] = await Promise.all([ensureTenantId(), ensureKeyPair()])
       return tenantId
     })()
