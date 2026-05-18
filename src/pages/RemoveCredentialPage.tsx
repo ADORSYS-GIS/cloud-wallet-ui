@@ -15,7 +15,7 @@ const NOT_LOST_ITEMS = [
 ] as const
 
 const RESTORE_ITEMS = [
-  'You will have to go the organization that issued you this credential and request it again',
+  'You will need to contact the organization that issued this credential and request it again.',
 ] as const
 
 function BulletList({ items }: { items: readonly string[] }) {
@@ -112,7 +112,7 @@ export function RemoveCredentialPage() {
             </div>
           </section>
 
-          <div className="shrink-0 border-t border-slate-200 bg-[#E9ECEF] px-2 pb-1">
+          <div className="shrink-0 border-t border-slate-200 bg-[#E9ECEF] px-2 pb-2">
             <button
               type="button"
               onClick={() => void handleRemoveFromWallet()}
