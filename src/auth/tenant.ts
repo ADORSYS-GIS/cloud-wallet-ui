@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../utils/env'
+import { validateTenantRegistrationResponse } from '../api/validation'
 
 export type TenantRegistrationResponse = {
   tenant_id: string
@@ -51,10 +52,6 @@ export async function registerTenant(name: string): Promise<TenantRegistrationRe
     )
   }
 
-  const body = (await response.json()) as TenantRegistrationResponse
-  if (typeof body.tenant_id !== 'string' || !body.tenant_id) {
-    throw new Error('Tenant registration response is missing tenant_id')
-  }
-
-  return body
+  const body = await response.json()
+  return validateTenantRegistrationResponse(body)
 }
