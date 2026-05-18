@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { CredentialDetailPage } from './pages/CredentialDetailPage'
+import { RemoveCredentialPage } from './pages/RemoveCredentialPage'
 import { CredentialTypeDetailsPage } from './pages/CredentialTypeDetailsPage'
 import { CredentialsPage } from './pages/CredentialsPage'
 import { HomePage } from './pages/HomePage'
@@ -80,6 +81,14 @@ function App() {
             element={
               <RequireRegistration>
                 <CredentialsPage />
+              </RequireRegistration>
+            }
+          />
+          <Route
+            path={`${routes.credentials}/:credentialId/remove`}
+            element={
+              <RequireRegistration>
+                <RemoveCredentialPage />
               </RequireRegistration>
             }
           />

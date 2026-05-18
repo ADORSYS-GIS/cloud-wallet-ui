@@ -1,4 +1,4 @@
-import { apiGet } from './client'
+import { apiDelete, apiGet } from './client'
 import type {
   CredentialListResponse,
   CredentialRecord,
@@ -97,4 +97,14 @@ export async function getCredentials(
 export async function getCredentialById(id: string): Promise<CredentialRecord> {
   const raw = await apiGet<unknown>(`/credentials/${encodeURIComponent(id)}`)
   return validateCredentialRecord(raw)
+}
+
+/**
+ * Delete a credential owned by the authenticated tenant.
+ *
+ * Spec: DELETE /credentials/{id}
+ * Response: 204 No Content on success
+ */
+export async function deleteCredential(id: string): Promise<void> {
+  await apiDelete(`/credentials/${encodeURIComponent(id)}`)
 }
