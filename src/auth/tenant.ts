@@ -26,6 +26,10 @@ export function getStoredTenantId(): string | null {
 
 /**
  * Call POST /tenants and return the registration response.
+ *
+ * OpenAPI marks this operation as unauthenticated (`security: []`), so requests must
+ * use raw `fetch` here. Do not route through `apiPost`, which always adds Bearer auth.
+ *
  * Throws on non-2xx responses, including the full error body for debuggability.
  */
 export async function registerTenant(name: string): Promise<TenantRegistrationResponse> {

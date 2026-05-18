@@ -1,5 +1,10 @@
-import { getApiBaseUrl } from '../utils/env'
 import { getBearerToken } from '../auth/authService'
+import {
+  debugLogApiErrorResponse,
+  debugLogApiRequest,
+  debugLogApiResponse,
+} from '../utils/debugApiLogger'
+import { getApiBaseUrl } from '../utils/env'
 
 /**
  * Spec-compliant API client.
@@ -12,6 +17,9 @@ import { getBearerToken } from '../auth/authService'
  * - No undocumented endpoints may be called through this module.
  * - Every request carries an `Authorization: Bearer <JWT>` header obtained
  *   from the auth service (spec: BearerAuth security scheme).
+ *
+ * When `VITE_DEBUG_API=true`, requests and responses are logged with
+ * `console.debug` (Authorization values redacted; large `offer` bodies truncated).
  */
 
 export class ApiError extends Error {
@@ -126,46 +134,58 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
+  const headers = await authHeaders()
+  debugLogApiRequest('GET', path, { headers })
+
   const response = await fetchWithTimeout(
     `${getApiBaseUrl()}${path}`,
-    {
-      headers: await authHeaders(),
-    },
+    { headers },
     REQUEST_TIMEOUT_MS
   )
 
   if (!response.ok) {
+    await debugLogApiErrorResponse('GET', path, response)
     throw await buildApiError('GET', path, response)
   }
 
-  return (await response.json()) as T
+  const data = (await response.json()) as T
+  debugLogApiResponse('GET', path, response, data)
+  return data
 }
 
 export async function apiPost<TResponse, TBody>(
   path: string,
   body: TBody
 ): Promise<TResponse> {
+  const serialized = JSON.stringify(body)
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(await authHeaders()),
+  }
+  debugLogApiRequest('POST', path, { headers, body: serialized })
+
   const response = await fetchWithTimeout(
     `${getApiBaseUrl()}${path}`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(await authHeaders()),
-      },
-      body: JSON.stringify(body),
+      headers,
+      body: serialized,
     },
     REQUEST_TIMEOUT_MS
   )
 
   if (!response.ok) {
+    await debugLogApiErrorResponse('POST', path, response)
     throw await buildApiError('POST', path, response)
   }
 
   // 204 No Content — spec uses this for DELETE-like operations (e.g. cancel session).
   if (response.status === 204) {
+    debugLogApiResponse('POST', path, response, null)
     return undefined as TResponse
   }
 
-  return (await response.json()) as TResponse
+  const data = (await response.json()) as TResponse
+  debugLogApiResponse('POST', path, response, data)
+  return data
 }

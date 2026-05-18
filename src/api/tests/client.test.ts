@@ -9,15 +9,30 @@ type MockResponse = {
   ok: boolean
   status: number
   json: () => Promise<unknown>
+  clone: () => { text: () => Promise<string> }
 }
 
 function makeResponse(
   partial: Partial<MockResponse> & Pick<MockResponse, 'ok' | 'status'>
 ): MockResponse {
+  const json = partial.json ?? (async () => ({}))
   return {
     ok: partial.ok,
     status: partial.status,
-    json: partial.json ?? (async () => ({})),
+    json,
+    clone() {
+      return {
+        async text() {
+          try {
+            const data = await json()
+            if (typeof data === 'string') return data
+            return JSON.stringify(data)
+          } catch {
+            return ''
+          }
+        },
+      }
+    },
   }
 }
 
@@ -241,5 +256,29 @@ describe('api client', () => {
       errorDescription: null,
       message: 'POST /plain-error failed with 400',
     })
+  })
+
+  it('when VITE_DEBUG_API is true, logs requests and redacts Authorization', async () => {
+    vi.stubEnv('VITE_DEBUG_API', 'true')
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {})
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        makeResponse({
+          ok: true,
+          status: 200,
+          json: async () => ({ x: 1 }),
+        })
+      ) as unknown as typeof fetch
+    )
+
+    await apiGet('/safe')
+
+    expect(debugSpy).toHaveBeenCalled()
+    const combined = debugSpy.mock.calls.map((c) => JSON.stringify(c)).join('\n')
+    expect(combined).toContain('Bearer [REDACTED]')
+    expect(combined).not.toContain('mock.jwt.token')
+    expect(combined).toContain('[API]')
   })
 })
