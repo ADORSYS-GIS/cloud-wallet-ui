@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ContractError,
-  validateStartIssuanceResponse,
-  validateCredentialRecord,
+  parseValidatedSsePayload,
   validateCredentialListResponse,
+  validateCredentialRecord,
+  validateSseCompletedEvent,
+  validateSseFailedEvent,
+  validateSseProcessingEvent,
+  validateStartIssuanceResponse,
+  validateTenantRegistrationResponse,
 } from '../validation'
 import type { StartIssuanceResponse } from '../../types/issuance'
 import type { CredentialRecord } from '../../types/credential'
@@ -19,7 +24,7 @@ const validStartIssuanceResponse: StartIssuanceResponse = {
   credential_types: [
     {
       credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-      format: 'vc+sd-jwt',
+      format: 'dc+sd-jwt',
       display: {
         name: 'EU Personal ID',
         description: 'Official EU personal identity document',
@@ -114,7 +119,7 @@ describe('validateStartIssuanceResponse', () => {
       credential_types: [
         {
           credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-          format: 'vc+sd-jwt',
+          format: 'dc+sd-jwt',
           display: { description: 'no name here' },
         },
       ],
@@ -182,7 +187,7 @@ describe('validateStartIssuanceResponse', () => {
     expect(() => validateStartIssuanceResponse(input)).not.toThrow()
   })
 
-  it('accepts display.logo object without alt_text', () => {
+  it('throws ContractError when display.logo object omits alt_text', () => {
     const input = {
       ...validStartIssuanceResponse,
       credential_types: [
@@ -195,7 +200,7 @@ describe('validateStartIssuanceResponse', () => {
         },
       ],
     }
-    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
   })
 
   it('accepts display.logo object with alt_text', () => {
@@ -334,5 +339,230 @@ describe('validateCredentialListResponse', () => {
 
   it('throws ContractError when the response has no credentials field', () => {
     expect(() => validateCredentialListResponse({ items: [] })).toThrow()
+  })
+})
+
+describe('validateTenantRegistrationResponse', () => {
+  const validTenantResponse = {
+    tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    name: 'adorsys GmbH',
+  }
+
+  it('accepts a valid tenant registration response', () => {
+    const result = validateTenantRegistrationResponse(validTenantResponse)
+    expect(result).toEqual(validTenantResponse)
+  })
+
+  it('throws ContractError when tenant_id is missing', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { tenant_id: _, ...rest } = validTenantResponse
+    expect(() => validateTenantRegistrationResponse(rest)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id is not a string', () => {
+    const input = { ...validTenantResponse, tenant_id: 123 }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id is not a valid UUID format', () => {
+    const input = { ...validTenantResponse, tenant_id: 'not-a-uuid' }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id has invalid UUID pattern (missing dashes)', () => {
+    const input = {
+      ...validTenantResponse,
+      tenant_id: 'f47ac10b58cc4372a5670e02b2c3d479',
+    }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id has invalid UUID pattern (wrong length)', () => {
+    const input = {
+      ...validTenantResponse,
+      tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d47',
+    }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('accepts valid UUID with uppercase letters', () => {
+    const input = {
+      ...validTenantResponse,
+      tenant_id: 'F47AC10B-58CC-4372-A567-0E02B2C3D479',
+    }
+    const result = validateTenantRegistrationResponse(input)
+    expect(result.tenant_id).toBe('F47AC10B-58CC-4372-A567-0E02B2C3D479')
+  })
+
+  it('throws ContractError when name is missing', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { name: _, ...rest } = validTenantResponse
+    expect(() => validateTenantRegistrationResponse(rest)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when name is not a string', () => {
+    const input = { ...validTenantResponse, name: 123 }
+    expect(() => validateTenantRegistrationResponse(input)).toThrow(ContractError)
+  })
+
+  it('accepts empty string for name (valid per OpenAPI spec)', () => {
+    const input = { ...validTenantResponse, name: '' }
+    const result = validateTenantRegistrationResponse(input)
+    expect(result.name).toBe('')
+  })
+
+  it('throws ContractError when response is not an object', () => {
+    expect(() => validateTenantRegistrationResponse(null)).toThrow(ContractError)
+    expect(() => validateTenantRegistrationResponse('string')).toThrow(ContractError)
+    expect(() => validateTenantRegistrationResponse(123)).toThrow(ContractError)
+    expect(() => validateTenantRegistrationResponse([])).toThrow(ContractError)
+  })
+})
+
+const SSE_CRED_UUID = 'c3d4e5f6-7890-abcd-ef12-3456789abcde'
+const SSE_CRED_UUID_2 = 'a1b2c3d4-e5f6-4789-abcd-ef1234567890'
+
+describe('validateSseProcessingEvent', () => {
+  it('accepts a spec-shaped processing payload', () => {
+    const record = {
+      event: 'processing',
+      session_id: 'ses_1',
+      state: 'processing',
+      step: 'requesting_credential',
+    }
+    expect(validateSseProcessingEvent(record)).toEqual(record)
+  })
+
+  it('rejects wrong state', () => {
+    expect(
+      validateSseProcessingEvent({
+        event: 'processing',
+        session_id: 'ses_1',
+        state: 'completed',
+        step: 'requesting_credential',
+      })
+    ).toBeNull()
+  })
+
+  it('rejects unknown step', () => {
+    expect(
+      validateSseProcessingEvent({
+        event: 'processing',
+        session_id: 'ses_1',
+        state: 'processing',
+        step: 'custom_step',
+      })
+    ).toBeNull()
+  })
+
+  it('rejects missing session_id', () => {
+    expect(
+      validateSseProcessingEvent({
+        event: 'processing',
+        state: 'processing',
+        step: 'requesting_credential',
+      } as Record<string, unknown>)
+    ).toBeNull()
+  })
+})
+
+describe('validateSseCompletedEvent', () => {
+  it('accepts parallel arrays with UUID credential ids', () => {
+    const record = {
+      event: 'completed',
+      session_id: 'ses_1',
+      state: 'completed',
+      credential_ids: [SSE_CRED_UUID],
+      credential_types: ['eu.europa.ec.eudi.pid.1'],
+    }
+    expect(validateSseCompletedEvent(record)).toEqual(record)
+  })
+
+  it('rejects non-UUID credential id', () => {
+    expect(
+      validateSseCompletedEvent({
+        event: 'completed',
+        session_id: 'ses_1',
+        state: 'completed',
+        credential_ids: ['not-a-uuid'],
+        credential_types: ['t1'],
+      })
+    ).toBeNull()
+  })
+
+  it('rejects mismatched array lengths', () => {
+    expect(
+      validateSseCompletedEvent({
+        event: 'completed',
+        session_id: 'ses_1',
+        state: 'completed',
+        credential_ids: [SSE_CRED_UUID, SSE_CRED_UUID_2],
+        credential_types: ['t1'],
+      })
+    ).toBeNull()
+  })
+})
+
+describe('validateSseFailedEvent', () => {
+  it('accepts null error_description', () => {
+    const record = {
+      event: 'failed',
+      session_id: 'ses_1',
+      state: 'failed',
+      error: 'access_denied',
+      error_description: null,
+      step: 'authorization',
+    }
+    expect(validateSseFailedEvent(record)).toEqual(record)
+  })
+
+  it('rejects missing error_description key', () => {
+    expect(
+      validateSseFailedEvent({
+        event: 'failed',
+        session_id: 'ses_1',
+        state: 'failed',
+        error: 'x',
+        step: 'internal',
+      } as Record<string, unknown>)
+    ).toBeNull()
+  })
+
+  it('rejects invalid step', () => {
+    expect(
+      validateSseFailedEvent({
+        event: 'failed',
+        session_id: 'ses_1',
+        state: 'failed',
+        error: 'x',
+        error_description: 'msg',
+        step: 'unknown_step',
+      })
+    ).toBeNull()
+  })
+})
+
+describe('parseValidatedSsePayload', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('logs and returns null for unknown event line type', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(parseValidatedSsePayload('heartbeat', {})).toBeNull()
+    expect(warn).toHaveBeenCalled()
+  })
+
+  it('merges event line over conflicting JSON event field', () => {
+    const v = parseValidatedSsePayload('processing', {
+      event: 'completed',
+      session_id: 'ses_x',
+      state: 'processing',
+      step: 'exchanging_token',
+    })
+    expect(v).not.toBeNull()
+    if (v?.event === 'processing') {
+      expect(v.step).toBe('exchanging_token')
+    }
   })
 })

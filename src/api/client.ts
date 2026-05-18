@@ -1,5 +1,10 @@
-import { getApiBaseUrl } from '../utils/env'
 import { getBearerToken } from '../auth/authService'
+import {
+  debugLogApiErrorResponse,
+  debugLogApiRequest,
+  debugLogApiResponse,
+} from '../utils/debugApiLogger'
+import { getApiBaseUrl } from '../utils/env'
 
 /**
  * Spec-compliant API client.
@@ -12,6 +17,9 @@ import { getBearerToken } from '../auth/authService'
  * - No undocumented endpoints may be called through this module.
  * - Every request carries an `Authorization: Bearer <JWT>` header obtained
  *   from the auth service (spec: BearerAuth security scheme).
+ *
+ * When `VITE_DEBUG_API=true`, requests and responses are logged with
+ * `console.debug` (Authorization values redacted; large `offer` bodies truncated).
  */
 
 export class ApiError extends Error {
@@ -33,6 +41,14 @@ export class ApiError extends Error {
 }
 
 const REQUEST_TIMEOUT_MS = 15_000
+
+/** OpenAPI: 502 on issuance routes when metadata endpoints are unreachable. */
+const HTTP_STATUS_BAD_GATEWAY = 502
+
+const GATEWAY_METADATA_ERROR_CODES = new Set([
+  'issuer_metadata_fetch_failed',
+  'auth_server_metadata_fetch_failed',
+])
 
 async function fetchWithTimeout(
   input: string,
@@ -75,16 +91,39 @@ async function parseApiErrorPayload(response: Response): Promise<ApiErrorPayload
   }
 }
 
+function messageForBadGateway(
+  method: 'GET' | 'POST',
+  path: string,
+  payload: ApiErrorPayload
+): string {
+  if (payload.errorDescription) {
+    return payload.errorDescription
+  }
+  if (payload.errorCode && GATEWAY_METADATA_ERROR_CODES.has(payload.errorCode)) {
+    return payload.errorCode === 'issuer_metadata_fetch_failed'
+      ? 'Could not reach the credential issuer metadata endpoint (502 Bad Gateway).'
+      : 'Could not reach the authorization server metadata endpoint (502 Bad Gateway).'
+  }
+  if (payload.errorCode) {
+    return `${method} ${path} failed with 502 (${payload.errorCode}).`
+  }
+  return `The wallet backend could not reach the credential issuer or authorization server (${method} ${path}, 502). Please try again.`
+}
+
 async function buildApiError(
   method: 'GET' | 'POST',
   path: string,
   response: Response
 ): Promise<ApiError> {
-  const { errorCode, errorDescription } = await parseApiErrorPayload(response)
+  const payload = await parseApiErrorPayload(response)
   const fallbackMessage = `${method} ${path} failed with ${response.status}`
-  return new ApiError(response.status, errorDescription ?? fallbackMessage, {
-    errorCode,
-    errorDescription,
+  const message =
+    response.status === HTTP_STATUS_BAD_GATEWAY
+      ? messageForBadGateway(method, path, payload)
+      : (payload.errorDescription ?? fallbackMessage)
+  return new ApiError(response.status, message, {
+    errorCode: payload.errorCode,
+    errorDescription: payload.errorDescription,
   })
 }
 async function authHeaders(): Promise<Record<string, string>> {
@@ -95,46 +134,58 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
+  const headers = await authHeaders()
+  debugLogApiRequest('GET', path, { headers })
+
   const response = await fetchWithTimeout(
     `${getApiBaseUrl()}${path}`,
-    {
-      headers: await authHeaders(),
-    },
+    { headers },
     REQUEST_TIMEOUT_MS
   )
 
   if (!response.ok) {
+    await debugLogApiErrorResponse('GET', path, response)
     throw await buildApiError('GET', path, response)
   }
 
-  return (await response.json()) as T
+  const data = (await response.json()) as T
+  debugLogApiResponse('GET', path, response, data)
+  return data
 }
 
 export async function apiPost<TResponse, TBody>(
   path: string,
   body: TBody
 ): Promise<TResponse> {
+  const serialized = JSON.stringify(body)
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(await authHeaders()),
+  }
+  debugLogApiRequest('POST', path, { headers, body: serialized })
+
   const response = await fetchWithTimeout(
     `${getApiBaseUrl()}${path}`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(await authHeaders()),
-      },
-      body: JSON.stringify(body),
+      headers,
+      body: serialized,
     },
     REQUEST_TIMEOUT_MS
   )
 
   if (!response.ok) {
+    await debugLogApiErrorResponse('POST', path, response)
     throw await buildApiError('POST', path, response)
   }
 
   // 204 No Content — spec uses this for DELETE-like operations (e.g. cancel session).
   if (response.status === 204) {
+    debugLogApiResponse('POST', path, response, null)
     return undefined as TResponse
   }
 
-  return (await response.json()) as TResponse
+  const data = (await response.json()) as TResponse
+  debugLogApiResponse('POST', path, response, data)
+  return data
 }

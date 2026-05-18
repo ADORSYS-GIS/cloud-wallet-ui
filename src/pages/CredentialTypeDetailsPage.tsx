@@ -50,7 +50,7 @@ function buildDisplayRows(
   if (credType.display.logo?.uri) {
     rows.push({ label: 'Logo URI', value: credType.display.logo.uri })
   }
-  if (credType.display.logo?.alt_text) {
+  if (credType.display.logo) {
     rows.push({ label: 'Logo Alt Text', value: credType.display.logo.alt_text })
   }
 
