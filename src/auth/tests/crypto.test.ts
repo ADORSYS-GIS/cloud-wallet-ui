@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { importJWK, jwtVerify, decodeProtectedHeader, decodeJwt } from 'jose'
-import { getOrCreateKeyPair, createJwt } from '../crypto'
+import { getOrCreateKeyPair, createJwt, clearPersistedKeyPair } from '../crypto'
 
 const store: Record<string, string> = {}
 const localStorageMock = {
@@ -103,5 +103,39 @@ describe('createJwt', () => {
     // jwtVerify throws if the signature is invalid — a clean pass means it verified.
     const { payload } = await jwtVerify(token, publicKey)
     expect(payload.sub).toBe('tenant-verify')
+  })
+})
+
+describe('clearPersistedKeyPair', () => {
+  it('removes the key pair from localStorage', async () => {
+    // First, create a key pair (which persists to localStorage)
+    await getOrCreateKeyPair()
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+      'bearer_token_keypair',
+      expect.any(String)
+    )
+
+    // Clear the persisted key pair
+    clearPersistedKeyPair()
+
+    // Verify removeItem was called with the correct key
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith('bearer_token_keypair')
+  })
+
+  it('causes getOrCreateKeyPair to generate a new key pair', async () => {
+    // Get first key pair
+    const first = await getOrCreateKeyPair()
+    const firstX = first.publicKeyJwk.x
+    const firstY = first.publicKeyJwk.y
+
+    // Clear the persisted key pair
+    clearPersistedKeyPair()
+
+    // Get second key pair - should generate new keys
+    const second = await getOrCreateKeyPair()
+
+    // The public key coordinates should be different
+    expect(second.publicKeyJwk.x).not.toBe(firstX)
+    expect(second.publicKeyJwk.y).not.toBe(firstY)
   })
 })
