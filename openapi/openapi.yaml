@@ -27,9 +27,7 @@ servers:
 security:
   - BearerAuth: []
 
-
 paths:
-
   /tenants:
     post:
       operationId: registerTenant
@@ -656,7 +654,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-
   /credentials/{id}:
     get:
       operationId: getCredential
@@ -745,9 +742,7 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-
 components:
-
   securitySchemes:
     BearerAuth:
       type: http
@@ -825,9 +820,7 @@ components:
             error: internal_error
             error_description: An unexpected error occurred. Please try again later.
 
-
   schemas:
-
     ErrorResponse:
       type: object
       description: |
