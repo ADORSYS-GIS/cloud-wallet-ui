@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { registerTenant, storeTenantId, getStoredTenantId } from '../tenant'
+import { ContractError } from '../../api/validation'
 
 const store: Record<string, string> = {}
 const localStorageMock = {
@@ -66,7 +67,10 @@ describe('registerTenant', () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       status: 201,
-      json: async () => ({ tenant_id: 'some-id', name: 'Test' }),
+      json: async () => ({
+        tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        name: 'Test',
+      }),
     }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
@@ -101,7 +105,7 @@ describe('registerTenant', () => {
     )
   })
 
-  it('throws when tenant_id is missing from the response', async () => {
+  it('throws ContractError when tenant_id is missing from the response', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       status: 201,
@@ -109,6 +113,42 @@ describe('registerTenant', () => {
     }))
     vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
 
-    await expect(registerTenant('Test')).rejects.toThrow('tenant_id')
+    await expect(registerTenant('Test')).rejects.toThrow(ContractError)
+  })
+
+  it('throws ContractError when tenant_id is not a valid UUID', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({ tenant_id: 'not-a-uuid', name: 'Test' }),
+    }))
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(registerTenant('Test')).rejects.toThrow(ContractError)
+  })
+
+  it('throws ContractError when name is missing from the response', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({ tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }), // no name
+    }))
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(registerTenant('Test')).rejects.toThrow(ContractError)
+  })
+
+  it('throws ContractError when name is not a string', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        tenant_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+        name: 123,
+      }),
+    }))
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+
+    await expect(registerTenant('Test')).rejects.toThrow(ContractError)
   })
 })

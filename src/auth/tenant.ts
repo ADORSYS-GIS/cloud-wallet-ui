@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../utils/env'
+import { validateTenantRegistrationResponse } from '../api/validation'
 
 export type TenantRegistrationResponse = {
   tenant_id: string
@@ -25,6 +26,10 @@ export function getStoredTenantId(): string | null {
 
 /**
  * Call POST /tenants and return the registration response.
+ *
+ * OpenAPI marks this operation as unauthenticated (`security: []`), so requests must
+ * use raw `fetch` here. Do not route through `apiPost`, which always adds Bearer auth.
+ *
  * Throws on non-2xx responses, including the full error body for debuggability.
  */
 export async function registerTenant(name: string): Promise<TenantRegistrationResponse> {
@@ -47,10 +52,6 @@ export async function registerTenant(name: string): Promise<TenantRegistrationRe
     )
   }
 
-  const body = (await response.json()) as TenantRegistrationResponse
-  if (typeof body.tenant_id !== 'string' || !body.tenant_id) {
-    throw new Error('Tenant registration response is missing tenant_id')
-  }
-
-  return body
+  const body = await response.json()
+  return validateTenantRegistrationResponse(body)
 }

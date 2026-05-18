@@ -65,6 +65,17 @@ describe('initAuth', () => {
 
     expect(mockRegister).toHaveBeenCalledOnce()
   })
+
+  it('registers tenant only once for concurrent initAuth calls', async () => {
+    mockGetStored.mockReturnValue(null)
+
+    const [t1, t2] = await Promise.all([initAuth(), initAuth()])
+
+    expect(t1).toBe('new-tenant-uuid')
+    expect(t2).toBe('new-tenant-uuid')
+    expect(mockRegister).toHaveBeenCalledOnce()
+    expect(mockStore).toHaveBeenCalledOnce()
+  })
 })
 
 describe('getBearerToken', () => {

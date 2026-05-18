@@ -27,13 +27,7 @@ servers:
 security:
   - BearerAuth: []
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
 paths:
-  # -------------------------------------------------------------------------
-  # 1. Tenant Registration
-  # -------------------------------------------------------------------------
   /tenants:
     post:
       operationId: registerTenant
@@ -71,9 +65,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # -------------------------------------------------------------------------
-  # 2. Start Issuance Session
-  # -------------------------------------------------------------------------
   /issuance/start:
     post:
       operationId: startIssuanceSession
@@ -183,9 +174,6 @@ paths:
                     error: auth_server_metadata_fetch_failed
                     error_description: Could not reach the authorization server metadata endpoint.
 
-  # -------------------------------------------------------------------------
-  # 3. Submit Consent
-  # -------------------------------------------------------------------------
   /issuance/{session_id}/consent:
     post:
       operationId: submitConsent
@@ -284,9 +272,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # -------------------------------------------------------------------------
-  # 4. SSE — Real-Time Session Updates
-  # -------------------------------------------------------------------------
   /issuance/{session_id}/events:
     get:
       operationId: streamSessionEvents
@@ -371,9 +356,6 @@ paths:
                 error: session_not_found
                 error_description: No active session found for the given session_id.
 
-  # -------------------------------------------------------------------------
-  # 5. Authorization Callback
-  # -------------------------------------------------------------------------
   /issuance/callback:
     get:
       operationId: authorizationCallback
@@ -470,9 +452,6 @@ paths:
                 error: session_not_found
                 error_description: No active session found for the given state value.
 
-  # -------------------------------------------------------------------------
-  # 6. Submit Transaction Code
-  # -------------------------------------------------------------------------
   /issuance/{session_id}/tx-code:
     post:
       operationId: submitTransactionCode
@@ -545,9 +524,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # -------------------------------------------------------------------------
-  # 7. Cancel Session
-  # -------------------------------------------------------------------------
   /issuance/{session_id}/cancel:
     post:
       operationId: cancelSession
@@ -595,9 +571,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # -------------------------------------------------------------------------
-  # 8. List Credentials
-  # -------------------------------------------------------------------------
   /credentials:
     get:
       operationId: listCredentials
@@ -681,9 +654,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # -------------------------------------------------------------------------
-  # 9. Get Single Credential
-  # -------------------------------------------------------------------------
   /credentials/{id}:
     get:
       operationId: getCredential
@@ -728,13 +698,51 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-# ---------------------------------------------------------------------------
-# Components
-# ---------------------------------------------------------------------------
+    delete:
+      operationId: deleteCredential
+      summary: Delete a credential from the wallet
+      description: |
+        Permanently removes a single credential identified by its internal
+        wallet UUID from the authenticated tenant's storage.
+
+        The backend MUST verify that the credential belongs to the
+        authenticated tenant before deleting it. A tenant cannot delete
+        credentials owned by another tenant — attempting to do so returns
+        `403 Forbidden`.
+
+        This operation is irreversible. The credential cannot be recovered
+        after deletion; the user must re-issue it if needed.
+      tags:
+        - Credentials
+      parameters:
+        - $ref: '#/components/parameters/CredentialId'
+      responses:
+        '204':
+          description: Credential successfully deleted. No response body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: The authenticated tenant does not own this credential.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: forbidden
+                error_description: You do not have permission to delete this credential.
+        '404':
+          description: No credential with that ID exists for the authenticated tenant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: credential_not_found
+                error_description: No credential with that ID exists for the authenticated tenant.
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
-  # -------------------------------------------------------------------------
-  # Security Schemes
-  # -------------------------------------------------------------------------
   securitySchemes:
     BearerAuth:
       type: http
@@ -758,9 +766,6 @@ components:
         in the token, checks `exp`, and verifies that `sub` matches the
         resource being accessed.
 
-  # -------------------------------------------------------------------------
-  # Reusable Parameters
-  # -------------------------------------------------------------------------
   parameters:
     SessionId:
       name: session_id
@@ -784,9 +789,6 @@ components:
         format: uuid
         example: c3d4e5f6-7890-abcd-ef12-3456789abcde
 
-  # -------------------------------------------------------------------------
-  # Reusable Responses
-  # -------------------------------------------------------------------------
   responses:
     Unauthorized:
       description: Missing or invalid bearer token.
@@ -818,13 +820,7 @@ components:
             error: internal_error
             error_description: An unexpected error occurred. Please try again later.
 
-  # -------------------------------------------------------------------------
-  # Schemas
-  # -------------------------------------------------------------------------
   schemas:
-    # -----------------------------------------------------------------------
-    # Error
-    # -----------------------------------------------------------------------
     ErrorResponse:
       type: object
       description: |
@@ -846,15 +842,14 @@ components:
             - auth_server_metadata_fetch_failed
             - invalid_request
             - unauthorized
+            - forbidden
+            - credential_not_found
             - internal_error
         error_description:
           type: string
           description: Human-readable explanation of what went wrong.
           example: The credential offer URI could not be parsed.
 
-    # -----------------------------------------------------------------------
-    # Tenant Registration
-    # -----------------------------------------------------------------------
     TenantRegistrationRequest:
       type: object
       required:
@@ -886,9 +881,6 @@ components:
           description: Echo of the registered name.
           example: adorsys GmbH
 
-    # -----------------------------------------------------------------------
-    # Start Issuance
-    # -----------------------------------------------------------------------
     StartIssuanceRequest:
       type: object
       required:
@@ -1104,9 +1096,6 @@ components:
             - type: 'null'
           example: Please provide the one-time code sent to your registered email address.
 
-    # -----------------------------------------------------------------------
-    # Consent
-    # -----------------------------------------------------------------------
     ConsentRequest:
       type: object
       required:
@@ -1164,9 +1153,6 @@ components:
             `request_uri`) to open in the system browser.
           example: 'https://as.issuer.example.eu/authorize?response_type=code&client_id=wallet.example.eu&...'
 
-    # -----------------------------------------------------------------------
-    # Transaction Code
-    # -----------------------------------------------------------------------
     TxCodeRequest:
       type: object
       required:
@@ -1191,9 +1177,6 @@ components:
           description: Session identifier (echo).
           example: ses_9aKpR1xWqNmLvYcZbTsE4dBfUhOo2Gj
 
-    # -----------------------------------------------------------------------
-    # SSE Event Payloads
-    # -----------------------------------------------------------------------
     SseProcessingEvent:
       type: object
       description: |
@@ -1425,9 +1408,6 @@ components:
           items:
             $ref: '#/components/schemas/CredentialRecord'
 
-# ---------------------------------------------------------------------------
-# Tags
-# ---------------------------------------------------------------------------
 tags:
   - name: Tenants
     description: Tenant registration and management.
@@ -1438,5 +1418,5 @@ tags:
       Code and Pre-Authorized Code grant types.
   - name: Credentials
     description: |
-      Credential retrieval. Read-only access to verifiable credentials
-      stored in the wallet after a successful issuance flow.
+      Credential retrieval and management. Read and delete access to verifiable
+      credentials stored in the wallet after a successful issuance flow.

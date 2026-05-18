@@ -20,6 +20,22 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='apiPost'][arguments.0.value='/tenants']",
+          message:
+            'POST /tenants is unauthenticated by spec (security: []); use raw fetch in auth/tenant.ts, never apiPost.',
+        },
+        {
+          selector:
+            "CallExpression[callee.name='apiPost'][arguments.0.type='TemplateLiteral'][arguments.0.quasis.length=1][arguments.0.quasis.0.value.raw='/tenants']",
+          message:
+            'POST /tenants is unauthenticated by spec (security: []); use raw fetch in auth/tenant.ts, never apiPost.',
+        },
+      ],
+    },
   },
   eslintConfigPrettier,
 ])

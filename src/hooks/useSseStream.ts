@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { debugLogSse } from '../utils/debugApiLogger'
 import { getApiBaseUrl } from '../utils/env'
 import { getBearerToken } from '../auth/authService'
 import type { ConsentResponse, SseEvent } from '../types/issuance'
@@ -81,6 +82,9 @@ function parseSseFrame(raw: string): SseEvent | null {
  * OpenAPI event schemas before updating React state. Non-conforming events are
  * ignored after `console.warn` so bad server output cannot throw inside the
  * reader loop.
+ *
+ * When `VITE_DEBUG_API=true`, SSE requests (redacted auth), HTTP response status,
+ * and parsed event payloads are logged via `console.debug`.
  */
 export function useSseStream(): UseSseStreamReturn {
   const [streamStatus, setStreamStatus] = useState<SseStreamStatus>({ status: 'idle' })
@@ -118,6 +122,15 @@ export function useSseStream(): UseSseStreamReturn {
 
         const url = `${getApiBaseUrl()}/issuance/${encodeURIComponent(sessionId)}/events`
 
+        debugLogSse('request', {
+          method: 'GET',
+          url,
+          headers: {
+            Authorization: 'Bearer [REDACTED]',
+            Accept: 'text/event-stream',
+          },
+        })
+
         let response: Response
         try {
           response = await fetch(url, {
@@ -137,6 +150,8 @@ export function useSseStream(): UseSseStreamReturn {
           })
           return
         }
+
+        debugLogSse('response', { status: response.status, ok: response.ok })
 
         if (!response.ok) {
           setStreamStatus({
@@ -182,6 +197,8 @@ export function useSseStream(): UseSseStreamReturn {
               if (!frame.trim()) continue
               const event = parseSseFrame(frame)
               if (!event) continue
+
+              debugLogSse(`event:${event.event}`, event)
 
               if (event.event === 'processing') {
                 setStreamStatus({ status: 'processing', step: event.step })
