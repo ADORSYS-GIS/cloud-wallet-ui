@@ -206,7 +206,8 @@ function validateCredentialTypeDisplay(
   const ctx = `CredentialTypeDisplay[${index}]`
   const obj = requireObject(ctx, 'credential_type', raw)
   const rawDisplayArray = requireArray(ctx, 'display', obj.display)
-  if (rawDisplayArray.length === 0) throw new ContractError(ctx, 'display', rawDisplayArray)
+  if (rawDisplayArray.length === 0)
+    throw new ContractError(ctx, 'display', rawDisplayArray)
   return {
     credential_configuration_id: requireString(
       ctx,
@@ -241,9 +242,10 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
   const session_id = requireString(ctx, 'session_id', obj.session_id)
   const expires_at = requireDateTimeString(ctx, 'expires_at', obj.expires_at)
   // credential_issuer is optional - not present in current backend response
-  const credential_issuer = obj.credential_issuer !== undefined
-    ? requireString(ctx, 'credential_issuer', obj.credential_issuer)
-    : undefined
+  const credential_issuer =
+    obj.credential_issuer !== undefined
+      ? requireString(ctx, 'credential_issuer', obj.credential_issuer)
+      : undefined
   const issuer = validateIssuerSummary(obj.issuer)
 
   const rawTypes = requireArray(ctx, 'credential_types', obj.credential_types)
@@ -525,4 +527,3 @@ export function parseValidatedSsePayload(
       return null
   }
 }
-

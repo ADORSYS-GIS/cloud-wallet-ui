@@ -59,12 +59,17 @@ export function resolveIssuerDisplay(
   // Determine the credential issuer URL to use for fallbacks
   // Per OpenAPI spec, when no display metadata is available, the backend
   // returns a single entry with `name` set to the credential_issuer URL
-  const effectiveCredentialIssuer = credentialIssuer ?? display[0]?.name ?? 'Unknown Issuer'
+  const effectiveCredentialIssuer =
+    credentialIssuer ?? display[0]?.name ?? 'Unknown Issuer'
   const fallbackName = issuerDisplayLabel(effectiveCredentialIssuer)
 
   // If display array is empty, use fallbacks
   if (display.length === 0) {
-    return { name: fallbackName, logoUri: null, credentialIssuer: effectiveCredentialIssuer }
+    return {
+      name: fallbackName,
+      logoUri: null,
+      credentialIssuer: effectiveCredentialIssuer,
+    }
   }
 
   const entry = display[0]
@@ -87,6 +92,8 @@ export function resolveIssuerDisplay(
  * @param display - The credential display array from CredentialTypeDisplay.display
  * @returns The first CredentialDisplay entry
  */
-export function resolveCredentialDisplay(display: CredentialDisplay[]): CredentialDisplay {
+export function resolveCredentialDisplay(
+  display: CredentialDisplay[]
+): CredentialDisplay {
   return display[0]!
 }
