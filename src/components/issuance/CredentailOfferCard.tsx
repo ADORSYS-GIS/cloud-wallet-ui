@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { CredentialLogo, StartIssuanceResponse } from '../../types/issuance'
+import { resolveIssuerDisplay } from '../../utils/credentialDisplay'
 
 type IssuerBadgeProps = {
   displayName: string | null
@@ -111,6 +112,7 @@ type CredentialOfferCardProps = {
 }
 
 export function CredentialOfferCard({ session }: CredentialOfferCardProps) {
+  const issuerDisplay = resolveIssuerDisplay(session.issuer, session.credential_issuer)
   const expiresAt = new Date(session.expires_at)
   const expiresLabel = expiresAt.toLocaleTimeString(undefined, {
     hour: '2-digit',
@@ -135,9 +137,9 @@ export function CredentialOfferCard({ session }: CredentialOfferCardProps) {
           Issued by
         </p>
         <IssuerBadge
-          displayName={session.issuer.display_name}
-          credentialIssuer={session.issuer.credential_issuer}
-          logoUri={session.issuer.logo_uri}
+          displayName={issuerDisplay.name}
+          credentialIssuer={issuerDisplay.credentialIssuer}
+          logoUri={issuerDisplay.logoUri}
         />
       </div>
 
@@ -148,18 +150,25 @@ export function CredentialOfferCard({ session }: CredentialOfferCardProps) {
         <div className="flex flex-col gap-2">
           {session.credential_types.map((ct) => (
             <div key={ct.credential_configuration_id}>
-              <CredentialTypePill
-                name={ct.display.name}
-                backgroundColor={ct.display.background_color}
-                textColor={ct.display.text_color}
-                format={ct.format}
-                logo={ct.display.logo}
-              />
-              {ct.display.description && (
-                <p className="mt-1 px-1 text-xs leading-snug text-slate-500">
-                  {ct.display.description}
-                </p>
-              )}
+              {(() => {
+                const display = ct.display[0]!
+                return (
+                  <>
+                    <CredentialTypePill
+                      name={display.name}
+                      backgroundColor={display.background_color}
+                      textColor={display.text_color}
+                      format={ct.format}
+                      logo={display.logo}
+                    />
+                    {display.description && (
+                      <p className="mt-1 px-1 text-xs leading-snug text-slate-500">
+                        {display.description}
+                      </p>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           ))}
         </div>

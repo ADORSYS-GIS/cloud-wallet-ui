@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { CredentialRecord } from '../../types/credential'
-import { credentialDisplayName, issuerDisplayLabel } from '../credentialDisplay'
+import type { IssuerDisplayEntry } from '../../types/issuance'
+import {
+  credentialDisplayName,
+  issuerDisplayLabel,
+  resolveIssuerDisplay,
+} from '../credentialDisplay'
 
 function makeCredential(overrides: Partial<CredentialRecord> = {}): CredentialRecord {
   return {
@@ -63,5 +68,66 @@ describe('issuerDisplayLabel', () => {
     expect(issuerDisplayLabel('https://issuer.example.com:8443/oid4vci')).toBe(
       'issuer.example.com:8443'
     )
+  })
+})
+
+describe('resolveIssuerDisplay', () => {
+  const defaultCredentialIssuer = 'https://issuer.example.com'
+
+  it('uses name and logo from the first display entry', () => {
+    const display: IssuerDisplayEntry[] = [
+      {
+        name: 'Example Issuer',
+        locale: 'en-US',
+        logo: { uri: 'https://issuer.example.com/logo.png', alt_text: 'Logo' },
+        description: 'An example issuer',
+      },
+    ]
+    const result = resolveIssuerDisplay(display, defaultCredentialIssuer)
+    expect(result.name).toBe('Example Issuer')
+    expect(result.logoUri).toBe('https://issuer.example.com/logo.png')
+  })
+
+  it('falls back to hostname when first entry has no name', () => {
+    const credentialIssuer = 'https://wallet-issuer.example.org/path'
+    const display: IssuerDisplayEntry[] = [
+      {
+        logo: { uri: 'https://issuer.example.com/logo.png', alt_text: 'Logo' },
+      },
+    ]
+    const result = resolveIssuerDisplay(display, credentialIssuer)
+    expect(result.name).toBe('wallet-issuer.example.org')
+    expect(result.logoUri).toBe('https://issuer.example.com/logo.png')
+  })
+
+  it('falls back to hostname when display array is empty', () => {
+    const credentialIssuer = 'https://wallet-issuer.example.org'
+    const display: IssuerDisplayEntry[] = []
+    const result = resolveIssuerDisplay(display, credentialIssuer)
+    expect(result.name).toBe('wallet-issuer.example.org')
+    expect(result.logoUri).toBeNull()
+  })
+
+  it('returns null logoUri when first entry has no logo', () => {
+    const display: IssuerDisplayEntry[] = [{ name: 'Example Issuer', locale: 'en-US' }]
+    const result = resolveIssuerDisplay(display, defaultCredentialIssuer)
+    expect(result.name).toBe('Example Issuer')
+    expect(result.logoUri).toBeNull()
+  })
+
+  it('handles entry with only optional fields missing', () => {
+    const display: IssuerDisplayEntry[] = [{ name: 'Minimal Issuer' }]
+    const result = resolveIssuerDisplay(display, defaultCredentialIssuer)
+    expect(result.name).toBe('Minimal Issuer')
+    expect(result.logoUri).toBeNull()
+  })
+
+  it('uses first entry when multiple display entries exist', () => {
+    const display: IssuerDisplayEntry[] = [
+      { name: 'First Entry', locale: 'en-US' },
+      { name: 'Second Entry', locale: 'de-DE' },
+    ]
+    const result = resolveIssuerDisplay(display, defaultCredentialIssuer)
+    expect(result.name).toBe('First Entry')
   })
 })
