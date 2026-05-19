@@ -59,6 +59,23 @@ const validCredentialRecord: CredentialRecord = {
   claims: { given_name: 'Jane', family_name: 'Doe' },
 }
 
+const validCredentialListItem = {
+  id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+  display: {
+    name: 'EU Personal ID',
+    description: 'Official EU personal identity document',
+    background_color: '#12107c',
+    text_color: '#ffffff',
+    logo: {
+      uri: 'https://issuer.example.eu/logo.png',
+      alt_text: 'EU PID Logo',
+    },
+    issuer_name: 'Example EU Identity Authority',
+    credential_type: 'eu.europa.ec.eudi.pid.1',
+  },
+  issued_at: '2026-04-08T14:35:00Z',
+}
+
 describe('validateStartIssuanceResponse', () => {
   it('accepts a valid authorization_code flow response', () => {
     const result = validateStartIssuanceResponse(validStartIssuanceResponse)
@@ -324,12 +341,16 @@ describe('validateCredentialRecord', () => {
 })
 
 describe('validateCredentialListResponse', () => {
-  it('accepts a response with multiple credentials', () => {
+  it('accepts a response with multiple credential list items', () => {
     const input = {
-      credentials: [validCredentialRecord, { ...validCredentialRecord, id: 'cred-2' }],
+      credentials: [
+        validCredentialListItem,
+        { ...validCredentialListItem, id: 'cred-2' },
+      ],
     }
     const result = validateCredentialListResponse(input)
     expect(result.credentials).toHaveLength(2)
+    expect(result.credentials[0].display.name).toBe('EU Personal ID')
   })
 
   it('accepts a response with an empty credentials array', () => {
@@ -341,9 +362,43 @@ describe('validateCredentialListResponse', () => {
     expect(() => validateCredentialListResponse({ credentials: null })).toThrow()
   })
 
+  it('throws when a credential list item is missing required id', () => {
+    const input = {
+      credentials: [{ ...validCredentialListItem, id: undefined }],
+    }
+    expect(() => validateCredentialListResponse(input)).toThrow()
+  })
+
+  it('throws when a credential list item is missing required display', () => {
+    const input = {
+      credentials: [{ id: 'cred-1', issued_at: '2026-04-08T14:35:00Z' }],
+    }
+    expect(() => validateCredentialListResponse(input)).toThrow()
+  })
+
+  it('throws when a credential list item is missing required display.name', () => {
+    const input = {
+      credentials: [
+        {
+          id: 'cred-1',
+          display: { description: 'Missing name' },
+          issued_at: '2026-04-08T14:35:00Z',
+        },
+      ],
+    }
+    expect(() => validateCredentialListResponse(input)).toThrow()
+  })
+
+  it('throws when a credential list item is missing required issued_at', () => {
+    const input = {
+      credentials: [{ id: 'cred-1', display: { name: 'Test' } }],
+    }
+    expect(() => validateCredentialListResponse(input)).toThrow()
+  })
+
   it('throws when a credential entry is invalid, with index in the error message', () => {
     const input = {
-      credentials: [validCredentialRecord, { ...validCredentialRecord, format: 'bad' }],
+      credentials: [validCredentialListItem, { ...validCredentialListItem, id: null }],
     }
     try {
       validateCredentialListResponse(input)
@@ -354,28 +409,59 @@ describe('validateCredentialListResponse', () => {
     }
   })
 
-  it('stringifies non-Error throws while preserving credentials index', () => {
-    const badRecord = {
-      get id() {
-        throw 'id getter failed'
-      },
-      credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-      format: 'dc+sd-jwt',
-      issuer: 'https://issuer.example.eu',
-      status: 'active',
-      issued_at: '2026-04-08T14:35:00Z',
-      expires_at: null,
-      claims: {},
+  it('accepts minimal credential list item with only required fields', () => {
+    const input = {
+      credentials: [
+        {
+          id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+          display: { name: 'Minimal Credential' },
+          issued_at: '2026-04-08T14:35:00Z',
+        },
+      ],
     }
+    const result = validateCredentialListResponse(input)
+    expect(result.credentials).toHaveLength(1)
+    expect(result.credentials[0].display.name).toBe('Minimal Credential')
+    expect(result.credentials[0].display.logo).toBeNull()
+  })
 
-    try {
-      validateCredentialListResponse({ credentials: [badRecord] })
-      expect.fail('should have thrown')
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error)
-      expect((err as Error).message).toContain('credentials[0]')
-      expect((err as Error).message).toContain('id getter failed')
+  it('accepts credential list item with logo', () => {
+    const input = {
+      credentials: [
+        {
+          id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+          display: {
+            name: 'Credential with Logo',
+            logo: { uri: 'https://issuer.example.eu/logo.png', alt_text: 'Logo' },
+          },
+          issued_at: '2026-04-08T14:35:00Z',
+        },
+      ],
     }
+    const result = validateCredentialListResponse(input)
+    expect(result.credentials[0].display.logo).toEqual({
+      uri: 'https://issuer.example.eu/logo.png',
+      alt_text: 'Logo',
+    })
+  })
+
+  it('accepts credential list item with background image', () => {
+    const input = {
+      credentials: [
+        {
+          id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+          display: {
+            name: 'Credential with BG',
+            background_image: { uri: 'https://issuer.example.eu/bg.png' },
+          },
+          issued_at: '2026-04-08T14:35:00Z',
+        },
+      ],
+    }
+    const result = validateCredentialListResponse(input)
+    expect(result.credentials[0].display.background_image).toEqual({
+      uri: 'https://issuer.example.eu/bg.png',
+    })
   })
 
   it('throws ContractError when the response has no credentials field', () => {

@@ -5,18 +5,24 @@ vi.mock('../../auth/authService', () => ({
   getBearerToken: vi.fn(async () => 'mock.jwt.token'),
 }))
 
-const validCredential = {
+const validCredentialListItem = {
   id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
-  credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-  format: 'dc+sd-jwt',
-  issuer: 'https://issuer.example.eu',
-  status: 'active',
+  display: {
+    name: 'EU Personal ID',
+    description: 'Official EU personal identity document',
+    background_color: '#12107c',
+    text_color: '#ffffff',
+    logo: {
+      uri: 'https://issuer.example.eu/logo.png',
+      alt_text: 'EU PID Logo',
+    },
+    issuer_name: 'Example EU Identity Authority',
+    credential_type: 'eu.europa.ec.eudi.pid.1',
+  },
   issued_at: '2026-04-08T14:35:00Z',
-  expires_at: '2027-04-08T14:35:00Z',
-  claims: { given_name: 'Jane', family_name: 'Doe' },
 }
 
-const validListResponse = { credentials: [validCredential] }
+const validListResponse = { credentials: [validCredentialListItem] }
 const emptyListResponse = { credentials: [] }
 
 type MockResponse = {
@@ -88,6 +94,10 @@ describe('getCredentials — no filters', () => {
 
     expect(result.credentials).toHaveLength(1)
     expect(result.credentials[0].id).toBe('c3d4e5f6-7890-abcd-ef12-3456789abcde')
+    expect(result.credentials[0].display.name).toBe('EU Personal ID')
+    expect(result.credentials[0].display.issuer_name).toBe(
+      'Example EU Identity Authority'
+    )
   })
 
   it('returns empty credentials list when server responds with empty array', async () => {

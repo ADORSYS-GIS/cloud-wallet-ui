@@ -23,7 +23,19 @@ function makeJsonResponse(body: unknown, status = 200) {
   }
 }
 
-const validCredential = {
+const validCredentialListItem = {
+  id: 'cred-1',
+  display: {
+    name: 'EU Personal ID',
+    issuer_name: 'Example EU Identity Authority',
+    credential_type: 'eu.europa.ec.eudi.pid.1',
+  },
+  issued_at: '2026-04-08T14:35:00Z',
+}
+
+const validList = { credentials: [validCredentialListItem] }
+
+const validCredentialDetail = {
   id: 'cred-1',
   credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
   format: 'dc+sd-jwt',
@@ -33,8 +45,6 @@ const validCredential = {
   expires_at: null,
   claims: { given_name: 'Jane' },
 }
-
-const validList = { credentials: [validCredential] }
 
 describe('useCredentials — request deduplication', () => {
   beforeEach(() => {
@@ -152,7 +162,7 @@ describe('useCredentialDetail — request deduplication', () => {
   })
 
   it('sends exactly ONE request to /credentials/{id} on mount', async () => {
-    const fetchMock = vi.fn(async () => makeJsonResponse(validCredential))
+    const fetchMock = vi.fn(async () => makeJsonResponse(validCredentialDetail))
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentialDetail } = await import('../useCredentialDetail')
@@ -171,7 +181,7 @@ describe('useCredentialDetail — request deduplication', () => {
   })
 
   it('URL-encodes the credential id in the request path', async () => {
-    const fetchMock = vi.fn(async () => makeJsonResponse(validCredential))
+    const fetchMock = vi.fn(async () => makeJsonResponse(validCredentialDetail))
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentialDetail } = await import('../useCredentialDetail')
@@ -188,7 +198,7 @@ describe('useCredentialDetail — request deduplication', () => {
     const fetchMock = vi.fn(async (_url: unknown, init: unknown) => {
       capturedSignal = (init as RequestInit).signal as AbortSignal
       await new Promise(() => {})
-      return makeJsonResponse(validCredential)
+      return makeJsonResponse(validCredentialDetail)
     })
     vi.stubGlobal('fetch', fetchMock)
 
@@ -204,7 +214,7 @@ describe('useCredentialDetail — request deduplication', () => {
   })
 
   it('re-fetches when the id prop changes', async () => {
-    const fetchMock = vi.fn(async () => makeJsonResponse(validCredential))
+    const fetchMock = vi.fn(async () => makeJsonResponse(validCredentialDetail))
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentialDetail } = await import('../useCredentialDetail')
@@ -253,7 +263,7 @@ describe('useCredentialDetail — request deduplication', () => {
   })
 
   it('populates credential on successful response', async () => {
-    const fetchMock = vi.fn(async () => makeJsonResponse(validCredential))
+    const fetchMock = vi.fn(async () => makeJsonResponse(validCredentialDetail))
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentialDetail } = await import('../useCredentialDetail')
