@@ -22,22 +22,26 @@ function buildStartIssuanceBody(profile: IssuanceStartProfile) {
   const base = {
     session_id: E2E_SESSION_ID,
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-    issuer: {
-      credential_issuer: 'https://issuer.e2e.test',
-      display_name: 'E2E Issuer',
-      logo_uri: null,
-    },
+    credential_issuer: 'https://issuer.e2e.test',
+    issuer: [
+      {
+        name: 'E2E Issuer',
+        locale: 'en-US',
+      },
+    ],
     credential_types: [
       {
         credential_configuration_id: E2E_CREDENTIAL_CONFIGURATION_ID,
         format: 'dc+sd-jwt',
-        display: {
-          name: 'E2E PID',
-          description: 'Playwright fixture credential',
-          background_color: '#12107c',
-          text_color: '#ffffff',
-          logo: null,
-        },
+        display: [
+          {
+            name: 'E2E PID',
+            description: 'Playwright fixture credential',
+            background_color: '#12107c',
+            text_color: '#ffffff',
+            logo: null,
+          },
+        ],
       },
     ],
   }

@@ -31,6 +31,7 @@ import type {
   CredentialDisplay,
   CredentialTypeDisplay,
   IssuanceFlow,
+  IssuerDisplayEntry,
   IssuerSummary,
   SseCompletedEvent,
   SseEvent,
@@ -70,6 +71,16 @@ function requireStringOrNull(ctx: string, field: string, value: unknown): string
   if (value !== null && typeof value !== 'string')
     throw new ContractError(ctx, field, value)
   return value as string | null
+}
+
+function requireOptionalStringOrNull(
+  ctx: string,
+  field: string,
+  value: unknown
+): string | null | undefined {
+  if (value !== undefined && value !== null && typeof value !== 'string')
+    throw new ContractError(ctx, field, value)
+  return value as string | null | undefined
 }
 
 function requireBoolean(ctx: string, field: string, value: unknown): boolean {
@@ -120,18 +131,43 @@ const CONSENT_NEXT_ACTIONS: ConsentNextAction[] = [
   'rejected',
 ]
 
-function validateIssuerSummary(raw: unknown): IssuerSummary {
-  const ctx = 'IssuerSummary'
-  const obj = requireObject(ctx, 'issuer', raw)
-  return {
-    credential_issuer: requireString(ctx, 'credential_issuer', obj.credential_issuer),
-    display_name: requireStringOrNull(ctx, 'display_name', obj.display_name),
-    logo_uri: requireStringOrNull(ctx, 'logo_uri', obj.logo_uri),
+function validateIssuerDisplayEntry(raw: unknown, index: number): IssuerDisplayEntry {
+  const ctx = `IssuerDisplayEntry[${index}]`
+  const obj = requireObject(ctx, 'display entry', raw)
+
+  const entry: IssuerDisplayEntry = {}
+
+  if (obj.name !== undefined) {
+    entry.name = requireString(ctx, 'name', obj.name)
   }
+  if (obj.locale !== undefined) {
+    entry.locale = requireString(ctx, 'locale', obj.locale)
+  }
+  if (obj.description !== undefined) {
+    entry.description = requireString(ctx, 'description', obj.description)
+  }
+  if (obj.logo !== undefined && obj.logo !== null) {
+    const logoObj = requireObject(ctx, 'logo', obj.logo)
+    entry.logo = {
+      uri: requireString(ctx, 'logo.uri', logoObj.uri),
+    }
+    if (logoObj.alt_text !== undefined) {
+      entry.logo.alt_text = requireString(ctx, 'logo.alt_text', logoObj.alt_text)
+    }
+  }
+
+  return entry
 }
 
-function validateCredentialDisplay(raw: unknown): CredentialDisplay {
-  const ctx = 'CredentialDisplay'
+function validateIssuerSummary(raw: unknown): IssuerSummary {
+  const ctx = 'IssuerSummary'
+  // Per OpenAPI spec, issuer is directly the display array
+  const displayArray = requireArray(ctx, 'issuer', raw)
+  return displayArray.map((entry, index) => validateIssuerDisplayEntry(entry, index))
+}
+
+function validateCredentialDisplay(raw: unknown, index: number): CredentialDisplay {
+  const ctx = `CredentialDisplay[${index}]`
   const obj = requireObject(ctx, 'display', raw)
 
   const name = requireString(ctx, 'name', obj.name)
@@ -169,6 +205,8 @@ function validateCredentialTypeDisplay(
 ): CredentialTypeDisplay {
   const ctx = `CredentialTypeDisplay[${index}]`
   const obj = requireObject(ctx, 'credential_type', raw)
+  const rawDisplayArray = requireArray(ctx, 'display', obj.display)
+  if (rawDisplayArray.length === 0) throw new ContractError(ctx, 'display', rawDisplayArray)
   return {
     credential_configuration_id: requireString(
       ctx,
@@ -176,7 +214,7 @@ function validateCredentialTypeDisplay(
       obj.credential_configuration_id
     ),
     format: requireString(ctx, 'format', obj.format),
-    display: validateCredentialDisplay(obj.display),
+    display: rawDisplayArray.map((entry, i) => validateCredentialDisplay(entry, i)),
   }
 }
 
@@ -202,6 +240,10 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
 
   const session_id = requireString(ctx, 'session_id', obj.session_id)
   const expires_at = requireDateTimeString(ctx, 'expires_at', obj.expires_at)
+  // credential_issuer is optional - not present in current backend response
+  const credential_issuer = obj.credential_issuer !== undefined
+    ? requireString(ctx, 'credential_issuer', obj.credential_issuer)
+    : undefined
   const issuer = validateIssuerSummary(obj.issuer)
 
   const rawTypes = requireArray(ctx, 'credential_types', obj.credential_types)
@@ -222,6 +264,7 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
   return {
     session_id,
     expires_at,
+    credential_issuer,
     issuer,
     credential_types,
     flow: flow as IssuanceFlow,
@@ -275,7 +318,8 @@ export function validateCredentialRecord(raw: unknown): CredentialRecord {
   if (!CREDENTIAL_FORMATS.includes(format as CredentialFormat))
     throw new ContractError(ctx, 'format', format)
 
-  const claims = requireObject(ctx, 'claims', obj.claims)
+  // Handle case where backend sends null for claims - treat as empty object
+  const claims = obj.claims === null ? {} : requireObject(ctx, 'claims', obj.claims)
 
   return {
     id: requireString(ctx, 'id', obj.id),
@@ -288,7 +332,7 @@ export function validateCredentialRecord(raw: unknown): CredentialRecord {
     issuer: requireString(ctx, 'issuer', obj.issuer),
     status: status as CredentialStatus,
     issued_at: requireString(ctx, 'issued_at', obj.issued_at),
-    expires_at: requireStringOrNull(ctx, 'expires_at', obj.expires_at),
+    expires_at: requireOptionalStringOrNull(ctx, 'expires_at', obj.expires_at),
     claims,
   }
 }
@@ -481,3 +525,4 @@ export function parseValidatedSsePayload(
       return null
   }
 }
+

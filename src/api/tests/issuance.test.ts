@@ -48,22 +48,26 @@ function mockResponse(
 const minimalSession: StartIssuanceResponse = {
   session_id: 'ses_abc123',
   expires_at: '2026-04-08T14:35:00Z',
-  issuer: {
-    credential_issuer: 'https://issuer.example.eu',
-    display_name: 'Example Issuer',
-    logo_uri: null,
-  },
+  credential_issuer: 'https://issuer.example.eu',
+  issuer: [
+    {
+      name: 'Example Issuer',
+      locale: 'en-US',
+    },
+  ],
   credential_types: [
     {
       credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
       format: 'dc+sd-jwt',
-      display: {
-        name: 'EU Personal ID',
-        description: 'Official EU personal identity document',
-        background_color: '#12107c',
-        text_color: '#ffffff',
-        logo: null,
-      },
+      display: [
+        {
+          name: 'EU Personal ID',
+          description: 'Official EU personal identity document',
+          background_color: '#12107c',
+          text_color: '#ffffff',
+          logo: null,
+        },
+      ],
     },
   ],
   flow: 'authorization_code',

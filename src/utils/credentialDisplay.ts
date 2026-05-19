@@ -1,4 +1,5 @@
 import type { CredentialRecord } from '../types/credential'
+import type { CredentialDisplay, IssuerDisplayEntry } from '../types/issuance'
 
 /**
  * Returns the last non-empty path segment of a string, stripping trailing slashes.
@@ -38,4 +39,54 @@ export function issuerDisplayLabel(issuer: string): string {
   } catch {
     return issuer
   }
+}
+
+/**
+ * Resolves issuer display metadata from the structured display array.
+ *
+ * Per OID4VCI spec, the display array contains locale-specific entries.
+ * For v1, we use the first entry. When no display metadata is provided,
+ * we fall back to the credential_issuer hostname.
+ *
+ * @param display - The issuer display array from StartIssuanceResponse.issuer
+ * @param credentialIssuer - The credential_issuer URL for fallback (optional)
+ * @returns Object with resolved name and logoUri (null if no logo available)
+ */
+export function resolveIssuerDisplay(
+  display: IssuerDisplayEntry[],
+  credentialIssuer?: string
+): { name: string; logoUri: string | null; credentialIssuer: string } {
+  // Determine the credential issuer URL to use for fallbacks
+  // Per OpenAPI spec, when no display metadata is available, the backend
+  // returns a single entry with `name` set to the credential_issuer URL
+  const effectiveCredentialIssuer = credentialIssuer ?? display[0]?.name ?? 'Unknown Issuer'
+  const fallbackName = issuerDisplayLabel(effectiveCredentialIssuer)
+
+  // If display array is empty, use fallbacks
+  if (display.length === 0) {
+    return { name: fallbackName, logoUri: null, credentialIssuer: effectiveCredentialIssuer }
+  }
+
+  const entry = display[0]
+
+  // Use entry name if present, otherwise fall back to hostname
+  const name = entry.name ?? fallbackName
+
+  // Use logo URI if present, otherwise null
+  const logoUri = entry.logo?.uri ?? null
+
+  return { name, logoUri, credentialIssuer: effectiveCredentialIssuer }
+}
+
+/**
+ * Resolves the first display entry from the credential display array.
+ *
+ * Per OID4VCI spec, the display array contains locale-specific entries.
+ * For v1, we use the first entry.
+ *
+ * @param display - The credential display array from CredentialTypeDisplay.display
+ * @returns The first CredentialDisplay entry
+ */
+export function resolveCredentialDisplay(display: CredentialDisplay[]): CredentialDisplay {
+  return display[0]!
 }

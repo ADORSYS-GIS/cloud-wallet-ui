@@ -16,22 +16,31 @@ import type { CredentialRecord } from '../../types/credential'
 const validStartIssuanceResponse: StartIssuanceResponse = {
   session_id: 'ses_abc123',
   expires_at: '2026-04-08T14:35:00Z',
-  issuer: {
-    credential_issuer: 'https://issuer.example.eu',
-    display_name: 'Example Issuer',
-    logo_uri: null,
-  },
+  credential_issuer: 'https://issuer.example.eu',
+  issuer: [
+    {
+      name: 'Example Issuer',
+      locale: 'en-US',
+      logo: {
+        uri: 'https://issuer.example.eu/logo.png',
+        alt_text: 'Issuer logo',
+      },
+      description: 'An example issuer',
+    },
+  ],
   credential_types: [
     {
       credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
       format: 'dc+sd-jwt',
-      display: {
-        name: 'EU Personal ID',
-        description: 'Official EU personal identity document',
-        background_color: '#12107c',
-        text_color: '#ffffff',
-        logo: null,
-      },
+      display: [
+        {
+          name: 'EU Personal ID',
+          description: 'Official EU personal identity document',
+          background_color: '#12107c',
+          text_color: '#ffffff',
+          logo: null,
+        },
+      ],
     },
   ],
   flow: 'authorization_code',
@@ -67,16 +76,47 @@ describe('validateStartIssuanceResponse', () => {
     expect(result.tx_code?.length).toBe(6)
   })
 
-  it('accepts null logo_uri and null display_name on issuer', () => {
+  it('accepts empty display array on issuer', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      issuer: [],
+    }
+    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+  })
+
+  it('accepts display entry without optional fields', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      issuer: [{ name: 'Minimal Issuer' }],
+    }
+    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+  })
+
+  it('accepts display entry with only logo', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      issuer: [
+        {
+          logo: {
+            uri: 'https://issuer.example.eu/logo.png',
+            alt_text: 'Issuer logo',
+          },
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+  })
+
+  it('throws ContractError when issuer is not an array', () => {
     const input = {
       ...validStartIssuanceResponse,
       issuer: {
         credential_issuer: 'https://issuer.example.eu',
-        display_name: null,
+        display_name: 'Example Issuer',
         logo_uri: null,
       },
     }
-    expect(() => validateStartIssuanceResponse(input)).not.toThrow()
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
   })
 
   it('throws ContractError when session_id is missing', () => {
@@ -137,17 +177,6 @@ describe('validateStartIssuanceResponse', () => {
     expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
   })
 
-  it('throws ContractError when issuer.display_name is neither string nor null', () => {
-    const input = {
-      ...validStartIssuanceResponse,
-      issuer: {
-        ...validStartIssuanceResponse.issuer,
-        display_name: 42,
-      },
-    }
-    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
-  })
-
   it('throws ContractError when tx_code.length is not number|null', () => {
     const input = {
       ...validStartIssuanceResponse,
@@ -180,7 +209,7 @@ describe('validateStartIssuanceResponse', () => {
       credential_types: [
         {
           ...validStartIssuanceResponse.credential_types[0],
-          display: { name: 'Only Name' },
+          display: [{ name: 'Only Name' }],
         },
       ],
     }
@@ -193,10 +222,12 @@ describe('validateStartIssuanceResponse', () => {
       credential_types: [
         {
           ...validStartIssuanceResponse.credential_types[0],
-          display: {
-            name: 'EU Personal ID',
-            logo: { uri: 'https://issuer.example.eu/logo.svg' },
-          },
+          display: [
+            {
+              name: 'EU Personal ID',
+              logo: { uri: 'https://issuer.example.eu/logo.svg' },
+            },
+          ],
         },
       ],
     }
@@ -209,13 +240,15 @@ describe('validateStartIssuanceResponse', () => {
       credential_types: [
         {
           ...validStartIssuanceResponse.credential_types[0],
-          display: {
-            name: 'EU Personal ID',
-            logo: {
-              uri: 'https://issuer.example.eu/logo.svg',
-              alt_text: 'Issuer mark',
+          display: [
+            {
+              name: 'EU Personal ID',
+              logo: {
+                uri: 'https://issuer.example.eu/logo.svg',
+                alt_text: 'Issuer mark',
+              },
             },
-          },
+          ],
         },
       ],
     }
@@ -241,6 +274,12 @@ describe('validateCredentialRecord', () => {
     const input = { ...validCredentialRecord, expires_at: null }
     const result = validateCredentialRecord(input)
     expect(result.expires_at).toBeNull()
+  })
+
+  it('accepts a record with undefined expires_at (field omitted)', () => {
+    const { expires_at: _, ...rest } = validCredentialRecord
+    const result = validateCredentialRecord(rest)
+    expect(result.expires_at).toBeUndefined()
   })
 
   it('accepts a record with additional claim properties', () => {
@@ -272,9 +311,10 @@ describe('validateCredentialRecord', () => {
     expect(() => validateCredentialRecord(input)).toThrow(ContractError)
   })
 
-  it('throws ContractError when claims is null', () => {
+  it('accepts null claims and converts to empty object', () => {
     const input = { ...validCredentialRecord, claims: null }
-    expect(() => validateCredentialRecord(input)).toThrow(ContractError)
+    const result = validateCredentialRecord(input)
+    expect(result.claims).toEqual({})
   })
 
   it('throws ContractError when the response is not an object', () => {

@@ -1,8 +1,15 @@
-export type IssuerSummary = {
-  credential_issuer: string
-  display_name: string | null
-  logo_uri: string | null
+export type IssuerDisplayEntry = {
+  name?: string
+  locale?: string
+  logo?: {
+    uri: string
+    alt_text?: string
+  }
+  description?: string
 }
+
+// IssuerSummary is directly the display array per OpenAPI spec
+export type IssuerSummary = IssuerDisplayEntry[]
 
 export type CredentialLogo = {
   uri: string
@@ -20,7 +27,7 @@ export type CredentialDisplay = {
 export type CredentialTypeDisplay = {
   credential_configuration_id: string
   format: string
-  display: CredentialDisplay
+  display: CredentialDisplay[]
 }
 
 export type TxCodeSpec = {
@@ -34,6 +41,7 @@ export type IssuanceFlow = 'authorization_code' | 'pre_authorized_code'
 export type StartIssuanceResponse = {
   session_id: string
   expires_at: string
+  credential_issuer?: string
   issuer: IssuerSummary
   credential_types: CredentialTypeDisplay[]
   flow: IssuanceFlow
