@@ -9,7 +9,7 @@ import {
   markCredentialRemoved,
 } from '../../state/deletedCredentials'
 import { CredentialsPage } from '../CredentialsPage'
-import type { CredentialRecord } from '../../types/credential'
+import type { CredentialListItem } from '../../types/credential'
 
 vi.mock('../../hooks/useCredentials', () => ({
   useCredentials: vi.fn(),
@@ -17,16 +17,17 @@ vi.mock('../../hooks/useCredentials', () => ({
 
 const mockedUseCredentials = vi.mocked(useCredentials)
 
-function makeCredential(overrides: Partial<CredentialRecord> = {}): CredentialRecord {
+function makeCredential(overrides: Partial<CredentialListItem> = {}): CredentialListItem {
   return {
     id: 'cred-1',
-    credential_configuration_id: 'https://credentials.example.com/identity/mDL',
-    format: 'dc+sd-jwt',
-    issuer: 'https://issuer.example.com',
-    status: 'active',
+    display: {
+      name: 'mDL',
+      description: 'Mobile Driver License',
+      issuer_name: 'issuer.example.com',
+      credential_type: 'https://credentials.example.com/identity/mDL',
+      logo: null,
+    },
     issued_at: '2026-04-08T14:35:00Z',
-    expires_at: null,
-    claims: { given_name: 'Jane', family_name: 'Doe' },
     ...overrides,
   }
 }
@@ -98,14 +99,17 @@ describe('CredentialsPage', () => {
     expect(screen.getByText('Scan page')).toBeDefined()
   })
 
-  it('renders credentials list using the last segment of credential_configuration_id as title', () => {
+  it('renders credentials list using display name and issuer_name from API', () => {
     mockedUseCredentials.mockReturnValue({
       loading: false,
       credentials: [
         makeCredential({
           id: 'cred-1',
-          credential_configuration_id: 'https://credentials.example.com/identity/mDL',
-          issuer: 'https://issuer.example.com',
+          display: {
+            name: 'Mobile Driver License',
+            issuer_name: 'issuer.example.com',
+            credential_type: 'https://credentials.example.com/identity/mDL',
+          },
         }),
       ],
     })
@@ -119,18 +123,21 @@ describe('CredentialsPage', () => {
     )
 
     expect(screen.queryByText('Your wallet is empty.')).toBeNull()
-    expect(screen.getByRole('button', { name: /mDL/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /Mobile Driver License/i })).toBeDefined()
     expect(screen.getByText('issuer.example.com')).toBeDefined()
   })
 
-  it('renders a dot-notation credential_configuration_id in full when there are no path segments', () => {
+  it('renders credential using display name from API response', () => {
     mockedUseCredentials.mockReturnValue({
       loading: false,
       credentials: [
         makeCredential({
           id: 'cred-2',
-          credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-          issuer: 'https://issuer.example.eu',
+          display: {
+            name: 'EU Personal ID',
+            issuer_name: 'Example EU Identity Authority',
+            credential_type: 'eu.europa.ec.eudi.pid.1',
+          },
         }),
       ],
     })
@@ -143,9 +150,7 @@ describe('CredentialsPage', () => {
       </MemoryRouter>
     )
 
-    expect(
-      screen.getByRole('button', { name: /eu\.europa\.ec\.eudi\.pid\.1/i })
-    ).toBeDefined()
+    expect(screen.getByRole('button', { name: /EU Personal ID/i })).toBeDefined()
   })
 
   it('navigates to credential details when a credential card is tapped', () => {
@@ -154,7 +159,9 @@ describe('CredentialsPage', () => {
       credentials: [
         makeCredential({
           id: 'cred-1',
-          credential_configuration_id: 'https://credentials.example.com/identity/mDL',
+          display: {
+            name: 'Mobile Driver License',
+          },
         }),
       ],
     })
@@ -171,7 +178,7 @@ describe('CredentialsPage', () => {
       </MemoryRouter>
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /mDL/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Mobile Driver License/i }))
 
     expect(screen.getByText('Credential details view')).toBeDefined()
   })
@@ -239,7 +246,10 @@ describe('CredentialsPage', () => {
         makeCredential({ id: 'cred-1' }),
         makeCredential({
           id: 'cred-2',
-          credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
+          display: {
+            name: 'EU Personal ID',
+            credential_type: 'eu.europa.ec.eudi.pid.1',
+          },
         }),
       ],
     })
@@ -253,8 +263,6 @@ describe('CredentialsPage', () => {
     )
 
     expect(screen.queryByRole('button', { name: /mDL/i })).toBeNull()
-    expect(
-      screen.getByRole('button', { name: /eu\.europa\.ec\.eudi\.pid\.1/i })
-    ).toBeDefined()
+    expect(screen.getByRole('button', { name: /EU Personal ID/i })).toBeDefined()
   })
 })

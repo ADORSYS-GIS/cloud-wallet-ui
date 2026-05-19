@@ -2,16 +2,18 @@ import { useEffect, useState } from 'react'
 import { getApiBaseUrl } from '../utils/env'
 import { getBearerToken } from '../auth/authService'
 import { validateCredentialListResponse } from '../api/validation'
-import type { CredentialRecord } from '../types/credential'
+import { useCredentialsCache } from '../state/credentialsCache.state'
+import type { CredentialListItem } from '../types/credential'
 
 type CredentialsState = {
-  credentials: CredentialRecord[]
+  credentials: CredentialListItem[]
   loading: boolean
 }
 
 export function useCredentials(): CredentialsState {
-  const [credentials, setCredentials] = useState<CredentialRecord[]>([])
+  const [credentials, setCredentials] = useState<CredentialListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const { setCredentials: cacheCredentials } = useCredentialsCache()
 
   useEffect(() => {
     const controller = new AbortController()
@@ -39,6 +41,8 @@ export function useCredentials(): CredentialsState {
 
         const data = validateCredentialListResponse(raw)
         setCredentials(data.credentials)
+        // Cache credentials with display metadata for reuse on detail page
+        cacheCredentials(data.credentials)
       } catch {
         if (signal.aborted) return
         setCredentials([])
@@ -52,7 +56,7 @@ export function useCredentials(): CredentialsState {
     return () => {
       controller.abort()
     }
-  }, [])
+  }, [cacheCredentials])
 
   return { credentials, loading }
 }

@@ -9,12 +9,14 @@ type CredentialOfferState = {
   status: CredentialOfferStatus
   /** Populated once the backend confirms the offer (status === 'success'). */
   offer?: StartIssuanceResponse
+  /** The credential_issuer URL from the original credential offer (for display purposes). */
+  credentialIssuerUrl?: string
   /** Populated when the backend returns an error (status === 'error'). */
   error?: IssuanceApiError
   /** Human-readable message derived from the error, suitable for display. */
   errorMessage?: string
   setLoading: () => void
-  setOffer: (offer: StartIssuanceResponse) => void
+  setOffer: (offer: StartIssuanceResponse, credentialIssuerUrl?: string) => void
   setError: (error: IssuanceApiError, message: string) => void
   clear: () => void
 }
@@ -24,25 +26,31 @@ const CredentialOfferContext = createContext<CredentialOfferState | null>(null)
 export function CredentialOfferProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<CredentialOfferStatus>('idle')
   const [offer, setOfferState] = useState<StartIssuanceResponse | undefined>(undefined)
+  const [credentialIssuerUrl, setCredentialIssuerUrl] = useState<string | undefined>(
+    undefined
+  )
   const [error, setErrorState] = useState<IssuanceApiError | undefined>(undefined)
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
 
   const setLoading = useCallback(() => {
     setOfferState(undefined)
+    setCredentialIssuerUrl(undefined)
     setErrorState(undefined)
     setErrorMessage(undefined)
     setStatus('loading')
   }, [])
 
-  const setOffer = useCallback((next: StartIssuanceResponse) => {
+  const setOffer = useCallback((next: StartIssuanceResponse, issuerUrl?: string) => {
     setErrorState(undefined)
     setErrorMessage(undefined)
     setOfferState(next)
+    setCredentialIssuerUrl(issuerUrl)
     setStatus('success')
   }, [])
 
   const setError = useCallback((next: IssuanceApiError, message: string) => {
     setOfferState(undefined)
+    setCredentialIssuerUrl(undefined)
     setErrorState(next)
     setErrorMessage(message)
     setStatus('error')
@@ -50,6 +58,7 @@ export function CredentialOfferProvider({ children }: { children: React.ReactNod
 
   const clear = useCallback(() => {
     setOfferState(undefined)
+    setCredentialIssuerUrl(undefined)
     setErrorState(undefined)
     setErrorMessage(undefined)
     setStatus('idle')
@@ -59,6 +68,7 @@ export function CredentialOfferProvider({ children }: { children: React.ReactNod
     () => ({
       status,
       offer,
+      credentialIssuerUrl,
       error,
       errorMessage,
       setLoading,
@@ -66,7 +76,17 @@ export function CredentialOfferProvider({ children }: { children: React.ReactNod
       setError,
       clear,
     }),
-    [clear, error, errorMessage, offer, setError, setLoading, setOffer, status]
+    [
+      clear,
+      credentialIssuerUrl,
+      error,
+      errorMessage,
+      offer,
+      setError,
+      setLoading,
+      setOffer,
+      status,
+    ]
   )
 
   return (

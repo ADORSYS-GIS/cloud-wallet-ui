@@ -21,9 +21,14 @@
 
 import type {
   CredentialListResponse,
+  CredentialListItem,
   CredentialRecord,
   CredentialStatus,
   CredentialFormat,
+  Logo,
+  BackgroundImage,
+  CredentialListItemDisplay,
+  CredentialRecordDisplay,
 } from '../types/credential'
 import type {
   ConsentNextAction,
@@ -31,6 +36,7 @@ import type {
   CredentialDisplay,
   CredentialTypeDisplay,
   IssuanceFlow,
+  IssuerDisplayEntry,
   IssuerSummary,
   SseCompletedEvent,
   SseEvent,
@@ -70,6 +76,16 @@ function requireStringOrNull(ctx: string, field: string, value: unknown): string
   if (value !== null && typeof value !== 'string')
     throw new ContractError(ctx, field, value)
   return value as string | null
+}
+
+function requireOptionalStringOrNull(
+  ctx: string,
+  field: string,
+  value: unknown
+): string | null | undefined {
+  if (value !== undefined && value !== null && typeof value !== 'string')
+    throw new ContractError(ctx, field, value)
+  return value as string | null | undefined
 }
 
 function requireBoolean(ctx: string, field: string, value: unknown): boolean {
@@ -120,18 +136,43 @@ const CONSENT_NEXT_ACTIONS: ConsentNextAction[] = [
   'rejected',
 ]
 
-function validateIssuerSummary(raw: unknown): IssuerSummary {
-  const ctx = 'IssuerSummary'
-  const obj = requireObject(ctx, 'issuer', raw)
-  return {
-    credential_issuer: requireString(ctx, 'credential_issuer', obj.credential_issuer),
-    display_name: requireStringOrNull(ctx, 'display_name', obj.display_name),
-    logo_uri: requireStringOrNull(ctx, 'logo_uri', obj.logo_uri),
+function validateIssuerDisplayEntry(raw: unknown, index: number): IssuerDisplayEntry {
+  const ctx = `IssuerDisplayEntry[${index}]`
+  const obj = requireObject(ctx, 'display entry', raw)
+
+  const entry: IssuerDisplayEntry = {}
+
+  if (obj.name !== undefined) {
+    entry.name = requireString(ctx, 'name', obj.name)
   }
+  if (obj.locale !== undefined) {
+    entry.locale = requireString(ctx, 'locale', obj.locale)
+  }
+  if (obj.description !== undefined) {
+    entry.description = requireString(ctx, 'description', obj.description)
+  }
+  if (obj.logo !== undefined && obj.logo !== null) {
+    const logoObj = requireObject(ctx, 'logo', obj.logo)
+    entry.logo = {
+      uri: requireString(ctx, 'logo.uri', logoObj.uri),
+    }
+    if (logoObj.alt_text !== undefined) {
+      entry.logo.alt_text = requireString(ctx, 'logo.alt_text', logoObj.alt_text)
+    }
+  }
+
+  return entry
 }
 
-function validateCredentialDisplay(raw: unknown): CredentialDisplay {
-  const ctx = 'CredentialDisplay'
+function validateIssuerSummary(raw: unknown): IssuerSummary {
+  const ctx = 'IssuerSummary'
+  // Per OpenAPI spec, issuer is directly the display array
+  const displayArray = requireArray(ctx, 'issuer', raw)
+  return displayArray.map((entry, index) => validateIssuerDisplayEntry(entry, index))
+}
+
+function validateCredentialDisplay(raw: unknown, index: number): CredentialDisplay {
+  const ctx = `CredentialDisplay[${index}]`
   const obj = requireObject(ctx, 'display', raw)
 
   const name = requireString(ctx, 'name', obj.name)
@@ -160,7 +201,15 @@ function validateCredentialDisplay(raw: unknown): CredentialDisplay {
     logo = null
   }
 
-  return { name, description, background_color, text_color, logo }
+  let background_image: CredentialDisplay['background_image'] = undefined
+  if (obj.background_image !== undefined && obj.background_image !== null) {
+    const bgObj = requireObject(ctx, 'background_image', obj.background_image)
+    background_image = {
+      uri: requireString(ctx, 'background_image.uri', bgObj.uri),
+    }
+  }
+
+  return { name, description, background_color, text_color, logo, background_image }
 }
 
 function validateCredentialTypeDisplay(
@@ -169,6 +218,9 @@ function validateCredentialTypeDisplay(
 ): CredentialTypeDisplay {
   const ctx = `CredentialTypeDisplay[${index}]`
   const obj = requireObject(ctx, 'credential_type', raw)
+  const rawDisplayArray = requireArray(ctx, 'display', obj.display)
+  if (rawDisplayArray.length === 0)
+    throw new ContractError(ctx, 'display', rawDisplayArray)
   return {
     credential_configuration_id: requireString(
       ctx,
@@ -176,7 +228,7 @@ function validateCredentialTypeDisplay(
       obj.credential_configuration_id
     ),
     format: requireString(ctx, 'format', obj.format),
-    display: validateCredentialDisplay(obj.display),
+    display: rawDisplayArray.map((entry, i) => validateCredentialDisplay(entry, i)),
   }
 }
 
@@ -202,6 +254,11 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
 
   const session_id = requireString(ctx, 'session_id', obj.session_id)
   const expires_at = requireDateTimeString(ctx, 'expires_at', obj.expires_at)
+  // credential_issuer is optional - not present in current backend response
+  const credential_issuer =
+    obj.credential_issuer !== undefined
+      ? requireString(ctx, 'credential_issuer', obj.credential_issuer)
+      : undefined
   const issuer = validateIssuerSummary(obj.issuer)
 
   const rawTypes = requireArray(ctx, 'credential_types', obj.credential_types)
@@ -222,6 +279,7 @@ export function validateStartIssuanceResponse(raw: unknown): StartIssuanceRespon
   return {
     session_id,
     expires_at,
+    credential_issuer,
     issuer,
     credential_types,
     flow: flow as IssuanceFlow,
@@ -263,6 +321,52 @@ export function validateTxCodeResponse(raw: unknown): TxCodeResponse {
   }
 }
 
+function validateCredentialRecordDisplay(
+  ctx: string,
+  raw: unknown
+): CredentialRecordDisplay {
+  const obj = requireObject(ctx, 'display', raw)
+
+  const display: CredentialRecordDisplay = {}
+
+  if (obj.name !== undefined) {
+    display.name = requireString(ctx, 'display.name', obj.name)
+  }
+  if (obj.description !== undefined) {
+    display.description = requireString(ctx, 'display.description', obj.description)
+  }
+  if (obj.background_color !== undefined) {
+    display.background_color = requireString(
+      ctx,
+      'display.background_color',
+      obj.background_color
+    )
+  }
+  if (obj.background_image !== undefined && obj.background_image !== null) {
+    display.background_image = validateBackgroundImage(ctx, obj.background_image)
+  }
+  if (obj.text_color !== undefined) {
+    display.text_color = requireString(ctx, 'display.text_color', obj.text_color)
+  }
+  if (obj.logo !== undefined && obj.logo !== null) {
+    display.logo = validateLogo(ctx, obj.logo)
+  } else if (obj.logo === null) {
+    display.logo = null
+  }
+  if (obj.issuer_name !== undefined) {
+    display.issuer_name = requireString(ctx, 'display.issuer_name', obj.issuer_name)
+  }
+  if (obj.credential_type !== undefined) {
+    display.credential_type = requireString(
+      ctx,
+      'display.credential_type',
+      obj.credential_type
+    )
+  }
+
+  return display
+}
+
 export function validateCredentialRecord(raw: unknown): CredentialRecord {
   const ctx = 'CredentialRecord'
   const obj = requireObject(ctx, 'response', raw)
@@ -275,9 +379,10 @@ export function validateCredentialRecord(raw: unknown): CredentialRecord {
   if (!CREDENTIAL_FORMATS.includes(format as CredentialFormat))
     throw new ContractError(ctx, 'format', format)
 
-  const claims = requireObject(ctx, 'claims', obj.claims)
+  // Handle case where backend sends null for claims - treat as empty object
+  const claims = obj.claims === null ? {} : requireObject(ctx, 'claims', obj.claims)
 
-  return {
+  const record: CredentialRecord = {
     id: requireString(ctx, 'id', obj.id),
     credential_configuration_id: requireString(
       ctx,
@@ -288,8 +393,88 @@ export function validateCredentialRecord(raw: unknown): CredentialRecord {
     issuer: requireString(ctx, 'issuer', obj.issuer),
     status: status as CredentialStatus,
     issued_at: requireString(ctx, 'issued_at', obj.issued_at),
-    expires_at: requireStringOrNull(ctx, 'expires_at', obj.expires_at),
+    expires_at: requireOptionalStringOrNull(ctx, 'expires_at', obj.expires_at),
     claims,
+  }
+
+  // Optional display metadata for UI rendering
+  if (obj.display !== undefined) {
+    record.display = validateCredentialRecordDisplay(ctx, obj.display)
+  }
+
+  return record
+}
+
+function validateLogo(ctx: string, raw: unknown): Logo {
+  const obj = requireObject(ctx, 'logo', raw)
+  const logo: Logo = {
+    uri: requireString(ctx, 'logo.uri', obj.uri),
+  }
+  if (obj.alt_text !== undefined) {
+    logo.alt_text = requireString(ctx, 'logo.alt_text', obj.alt_text)
+  }
+  return logo
+}
+
+function validateBackgroundImage(ctx: string, raw: unknown): BackgroundImage {
+  const obj = requireObject(ctx, 'background_image', raw)
+  return {
+    uri: requireString(ctx, 'background_image.uri', obj.uri),
+  }
+}
+
+function validateCredentialListItemDisplay(
+  ctx: string,
+  raw: unknown
+): CredentialListItemDisplay {
+  const obj = requireObject(ctx, 'display', raw)
+
+  const display: CredentialListItemDisplay = {
+    name: requireString(ctx, 'display.name', obj.name),
+    logo: null,
+  }
+
+  if (obj.description !== undefined) {
+    display.description = requireString(ctx, 'display.description', obj.description)
+  }
+  if (obj.background_color !== undefined) {
+    display.background_color = requireString(
+      ctx,
+      'display.background_color',
+      obj.background_color
+    )
+  }
+  if (obj.background_image !== undefined && obj.background_image !== null) {
+    display.background_image = validateBackgroundImage(ctx, obj.background_image)
+  }
+  if (obj.text_color !== undefined) {
+    display.text_color = requireString(ctx, 'display.text_color', obj.text_color)
+  }
+  if (obj.logo !== undefined && obj.logo !== null) {
+    display.logo = validateLogo(ctx, obj.logo)
+  }
+  if (obj.issuer_name !== undefined) {
+    display.issuer_name = requireString(ctx, 'display.issuer_name', obj.issuer_name)
+  }
+  if (obj.credential_type !== undefined) {
+    display.credential_type = requireString(
+      ctx,
+      'display.credential_type',
+      obj.credential_type
+    )
+  }
+
+  return display
+}
+
+function validateCredentialListItem(raw: unknown, index: number): CredentialListItem {
+  const ctx = `CredentialListItem[${index}]`
+  const obj = requireObject(ctx, 'credential', raw)
+
+  return {
+    id: requireString(ctx, 'id', obj.id),
+    display: validateCredentialListItemDisplay(ctx, obj.display),
+    issued_at: requireString(ctx, 'issued_at', obj.issued_at),
   }
 }
 
@@ -300,7 +485,7 @@ export function validateCredentialListResponse(raw: unknown): CredentialListResp
   return {
     credentials: rawCreds.map((c, i) => {
       try {
-        return validateCredentialRecord(c)
+        return validateCredentialListItem(c, i)
       } catch (err) {
         throw new Error(
           `[ContractError] credentials[${i}]: ${err instanceof Error ? err.message : String(err)}`
