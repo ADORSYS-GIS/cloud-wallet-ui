@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { CredentialsCacheProvider } from '../../state/credentialsCache.state'
 
 const MOCK_TOKEN = 'mock.bearer.jwt'
 
@@ -62,7 +63,9 @@ describe('useCredentials — request deduplication', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentials } = await import('../useCredentials')
-    const { result } = renderHook(() => useCredentials())
+    const { result } = renderHook(() => useCredentials(), {
+      wrapper: CredentialsCacheProvider,
+    })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -81,7 +84,9 @@ describe('useCredentials — request deduplication', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentials } = await import('../useCredentials')
-    const { result } = renderHook(() => useCredentials())
+    const { result } = renderHook(() => useCredentials(), {
+      wrapper: CredentialsCacheProvider,
+    })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -100,7 +105,9 @@ describe('useCredentials — request deduplication', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentials } = await import('../useCredentials')
-    const { unmount } = renderHook(() => useCredentials())
+    const { unmount } = renderHook(() => useCredentials(), {
+      wrapper: CredentialsCacheProvider,
+    })
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     expect(capturedSignal!.aborted).toBe(false)
@@ -115,7 +122,9 @@ describe('useCredentials — request deduplication', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentials } = await import('../useCredentials')
-    const { result } = renderHook(() => useCredentials())
+    const { result } = renderHook(() => useCredentials(), {
+      wrapper: CredentialsCacheProvider,
+    })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -128,7 +137,9 @@ describe('useCredentials — request deduplication', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentials } = await import('../useCredentials')
-    const { result } = renderHook(() => useCredentials())
+    const { result } = renderHook(() => useCredentials(), {
+      wrapper: CredentialsCacheProvider,
+    })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
@@ -141,7 +152,9 @@ describe('useCredentials — request deduplication', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { useCredentials } = await import('../useCredentials')
-    const { result } = renderHook(() => useCredentials())
+    const { result } = renderHook(() => useCredentials(), {
+      wrapper: CredentialsCacheProvider,
+    })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 

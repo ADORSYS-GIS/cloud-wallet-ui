@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { routes } from '../../constants/routes'
 import { CredentialDetailPage } from '../CredentialDetailPage'
 import { useCredentialDetail } from '../../hooks/useCredentialDetail'
+import { CredentialsCacheProvider } from '../../state/credentialsCache.state'
 import type { CredentialRecord } from '../../types/credential'
 
 vi.mock('../../hooks/useCredentialDetail', () => ({
@@ -125,14 +126,16 @@ describe('CredentialDetailPage', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/credentials/cred-1']}>
-        <Routes>
-          <Route
-            path={`${routes.credentials}/:credentialId`}
-            element={<CredentialDetailPage />}
-          />
-        </Routes>
-      </MemoryRouter>
+      <CredentialsCacheProvider>
+        <MemoryRouter initialEntries={['/credentials/cred-1']}>
+          <Routes>
+            <Route
+              path={`${routes.credentials}/:credentialId`}
+              element={<CredentialDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </CredentialsCacheProvider>
     )
 
     // Initially hidden
@@ -162,14 +165,16 @@ describe('CredentialDetailPage', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/credentials/cred-1']}>
-        <Routes>
-          <Route
-            path={`${routes.credentials}/:credentialId`}
-            element={<CredentialDetailPage />}
-          />
-        </Routes>
-      </MemoryRouter>
+      <CredentialsCacheProvider>
+        <MemoryRouter initialEntries={['/credentials/cred-1']}>
+          <Routes>
+            <Route
+              path={`${routes.credentials}/:credentialId`}
+              element={<CredentialDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </CredentialsCacheProvider>
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Show Address' }))
@@ -184,14 +189,16 @@ describe('CredentialDetailPage', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/credentials/cred-1']}>
-        <Routes>
-          <Route
-            path={`${routes.credentials}/:credentialId`}
-            element={<CredentialDetailPage />}
-          />
-        </Routes>
-      </MemoryRouter>
+      <CredentialsCacheProvider>
+        <MemoryRouter initialEntries={['/credentials/cred-1']}>
+          <Routes>
+            <Route
+              path={`${routes.credentials}/:credentialId`}
+              element={<CredentialDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </CredentialsCacheProvider>
     )
 
     expect(screen.getByText('No details available for this credential.')).toBeDefined()
@@ -205,14 +212,16 @@ describe('CredentialDetailPage', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/credentials/cred-1']}>
-        <Routes>
-          <Route
-            path={`${routes.credentials}/:credentialId`}
-            element={<CredentialDetailPage />}
-          />
-        </Routes>
-      </MemoryRouter>
+      <CredentialsCacheProvider>
+        <MemoryRouter initialEntries={['/credentials/cred-1']}>
+          <Routes>
+            <Route
+              path={`${routes.credentials}/:credentialId`}
+              element={<CredentialDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </CredentialsCacheProvider>
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Show Middle Name' }))
@@ -227,15 +236,17 @@ describe('CredentialDetailPage', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/credentials/cred-1']}>
-        <Routes>
-          <Route
-            path={`${routes.credentials}/:credentialId`}
-            element={<CredentialDetailPage />}
-          />
-          <Route path={routes.credentials} element={<div>Credentials list</div>} />
-        </Routes>
-      </MemoryRouter>
+      <CredentialsCacheProvider>
+        <MemoryRouter initialEntries={['/credentials/cred-1']}>
+          <Routes>
+            <Route
+              path={`${routes.credentials}/:credentialId`}
+              element={<CredentialDetailPage />}
+            />
+            <Route path={routes.credentials} element={<div>Credentials list</div>} />
+          </Routes>
+        </MemoryRouter>
+      </CredentialsCacheProvider>
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to credentials' }))
@@ -250,18 +261,20 @@ describe('CredentialDetailPage', () => {
     })
 
     render(
-      <MemoryRouter initialEntries={['/credentials/cred-1']}>
-        <Routes>
-          <Route
-            path={`${routes.credentials}/:credentialId`}
-            element={<CredentialDetailPage />}
-          />
-          <Route
-            path={`${routes.credentials}/:credentialId/remove`}
-            element={<div>Remove credential page</div>}
-          />
-        </Routes>
-      </MemoryRouter>
+      <CredentialsCacheProvider>
+        <MemoryRouter initialEntries={['/credentials/cred-1']}>
+          <Routes>
+            <Route
+              path={`${routes.credentials}/:credentialId`}
+              element={<CredentialDetailPage />}
+            />
+            <Route
+              path={`${routes.credentials}/:credentialId/remove`}
+              element={<div>Remove credential page</div>}
+            />
+          </Routes>
+        </MemoryRouter>
+      </CredentialsCacheProvider>
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove Credential' }))
