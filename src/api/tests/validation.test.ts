@@ -277,7 +277,8 @@ describe('validateCredentialRecord', () => {
   })
 
   it('accepts a record with undefined expires_at (field omitted)', () => {
-    const { expires_at: _, ...rest } = validCredentialRecord
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { expires_at: _expiresAt, ...rest } = validCredentialRecord
     const result = validateCredentialRecord(rest)
     expect(result.expires_at).toBeUndefined()
   })
