@@ -21,9 +21,14 @@
 
 import type {
   CredentialListResponse,
+  CredentialListItem,
   CredentialRecord,
   CredentialStatus,
   CredentialFormat,
+  Logo,
+  BackgroundImage,
+  CredentialListItemDisplay,
+  CredentialRecordDisplay,
 } from '../types/credential'
 import type {
   ConsentNextAction,
@@ -196,7 +201,15 @@ function validateCredentialDisplay(raw: unknown, index: number): CredentialDispl
     logo = null
   }
 
-  return { name, description, background_color, text_color, logo }
+  let background_image: CredentialDisplay['background_image'] = undefined
+  if (obj.background_image !== undefined && obj.background_image !== null) {
+    const bgObj = requireObject(ctx, 'background_image', obj.background_image)
+    background_image = {
+      uri: requireString(ctx, 'background_image.uri', bgObj.uri),
+    }
+  }
+
+  return { name, description, background_color, text_color, logo, background_image }
 }
 
 function validateCredentialTypeDisplay(
@@ -308,6 +321,52 @@ export function validateTxCodeResponse(raw: unknown): TxCodeResponse {
   }
 }
 
+function validateCredentialRecordDisplay(
+  ctx: string,
+  raw: unknown
+): CredentialRecordDisplay {
+  const obj = requireObject(ctx, 'display', raw)
+
+  const display: CredentialRecordDisplay = {}
+
+  if (obj.name !== undefined) {
+    display.name = requireString(ctx, 'display.name', obj.name)
+  }
+  if (obj.description !== undefined) {
+    display.description = requireString(ctx, 'display.description', obj.description)
+  }
+  if (obj.background_color !== undefined) {
+    display.background_color = requireString(
+      ctx,
+      'display.background_color',
+      obj.background_color
+    )
+  }
+  if (obj.background_image !== undefined && obj.background_image !== null) {
+    display.background_image = validateBackgroundImage(ctx, obj.background_image)
+  }
+  if (obj.text_color !== undefined) {
+    display.text_color = requireString(ctx, 'display.text_color', obj.text_color)
+  }
+  if (obj.logo !== undefined && obj.logo !== null) {
+    display.logo = validateLogo(ctx, obj.logo)
+  } else if (obj.logo === null) {
+    display.logo = null
+  }
+  if (obj.issuer_name !== undefined) {
+    display.issuer_name = requireString(ctx, 'display.issuer_name', obj.issuer_name)
+  }
+  if (obj.credential_type !== undefined) {
+    display.credential_type = requireString(
+      ctx,
+      'display.credential_type',
+      obj.credential_type
+    )
+  }
+
+  return display
+}
+
 export function validateCredentialRecord(raw: unknown): CredentialRecord {
   const ctx = 'CredentialRecord'
   const obj = requireObject(ctx, 'response', raw)
@@ -323,7 +382,7 @@ export function validateCredentialRecord(raw: unknown): CredentialRecord {
   // Handle case where backend sends null for claims - treat as empty object
   const claims = obj.claims === null ? {} : requireObject(ctx, 'claims', obj.claims)
 
-  return {
+  const record: CredentialRecord = {
     id: requireString(ctx, 'id', obj.id),
     credential_configuration_id: requireString(
       ctx,
@@ -337,6 +396,86 @@ export function validateCredentialRecord(raw: unknown): CredentialRecord {
     expires_at: requireOptionalStringOrNull(ctx, 'expires_at', obj.expires_at),
     claims,
   }
+
+  // Optional display metadata for UI rendering
+  if (obj.display !== undefined) {
+    record.display = validateCredentialRecordDisplay(ctx, obj.display)
+  }
+
+  return record
+}
+
+function validateLogo(ctx: string, raw: unknown): Logo {
+  const obj = requireObject(ctx, 'logo', raw)
+  const logo: Logo = {
+    uri: requireString(ctx, 'logo.uri', obj.uri),
+  }
+  if (obj.alt_text !== undefined) {
+    logo.alt_text = requireString(ctx, 'logo.alt_text', obj.alt_text)
+  }
+  return logo
+}
+
+function validateBackgroundImage(ctx: string, raw: unknown): BackgroundImage {
+  const obj = requireObject(ctx, 'background_image', raw)
+  return {
+    uri: requireString(ctx, 'background_image.uri', obj.uri),
+  }
+}
+
+function validateCredentialListItemDisplay(
+  ctx: string,
+  raw: unknown
+): CredentialListItemDisplay {
+  const obj = requireObject(ctx, 'display', raw)
+
+  const display: CredentialListItemDisplay = {
+    name: requireString(ctx, 'display.name', obj.name),
+    logo: null,
+  }
+
+  if (obj.description !== undefined) {
+    display.description = requireString(ctx, 'display.description', obj.description)
+  }
+  if (obj.background_color !== undefined) {
+    display.background_color = requireString(
+      ctx,
+      'display.background_color',
+      obj.background_color
+    )
+  }
+  if (obj.background_image !== undefined && obj.background_image !== null) {
+    display.background_image = validateBackgroundImage(ctx, obj.background_image)
+  }
+  if (obj.text_color !== undefined) {
+    display.text_color = requireString(ctx, 'display.text_color', obj.text_color)
+  }
+  if (obj.logo !== undefined && obj.logo !== null) {
+    display.logo = validateLogo(ctx, obj.logo)
+  }
+  if (obj.issuer_name !== undefined) {
+    display.issuer_name = requireString(ctx, 'display.issuer_name', obj.issuer_name)
+  }
+  if (obj.credential_type !== undefined) {
+    display.credential_type = requireString(
+      ctx,
+      'display.credential_type',
+      obj.credential_type
+    )
+  }
+
+  return display
+}
+
+function validateCredentialListItem(raw: unknown, index: number): CredentialListItem {
+  const ctx = `CredentialListItem[${index}]`
+  const obj = requireObject(ctx, 'credential', raw)
+
+  return {
+    id: requireString(ctx, 'id', obj.id),
+    display: validateCredentialListItemDisplay(ctx, obj.display),
+    issued_at: requireString(ctx, 'issued_at', obj.issued_at),
+  }
 }
 
 export function validateCredentialListResponse(raw: unknown): CredentialListResponse {
@@ -346,7 +485,7 @@ export function validateCredentialListResponse(raw: unknown): CredentialListResp
   return {
     credentials: rawCreds.map((c, i) => {
       try {
-        return validateCredentialRecord(c)
+        return validateCredentialListItem(c, i)
       } catch (err) {
         throw new Error(
           `[ContractError] credentials[${i}]: ${err instanceof Error ? err.message : String(err)}`

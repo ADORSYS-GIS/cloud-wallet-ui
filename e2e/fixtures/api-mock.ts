@@ -265,7 +265,23 @@ export async function installIssuanceApiMock(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ credentials: [] }),
+        body: JSON.stringify({
+          credentials: [
+            {
+              id: E2E_ISSUED_CREDENTIAL_ID,
+              display: {
+                name: 'E2E PID',
+                description: 'Playwright fixture credential for E2E testing',
+                background_color: '#12107c',
+                text_color: '#ffffff',
+                logo: null,
+                issuer_name: 'E2E Test Issuer',
+                credential_type: E2E_CREDENTIAL_CONFIGURATION_ID,
+              },
+              issued_at: new Date().toISOString(),
+            },
+          ],
+        }),
       })
       return
     }
@@ -285,6 +301,15 @@ export async function installIssuanceApiMock(
           issued_at: new Date().toISOString(),
           expires_at: null,
           claims: { given_name: 'E2E' },
+          display: {
+            name: 'E2E PID',
+            description: 'Playwright fixture credential for E2E testing',
+            background_color: '#12107c',
+            text_color: '#ffffff',
+            logo: null,
+            issuer_name: 'E2E Test Issuer',
+            credential_type: E2E_CREDENTIAL_CONFIGURATION_ID,
+          },
         }),
       })
       return

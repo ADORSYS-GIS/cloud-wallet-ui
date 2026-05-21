@@ -16,10 +16,15 @@ export type CredentialLogo = {
   alt_text: string
 }
 
+export type CredentialBackgroundImage = {
+  uri: string
+}
+
 export type CredentialDisplay = {
   name: string
   description?: string
   background_color?: string
+  background_image?: CredentialBackgroundImage
   text_color?: string
   logo?: CredentialLogo | null
 }

@@ -13,9 +13,11 @@ const mockNavigate = vi.fn()
 
 const mockOfferState: {
   offer?: StartIssuanceResponse
+  credentialIssuerUrl?: string
   clear: () => void
 } = {
   offer: undefined,
+  credentialIssuerUrl: undefined,
   clear: vi.fn(),
 }
 
@@ -567,6 +569,7 @@ describe('CredentialTypeDetailsPage', () => {
       credential_issuer: 'https://issuer-host.example.org',
       issuer: [],
     })
+    mockOfferState.credentialIssuerUrl = 'https://issuer-host.example.org'
     renderPage()
     expect(screen.getByText('issuer-host.example.org')).toBeTruthy()
   })
@@ -584,6 +587,7 @@ describe('CredentialTypeDetailsPage', () => {
         },
       ],
     })
+    mockOfferState.credentialIssuerUrl = 'https://issuer-host.example.org'
     renderPage()
     expect(screen.getByText('issuer-host.example.org')).toBeTruthy()
   })

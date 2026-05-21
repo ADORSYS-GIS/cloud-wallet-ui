@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Header } from '../components/Header'
-import { IssuerAvatar } from '../components/issuance/IssuerAvater'
+import { CredentialDisplayCard } from '../components/credentials/CredentialDisplayCard'
 import { PageContainer } from '../components/layout/PageContainer'
 import { credentialRemovePath, routes } from '../constants/routes'
 import { useCredentialDetail } from '../hooks/useCredentialDetail'
+import { useCredentialsCache } from '../state/credentialsCache.state'
 import type { CredentialRecord } from '../types/credential'
-import { credentialDisplayName, issuerDisplayLabel } from '../utils/credentialDisplay'
 
 function claimValueString(value: unknown): string {
   if (value === null || value === undefined) return '—'
@@ -127,26 +127,28 @@ function ClaimsSection({ claims }: ClaimsSectionProps) {
 
 type CredentialHeaderCardProps = {
   credential: CredentialRecord
+  credentialId: string
 }
 
-function CredentialHeaderCard({ credential }: CredentialHeaderCardProps) {
-  const title = credentialDisplayName(credential)
-  const issuer = issuerDisplayLabel(credential.issuer)
-  const avatarDisplayName = issuer
+function CredentialHeaderCard({ credential, credentialId }: CredentialHeaderCardProps) {
+  const { getCredential } = useCredentialsCache()
+
+  // Try to get cached display metadata from the credentials list
+  const cachedCredential = getCredential(credentialId)
+
+  // Use cached display if available, otherwise fall back to API response
+  const display = credential.display ?? cachedCredential?.display ?? {}
+  const fallbackTitle = credential.credential_configuration_id
+  const fallbackIssuer = credential.issuer
 
   return (
-    <div className="mx-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:scale-[1.01] hover:shadow-md hover:border-[#4b7c8c]/30 hover:bg-[#e6f4e6] active:scale-[0.98]">
-      <div className="flex items-center gap-4 px-5 py-12">
-        <IssuerAvatar displayName={avatarDisplayName} logoUri={null} size="md" />
-        <div className="min-w-0">
-          <p className="truncate text-base font-semibold tracking-tight text-slate-900">
-            {title}
-          </p>
-          <p className="mt-0.5 truncate text-[14px] leading-relaxed text-slate-500">
-            {issuer}
-          </p>
-        </div>
-      </div>
+    <div className="mx-4">
+      <CredentialDisplayCard
+        display={display}
+        fallbackTitle={fallbackTitle}
+        fallbackIssuer={fallbackIssuer}
+        className="transition-all duration-200 hover:scale-[1.01] hover:shadow-md active:scale-[0.98] hover:bg-[#e6f4e6]"
+      />
     </div>
   )
 }
@@ -197,20 +199,26 @@ function CredentialDetailBody({ credentialId }: { credentialId: string }) {
         )}
 
         {!loading && !error && credential && (
-          <CredentialDetailContent credential={credential} />
+          <CredentialDetailContent credential={credential} credentialId={credentialId} />
         )}
       </div>
     </PageContainer>
   )
 }
 
-function CredentialDetailContent({ credential }: { credential: CredentialRecord }) {
+function CredentialDetailContent({
+  credential,
+  credentialId,
+}: {
+  credential: CredentialRecord
+  credentialId: string
+}) {
   const navigate = useNavigate()
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 bg-[#E9ECEF] py-4">
-        <CredentialHeaderCard credential={credential} />
+        <CredentialHeaderCard credential={credential} credentialId={credentialId} />
       </div>
       <section
         className="min-h-0 flex-1 overflow-y-auto bg-white"

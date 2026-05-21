@@ -125,7 +125,7 @@ test.describe('Error handling', () => {
 })
 
 test.describe('Credential storage integration', () => {
-  test('can open issued credential from success screen', async ({ page }) => {
+  test('can view issued credential from credentials list', async ({ page }) => {
     await installIssuanceApiMock(page, { startProfile: 'pre_no_tx' })
     await completeRegistration(page)
     await openScanFromHome(page)
@@ -136,7 +136,12 @@ test.describe('Credential storage integration', () => {
       page.getByRole('heading', { name: 'Credential added to your wallet' })
     ).toBeVisible({ timeout: 25_000 })
 
-    await page.getByRole('button', { name: 'View Credential' }).click()
+    // Click Done to go to credentials list
+    await page.getByRole('button', { name: 'Done' }).click()
+    await expect(page.getByText('Your Credentials')).toBeVisible()
+
+    // Click on the credential card to view details
+    await page.getByText('E2E PID').click()
     await expect(page.getByText('Credential Details')).toBeVisible()
     await page.getByRole('button', { name: 'Show All' }).click()
     await expect(page.getByText('E2E', { exact: true })).toBeVisible()

@@ -74,8 +74,9 @@ export function resolveIssuerDisplay(
 
   const entry = display[0]
 
-  // Use entry name if present, otherwise fall back to hostname
-  const name = entry.name ?? fallbackName
+  // When credentialIssuer URL is provided, use hostname from URL (matches other wallet behavior)
+  // Otherwise fall back to entry name or hostname from display name
+  const name = credentialIssuer ? fallbackName : (entry.name ?? fallbackName)
 
   // Use logo URI if present, otherwise null
   const logoUri = entry.logo?.uri ?? null

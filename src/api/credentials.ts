@@ -70,7 +70,10 @@ function buildQueryString(filters: CredentialFilters): string {
  * Fetch all credentials for the authenticated tenant.
  *
  * Spec: GET /credentials
- * Response: CredentialListResponse (200) → { credentials: CredentialRecord[] }
+ * Response: CredentialListResponse (200) → { credentials: CredentialListItem[] }
+ *
+ * Returns lightweight credential display metadata optimized for UI rendering.
+ * Full credential details (claims, format, status) available via getCredentialById().
  *
  * @param filters - Optional query-parameter filters. All fields are optional;
  *                  omitting the argument (or passing `{}`) fetches all

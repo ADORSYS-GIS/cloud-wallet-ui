@@ -74,7 +74,7 @@ describe('issuerDisplayLabel', () => {
 describe('resolveIssuerDisplay', () => {
   const defaultCredentialIssuer = 'https://issuer.example.com'
 
-  it('uses name and logo from the first display entry', () => {
+  it('uses hostname from credentialIssuer and logo from the first display entry', () => {
     const display: IssuerDisplayEntry[] = [
       {
         name: 'Example Issuer',
@@ -84,7 +84,8 @@ describe('resolveIssuerDisplay', () => {
       },
     ]
     const result = resolveIssuerDisplay(display, defaultCredentialIssuer)
-    expect(result.name).toBe('Example Issuer')
+    // When credentialIssuer is provided, hostname takes precedence over display name
+    expect(result.name).toBe('issuer.example.com')
     expect(result.logoUri).toBe('https://issuer.example.com/logo.png')
   })
 
@@ -108,26 +109,37 @@ describe('resolveIssuerDisplay', () => {
     expect(result.logoUri).toBeNull()
   })
 
-  it('returns null logoUri when first entry has no logo', () => {
+  it('uses hostname from credentialIssuer when provided, ignoring display name', () => {
     const display: IssuerDisplayEntry[] = [{ name: 'Example Issuer', locale: 'en-US' }]
     const result = resolveIssuerDisplay(display, defaultCredentialIssuer)
-    expect(result.name).toBe('Example Issuer')
+    // When credentialIssuer is provided, hostname takes precedence over display name
+    expect(result.name).toBe('issuer.example.com')
     expect(result.logoUri).toBeNull()
   })
 
-  it('handles entry with only optional fields missing', () => {
+  it('uses hostname from credentialIssuer when display entry has only name', () => {
     const display: IssuerDisplayEntry[] = [{ name: 'Minimal Issuer' }]
     const result = resolveIssuerDisplay(display, defaultCredentialIssuer)
-    expect(result.name).toBe('Minimal Issuer')
+    // When credentialIssuer is provided, hostname takes precedence over display name
+    expect(result.name).toBe('issuer.example.com')
     expect(result.logoUri).toBeNull()
   })
 
-  it('uses first entry when multiple display entries exist', () => {
+  it('uses hostname from credentialIssuer when multiple display entries exist', () => {
     const display: IssuerDisplayEntry[] = [
       { name: 'First Entry', locale: 'en-US' },
       { name: 'Second Entry', locale: 'de-DE' },
     ]
     const result = resolveIssuerDisplay(display, defaultCredentialIssuer)
-    expect(result.name).toBe('First Entry')
+    // When credentialIssuer is provided, hostname takes precedence over display names
+    expect(result.name).toBe('issuer.example.com')
+  })
+
+  it('uses display name when credentialIssuer is not provided', () => {
+    const display: IssuerDisplayEntry[] = [{ name: 'Example Issuer', locale: 'en-US' }]
+    const result = resolveIssuerDisplay(display, undefined)
+    // When no credentialIssuer, use display name
+    expect(result.name).toBe('Example Issuer')
+    expect(result.logoUri).toBeNull()
   })
 })
