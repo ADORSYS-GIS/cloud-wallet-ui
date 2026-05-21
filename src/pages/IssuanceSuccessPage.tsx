@@ -1,17 +1,8 @@
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { PageContainer } from '../components/layout/PageContainer'
-import { credentialDetailPath, routes } from '../constants/routes'
+import { routes } from '../constants/routes'
 import checkCirclePrimary from '../assets/check-circle-primary.png'
 import illuWallet from '../assets/illu-wallet.png'
-
-type SuccessLocationState = {
-  credentialId?: string
-}
-
-function normalizeCredentialId(value: string | null | undefined): string | undefined {
-  const trimmed = value?.trim()
-  return trimmed ? trimmed : undefined
-}
 
 function SuccessIllustration() {
   return (
@@ -39,22 +30,6 @@ function SuccessIllustration() {
 
 export function IssuanceSuccessPage() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const [searchParams] = useSearchParams()
-  const { credentialId: credentialIdParam } = useParams<{ credentialId?: string }>()
-
-  const locationState = location.state as SuccessLocationState | null
-  const resolvedCredentialId = normalizeCredentialId(
-    credentialIdParam ?? searchParams.get('credentialId') ?? locationState?.credentialId
-  )
-
-  const viewCredential = () => {
-    if (resolvedCredentialId) {
-      navigate(credentialDetailPath(resolvedCredentialId))
-      return
-    }
-    navigate(routes.credentials)
-  }
 
   return (
     <PageContainer fullWidth>
@@ -75,15 +50,8 @@ export function IssuanceSuccessPage() {
         <div className="px-2 pb-2.5">
           <button
             type="button"
-            onClick={viewCredential}
-            className="h-9 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            View Credential
-          </button>
-          <button
-            type="button"
             onClick={() => navigate(routes.credentials)}
-            className="mt-1 h-9 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-9 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
           >
             Done
           </button>

@@ -24,7 +24,7 @@ export function IssuerAvatar({ displayName, logoUri, size = 'md' }: IssuerAvatar
       <img
         src={logoUri}
         alt={`${displayName} logo`}
-        className={`${sizeClass} shrink-0 rounded-full object-contain ring-1 ring-slate-200`}
+        className={`${sizeClass} shrink-0 object-contain`}
         onError={() => setImgFailed(true)}
       />
     )
@@ -32,7 +32,7 @@ export function IssuerAvatar({ displayName, logoUri, size = 'md' }: IssuerAvatar
 
   return (
     <div
-      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-[#4b7c8c] font-bold text-white ring-1 ring-slate-200`}
+      className={`${sizeClass} flex shrink-0 items-center justify-center rounded bg-[#4b7c8c] font-bold text-white`}
       aria-hidden
     >
       {initials}

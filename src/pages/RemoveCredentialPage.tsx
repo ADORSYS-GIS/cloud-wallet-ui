@@ -6,6 +6,7 @@ import { RemoveCredentialAccordion } from '../components/credentials/RemoveCrede
 import { PageErrorBanner } from '../components/feedback/PageErrorBanner'
 import { PageContainer } from '../components/layout/PageContainer'
 import { credentialDetailPath, routes } from '../constants/routes'
+import { useCredentialDetail } from '../hooks/useCredentialDetail'
 import { markCredentialRemoved } from '../state/deletedCredentials'
 import { credentialDeleteErrorMessage } from '../utils/credentialDeleteErrors'
 
@@ -37,6 +38,7 @@ function BulletList({ items }: { items: readonly string[] }) {
 export function RemoveCredentialPage() {
   const { credentialId } = useParams<{ credentialId: string }>()
   const navigate = useNavigate()
+  const { credential } = useCredentialDetail(credentialId ?? '')
   const [deleting, setDeleting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -54,7 +56,9 @@ export function RemoveCredentialPage() {
 
     try {
       await deleteCredential(credentialId)
-      markCredentialRemoved(credentialId)
+      // Get credential name from display metadata or fallback to configuration ID
+      const credentialName = credential?.display?.name ?? credential?.credential_configuration_id ?? 'Unknown'
+      markCredentialRemoved(credentialId, credentialName)
       navigate(routes.credentials, { replace: true })
     } catch (error: unknown) {
       setErrorMessage(credentialDeleteErrorMessage(error))

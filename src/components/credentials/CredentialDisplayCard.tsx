@@ -2,6 +2,7 @@ import { IssuerAvatar } from '../issuance/IssuerAvater'
 
 type CredentialDisplay = {
   name?: string
+  description?: string
   issuer_name?: string
   background_color?: string
   background_image?: { uri?: string } | null
@@ -23,6 +24,7 @@ export function CredentialDisplayCard({
   className = '',
 }: CredentialDisplayCardProps) {
   const title = display.name ?? fallbackTitle
+  const description = display.description
   const issuer = display.issuer_name ?? fallbackIssuer
   const logoUri = display.logo?.uri ?? null
 
@@ -53,7 +55,7 @@ export function CredentialDisplayCard({
       className={`overflow-hidden rounded-2xl border border-slate-200/50 shadow-[0_2px_12px_rgba(0,0,0,0.06)] ${!backgroundColor && !backgroundImage ? 'bg-white' : ''} ${className}`}
       style={cardStyle}
     >
-      <div className="flex items-center gap-4 px-5 py-12">
+      <div className="flex flex-col gap-3 px-5 py-5">
         <IssuerAvatar displayName={issuer} logoUri={logoUri} size="md" />
         <div className="min-w-0">
           <p
@@ -68,6 +70,14 @@ export function CredentialDisplayCard({
           >
             {issuer}
           </p>
+          {description && (
+            <p
+              className={`mt-0.5 text-[13px] leading-relaxed ${subTextColorClass}`}
+              style={textColor ? { color: textColor, opacity: 0.7 } : undefined}
+            >
+              {description}
+            </p>
+          )}
         </div>
       </div>
     </div>

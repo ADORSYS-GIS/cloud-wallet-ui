@@ -239,7 +239,7 @@ describe('CredentialsPage', () => {
   })
 
   it('hides credential marked as removed in session without refetching', () => {
-    markCredentialRemoved('cred-1')
+    markCredentialRemoved('cred-1', 'Test Credential')
     mockedUseCredentials.mockReturnValue({
       loading: false,
       credentials: [

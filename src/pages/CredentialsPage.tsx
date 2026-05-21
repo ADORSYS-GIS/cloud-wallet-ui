@@ -1,25 +1,45 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Footer } from '../components/Footer'
 import { Header } from '../components/Header'
 import { CredentialSummaryCard } from '../components/credentials/CredentialSummaryCard'
 import { CredentialsEmptyState } from '../components/credentials/CredentialsEmptyState'
+import { DeleteSuccessBanner } from '../components/credentials/DeleteSuccessBanner'
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { useCredentials } from '../hooks/useCredentials'
-import { isCredentialRemoved } from '../state/deletedCredentials'
+import { isCredentialRemoved, getAllRemovedCredentials, clearRemovedCredential } from '../state/deletedCredentials'
 
 export function CredentialsPage() {
   const navigate = useNavigate()
   const { credentials, loading } = useCredentials()
+  const [deletedCredential, setDeletedCredential] = useState<{ id: string; name: string } | null>(null)
 
-  const visibleCredentials = useMemo(
-    () => credentials.filter((credential) => !isCredentialRemoved(credential.id)),
-    [credentials]
-  )
+  const visibleCredentials = useMemo(() => {
+    const removed = getAllRemovedCredentials()
+    // Show banner for the most recently deleted credential
+    if (removed.length > 0 && !deletedCredential) {
+      const mostRecent = removed[removed.length - 1]
+      setDeletedCredential(mostRecent)
+    }
+    return credentials.filter((credential) => !isCredentialRemoved(credential.id))
+  }, [credentials, deletedCredential])
+
+  const handleDismissBanner = () => {
+    if (deletedCredential) {
+      clearRemovedCredential(deletedCredential.id)
+      setDeletedCredential(null)
+    }
+  }
 
   return (
     <PageContainer>
+      {deletedCredential && (
+        <DeleteSuccessBanner
+          credentialName={deletedCredential.name}
+          onDismiss={handleDismissBanner}
+        />
+      )}
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
         <Header
           title="Your Credentials"
