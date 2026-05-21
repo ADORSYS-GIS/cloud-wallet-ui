@@ -6,6 +6,7 @@ import { PageContainer } from '../components/layout/PageContainer'
 import { credentialTypeDetailsPath, routes } from '../constants/routes'
 import { useCredentialOfferState } from '../state/issuance.state'
 import type { CredentialTypeDisplay } from '../types/issuance'
+import { resolveIssuerDisplay } from '../utils/credentialDisplay'
 
 type CredentialTypeCardProps = {
   credentialType: CredentialTypeDisplay
@@ -30,7 +31,7 @@ function CredentialTypeCard({
         <IssuerAvatar displayName={issuerName} logoUri={issuerLogoUri} size="md" />
         <div className="min-w-0">
           <p className="truncate text-base font-semibold tracking-tight text-slate-900">
-            {credentialType.display.name}
+            {credentialType.display[0]!.name}
           </p>
           <p className="mt-0.5 truncate text-[14px] leading-relaxed text-slate-500">
             {issuerName}
@@ -61,7 +62,7 @@ export function CredentialTypesPage() {
   if (!offerState.offer) return null
   const { issuer, credential_types } = offerState.offer
 
-  const issuerName = issuer.display_name ?? new URL(issuer.credential_issuer).host
+  const issuerDisplay = resolveIssuerDisplay(issuer, offerState.offer.credential_issuer)
 
   return (
     <PageContainer fullWidth>
@@ -87,8 +88,8 @@ export function CredentialTypesPage() {
               <li key={ct.credential_configuration_id}>
                 <CredentialTypeCard
                   credentialType={ct}
-                  issuerName={issuerName}
-                  issuerLogoUri={issuer.logo_uri}
+                  issuerName={issuerDisplay.name}
+                  issuerLogoUri={issuerDisplay.logoUri}
                   onClick={(id) => navigate(credentialTypeDetailsPath(id))}
                 />
               </li>

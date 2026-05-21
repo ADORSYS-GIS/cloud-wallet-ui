@@ -34,21 +34,27 @@ function baseOffer(
   return {
     session_id: 'ses_test',
     expires_at: '2026-04-08T14:35:00Z',
-    issuer: {
-      credential_issuer: 'https://issuer.example.org',
-      display_name: 'Keycloak-demo',
-      logo_uri: 'https://issuer.example.org/logo.png',
-    },
+    credential_issuer: 'https://issuer.example.org',
+    issuer: [
+      {
+        name: 'Keycloak-demo',
+        locale: 'en-US',
+        logo: {
+          uri: 'https://issuer.example.org/logo.png',
+          alt_text: 'Issuer logo',
+        },
+      },
+    ],
     credential_types: [
       {
         credential_configuration_id: 'pid',
         format: 'dc+sd-jwt',
-        display: { name: 'Personal ID' },
+        display: [{ name: 'Personal ID' }],
       },
       {
         credential_configuration_id: 'address',
         format: 'dc+sd-jwt',
-        display: { name: 'Address Credential' },
+        display: [{ name: 'Address Credential' }],
       },
     ],
     flow: 'pre_authorized_code',
@@ -113,13 +119,10 @@ describe('CredentialTypesPage', () => {
     expect(screen.getAllByText('Keycloak-demo').length).toBeGreaterThan(0)
   })
 
-  it('falls back to hostname (not raw URL) when display_name is null', () => {
+  it('falls back to hostname when display array is empty', () => {
     mockOfferState.offer = baseOffer({
-      issuer: {
-        credential_issuer: 'https://fallback.example.org',
-        display_name: null,
-        logo_uri: null,
-      },
+      credential_issuer: 'https://fallback.example.org',
+      issuer: [],
     })
     renderPage()
     expect(screen.getAllByText('fallback.example.org').length).toBeGreaterThan(0)
@@ -135,18 +138,15 @@ describe('CredentialTypesPage', () => {
     expect(logos[0]?.getAttribute('src')).toBe('https://issuer.example.org/logo.png')
   })
 
-  it('shows initials placeholder when logo_uri is null', () => {
+  it('shows initials placeholder when display entry has no logo', () => {
     mockOfferState.offer = baseOffer({
-      issuer: {
-        credential_issuer: 'https://issuer.example.org',
-        display_name: 'My Issuer',
-        logo_uri: null,
-      },
+      credential_issuer: 'https://issuer.example.org',
+      issuer: [{ name: 'My Issuer', locale: 'en-US' }],
       credential_types: [
         {
           credential_configuration_id: 'a',
           format: 'dc+sd-jwt',
-          display: { name: 'Type A' },
+          display: [{ name: 'Type A' }],
         },
       ],
     })
@@ -157,16 +157,22 @@ describe('CredentialTypesPage', () => {
 
   it('swaps logo to initials placeholder when logo URL is present but image fails to load', async () => {
     mockOfferState.offer = baseOffer({
-      issuer: {
-        credential_issuer: 'https://issuer.example.org',
-        display_name: 'Keycloak-demo',
-        logo_uri: 'https://issuer.example.org/broken.png',
-      },
+      credential_issuer: 'https://issuer.example.org',
+      issuer: [
+        {
+          name: 'Keycloak-demo',
+          locale: 'en-US',
+          logo: {
+            uri: 'https://issuer.example.org/broken.png',
+            alt_text: 'Issuer logo',
+          },
+        },
+      ],
       credential_types: [
         {
           credential_configuration_id: 'pid',
           format: 'dc+sd-jwt',
-          display: { name: 'Personal ID' },
+          display: [{ name: 'Personal ID' }],
         },
       ],
     })

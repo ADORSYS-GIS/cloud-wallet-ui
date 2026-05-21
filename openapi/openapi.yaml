@@ -27,7 +27,13 @@ servers:
 security:
   - BearerAuth: []
 
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
 paths:
+  # -------------------------------------------------------------------------
+  # 1. Tenant Registration
+  # -------------------------------------------------------------------------
   /tenants:
     post:
       operationId: registerTenant
@@ -65,6 +71,9 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # -------------------------------------------------------------------------
+  # 2. Start Issuance Session
+  # -------------------------------------------------------------------------
   /issuance/start:
     post:
       operationId: startIssuanceSession
@@ -106,20 +115,22 @@ paths:
                     session_id: ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni
                     expires_at: '2026-04-08T14:35:00Z'
                     issuer:
-                      credential_issuer: https://issuer.example.eu
-                      display_name: Example EU Identity Authority
-                      logo_uri: null
+                      - name: Example EU Identity Authority
+                        locale: en-US
+                        logo:
+                          uri: https://issuer.example.eu/assets/logo.svg
+                          alt_text: Example Issuer Logo
                     credential_types:
                       - credential_configuration_id: eu.europa.ec.eudi.pid.1
                         format: vc+sd-jwt
                         display:
-                          name: EU Personal ID
-                          description: Official EU personal identity document
-                          background_color: '#12107c'
-                          text_color: '#ffffff'
-                          logo:
-                            uri: https://issuer.example.eu/assets/pid-logo.svg
-                            alt_text: EU PID Logo
+                          - name: EU Personal ID
+                            description: Official EU personal identity document
+                            background_color: '#12107c'
+                            text_color: '#ffffff'
+                            logo:
+                              uri: https://issuer.example.eu/assets/pid-logo.svg
+                              alt_text: EU PID Logo
                     flow: authorization_code
                     tx_code_required: false
                     tx_code: null
@@ -129,18 +140,16 @@ paths:
                     session_id: ses_9aKpR1xWqNmLvYcZbTsE4dBfUhOo2Gj
                     expires_at: '2026-04-08T14:35:00Z'
                     issuer:
-                      credential_issuer: https://issuer.example.eu
-                      display_name: Example EU Identity Authority
-                      logo_uri: null
+                      - name: Example EU Identity Authority
+                        locale: en-US
                     credential_types:
                       - credential_configuration_id: eu.europa.ec.eudi.lpid.1
                         format: vc+sd-jwt
                         display:
-                          name: EU Legal Person ID
-                          description: Official EU legal entity identity credential
-                          background_color: '#1a4f2e'
-                          text_color: '#ffffff'
-                          logo: null
+                          - name: EU Legal Person ID
+                            description: Official EU legal entity identity credential
+                            background_color: '#1a4f2e'
+                            text_color: '#ffffff'
                     flow: pre_authorized_code
                     tx_code_required: true
                     tx_code:
@@ -174,6 +183,9 @@ paths:
                     error: auth_server_metadata_fetch_failed
                     error_description: Could not reach the authorization server metadata endpoint.
 
+  # -------------------------------------------------------------------------
+  # 3. Submit Consent
+  # -------------------------------------------------------------------------
   /issuance/{session_id}/consent:
     post:
       operationId: submitConsent
@@ -272,6 +284,9 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # -------------------------------------------------------------------------
+  # 4. SSE — Real-Time Session Updates
+  # -------------------------------------------------------------------------
   /issuance/{session_id}/events:
     get:
       operationId: streamSessionEvents
@@ -356,6 +371,9 @@ paths:
                 error: session_not_found
                 error_description: No active session found for the given session_id.
 
+  # -------------------------------------------------------------------------
+  # 5. Authorization Callback
+  # -------------------------------------------------------------------------
   /issuance/callback:
     get:
       operationId: authorizationCallback
@@ -371,19 +389,17 @@ paths:
 
         **On success:**
         1. Validate `state` → recover session.
-        2. Exchange `code` for token (back-channel, with PKCE `code_verifier`).
-        3. Request credential(s) from the issuer's credential endpoint.
-        4. Store credential(s) and mark session `completed`.
-        5. Push `completed` SSE event.
-        6. Redirect to `<app_deep_link>?session_id=<session_id>&result=success`.
+        2. Mark the session `processing`.
+        3. Enqueue background issuance using the authorization code and PKCE
+           `code_verifier`.
+        4. Return `200 OK`. Completion or failure is reported through
+           the session's SSE stream.
 
         **On error (AS returns `error`):**
         1. Validate `state` → recover session.
-        2. Mark session `failed`; push `failed` SSE event (`step: "authorization"`).
-        3. Redirect to `<app_deep_link>?session_id=<session_id>&result=error&error=<error_code>`.
-
-        The `app_deep_link` scheme is configured per deployment and is out of
-        scope for this specification.
+        2. Push a `failed` SSE event (`step: "authorization"`).
+        3. Remove the session.
+        4. Return `200 OK`.
       security: [] # Authenticated via `state` parameter — no bearer token
       tags:
         - Issuance
@@ -417,24 +433,15 @@ paths:
           schema:
             type: string
       responses:
-        '302':
+        '200':
           description: |
-            Redirect to the frontend's registered deep link URI.
-            - Success: `<app_deep_link>?session_id=<id>&result=success`
-            - Error:   `<app_deep_link>?session_id=<id>&result=error&error=<code>`
-          headers:
-            Location:
-              required: true
-              schema:
-                type: string
-                format: uri
-              examples:
-                success:
-                  value: 'wallet://issuance/callback?session_id=ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni&result=success'
-                error:
-                  value: 'wallet://issuance/callback?session_id=ses_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni&result=error&error=access_denied'
+            Callback accepted. The response body is empty; clients observe
+            issuance progress through the session's SSE stream.
         '400':
-          description: Missing or invalid `state` parameter.
+          description: |
+            Missing or invalid `state` parameter. This includes unknown,
+            expired, or non-`awaiting_authorization` sessions; these all return
+            `400` to avoid leaking session existence to unauthenticated callers.
           content:
             application/json:
               schema:
@@ -442,16 +449,10 @@ paths:
               example:
                 error: invalid_request
                 error_description: Missing required `state` query parameter.
-        '404':
-          description: No active session found matching the given `state`.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error: session_not_found
-                error_description: No active session found for the given state value.
 
+  # -------------------------------------------------------------------------
+  # 6. Submit Transaction Code
+  # -------------------------------------------------------------------------
   /issuance/{session_id}/tx-code:
     post:
       operationId: submitTransactionCode
@@ -524,6 +525,9 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # -------------------------------------------------------------------------
+  # 7. Cancel Session
+  # -------------------------------------------------------------------------
   /issuance/{session_id}/cancel:
     post:
       operationId: cancelSession
@@ -571,6 +575,9 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # -------------------------------------------------------------------------
+  # 8. List Credentials
+  # -------------------------------------------------------------------------
   /credentials:
     get:
       operationId: listCredentials
@@ -654,6 +661,9 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # -------------------------------------------------------------------------
+  # 9. Get Single Credential
+  # -------------------------------------------------------------------------
   /credentials/{id}:
     get:
       operationId: getCredential
@@ -698,20 +708,21 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+    # -----------------------------------------------------------------------
+    # 10. Delete Credential
+    # -----------------------------------------------------------------------
     delete:
       operationId: deleteCredential
-      summary: Delete a credential from the wallet
+      summary: Delete a credential owned by the authenticated tenant
       description: |
-        Permanently removes a single credential identified by its internal
-        wallet UUID from the authenticated tenant's storage.
+        Permanently removes the credential identified by `id` from the wallet.
 
-        The backend MUST verify that the credential belongs to the
-        authenticated tenant before deleting it. A tenant cannot delete
-        credentials owned by another tenant — attempting to do so returns
-        `403 Forbidden`.
-
-        This operation is irreversible. The credential cannot be recovered
-        after deletion; the user must re-issue it if needed.
+        Ownership is verified by scoping the deletion to both the `id` path
+        parameter and the `tenant_id` extracted from the bearer JWT (`sub`
+        claim). If the credential does not exist **or** belongs to a different
+        tenant the response is `404 Not Found`; the two cases are intentionally
+        indistinguishable to avoid leaking information about other tenants'
+        credentials.
       tags:
         - Credentials
       parameters:
@@ -721,28 +732,27 @@ paths:
           description: Credential successfully deleted. No response body.
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: The authenticated tenant does not own this credential.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error: forbidden
-                error_description: You do not have permission to delete this credential.
         '404':
-          description: No credential with that ID exists for the authenticated tenant.
+          description: |
+            No credential with that ID exists for the authenticated tenant, or
+            the credential belongs to a different tenant.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 error: credential_not_found
-                error_description: No credential with that ID exists for the authenticated tenant.
+                error_description: 'Credential not found.'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+# ---------------------------------------------------------------------------
+# Components
+# ---------------------------------------------------------------------------
 components:
+  # -------------------------------------------------------------------------
+  # Security Schemes
+  # -------------------------------------------------------------------------
   securitySchemes:
     BearerAuth:
       type: http
@@ -766,6 +776,9 @@ components:
         in the token, checks `exp`, and verifies that `sub` matches the
         resource being accessed.
 
+  # -------------------------------------------------------------------------
+  # Reusable Parameters
+  # -------------------------------------------------------------------------
   parameters:
     SessionId:
       name: session_id
@@ -789,6 +802,9 @@ components:
         format: uuid
         example: c3d4e5f6-7890-abcd-ef12-3456789abcde
 
+  # -------------------------------------------------------------------------
+  # Reusable Responses
+  # -------------------------------------------------------------------------
   responses:
     Unauthorized:
       description: Missing or invalid bearer token.
@@ -820,7 +836,13 @@ components:
             error: internal_error
             error_description: An unexpected error occurred. Please try again later.
 
+  # -------------------------------------------------------------------------
+  # Schemas
+  # -------------------------------------------------------------------------
   schemas:
+    # -----------------------------------------------------------------------
+    # Error
+    # -----------------------------------------------------------------------
     ErrorResponse:
       type: object
       description: |
@@ -842,14 +864,15 @@ components:
             - auth_server_metadata_fetch_failed
             - invalid_request
             - unauthorized
-            - forbidden
-            - credential_not_found
             - internal_error
         error_description:
           type: string
           description: Human-readable explanation of what went wrong.
           example: The credential offer URI could not be parsed.
 
+    # -----------------------------------------------------------------------
+    # Tenant Registration
+    # -----------------------------------------------------------------------
     TenantRegistrationRequest:
       type: object
       required:
@@ -881,6 +904,9 @@ components:
           description: Echo of the registered name.
           example: adorsys GmbH
 
+    # -----------------------------------------------------------------------
+    # Start Issuance
+    # -----------------------------------------------------------------------
     StartIssuanceRequest:
       type: object
       required:
@@ -922,7 +948,14 @@ components:
             is reached.
           example: '2026-04-08T14:35:00Z'
         issuer:
-          $ref: '#/components/schemas/IssuerSummary'
+          type: array
+          description: |
+            Display properties for the Credential Issuer per OpenID4VCI spec.
+            Contains one or more display objects for different locales.
+            Fallback: if no display metadata in issuer metadata, returns a single
+            entry with `name` set to the credential_issuer URL.
+          items:
+            $ref: '#/components/schemas/IssuerDisplay'
         credential_types:
           type: array
           description: |
@@ -953,36 +986,39 @@ components:
             - $ref: '#/components/schemas/TxCodeSpec'
             - type: 'null'
 
-    IssuerSummary:
+    IssuerDisplay:
+      type: object
+      description: |
+        Display properties for a Credential Issuer per OpenID4VCI spec §12.2.4.
+        When issuer metadata lacks display info, a fallback object is created
+        with `name` set to the credential_issuer URL.
+      properties:
+        name:
+          type: string
+          description: Human-readable display name of the Credential Issuer.
+          example: Example EU Identity Authority
+        locale:
+          type: string
+          description: BCP47 language tag (e.g. "en-US").
+          example: en-US
+        logo:
+          $ref: '#/components/schemas/Logo'
+
+    Logo:
       type: object
       required:
-        - credential_issuer
-        - display_name
-        - logo_uri
-      description: Resolved issuer metadata summary returned by `/start`.
+        - uri
+      description: Logo information for display objects.
       properties:
-        credential_issuer:
+        uri:
           type: string
           format: uri
-          description: Issuer identifier URL.
-          example: https://issuer.example.eu
-        display_name:
-          description: |
-            Human-readable issuer name from issuer metadata `display[0].name`.
-            `null` if not present in the issuer metadata.
-          oneOf:
-            - type: string
-            - type: 'null'
-          example: Example EU Identity Authority
-        logo_uri:
-          description: |
-            Issuer logo URI from issuer metadata `display[0].logo.uri`.
-            `null` if not present.
-          oneOf:
-            - type: string
-              format: uri
-            - type: 'null'
-          example: null
+          description: URI where the logo image can be obtained.
+          example: https://issuer.example.eu/assets/logo.svg
+        alt_text:
+          type: string
+          description: Alternative text for accessibility.
+          example: EU Issuer Logo
 
     CredentialTypeDisplay:
       type: object
@@ -992,9 +1028,9 @@ components:
         - display
       description: |
         A single credential configuration being offered, enriched with display
-        metadata sourced from `credential_configurations_supported[id].display[0]`
-        for the best-matching locale (fallback to first entry if no locale
-        match).
+        metadata sourced from `credential_configurations_supported[id].display`
+        for all available locales (fallback to single entry with configuration
+        ID as name if no display metadata exists).
       properties:
         credential_configuration_id:
           type: string
@@ -1005,7 +1041,11 @@ components:
           description: Credential format (e.g. `vc+sd-jwt`, `mso_mdoc`).
           example: vc+sd-jwt
         display:
-          $ref: '#/components/schemas/CredentialDisplay'
+          type: array
+          description: Array of display metadata for different locales.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CredentialDisplay'
 
     CredentialDisplay:
       type: object
@@ -1034,24 +1074,8 @@ components:
         logo:
           description: Logo image metadata. `null` if no logo is available.
           oneOf:
-            - $ref: '#/components/schemas/CredentialLogo'
+            - $ref: '#/components/schemas/Logo'
             - type: 'null'
-
-    CredentialLogo:
-      type: object
-      required:
-        - uri
-      description: Logo image for a credential type.
-      properties:
-        uri:
-          type: string
-          format: uri
-          description: URI of the logo image.
-          example: https://issuer.example.eu/assets/pid-logo.svg
-        alt_text:
-          type: string
-          description: Accessibility alt text for the logo image.
-          example: EU PID Logo
 
     TxCodeSpec:
       type: object
@@ -1096,6 +1120,9 @@ components:
             - type: 'null'
           example: Please provide the one-time code sent to your registered email address.
 
+    # -----------------------------------------------------------------------
+    # Consent
+    # -----------------------------------------------------------------------
     ConsentRequest:
       type: object
       required:
@@ -1153,6 +1180,9 @@ components:
             `request_uri`) to open in the system browser.
           example: 'https://as.issuer.example.eu/authorize?response_type=code&client_id=wallet.example.eu&...'
 
+    # -----------------------------------------------------------------------
+    # Transaction Code
+    # -----------------------------------------------------------------------
     TxCodeRequest:
       type: object
       required:
@@ -1177,6 +1207,9 @@ components:
           description: Session identifier (echo).
           example: ses_9aKpR1xWqNmLvYcZbTsE4dBfUhOo2Gj
 
+    # -----------------------------------------------------------------------
+    # SSE Event Payloads
+    # -----------------------------------------------------------------------
     SseProcessingEvent:
       type: object
       description: |
@@ -1408,6 +1441,9 @@ components:
           items:
             $ref: '#/components/schemas/CredentialRecord'
 
+# ---------------------------------------------------------------------------
+# Tags
+# ---------------------------------------------------------------------------
 tags:
   - name: Tenants
     description: Tenant registration and management.
@@ -1418,5 +1454,5 @@ tags:
       Code and Pre-Authorized Code grant types.
   - name: Credentials
     description: |
-      Credential retrieval and management. Read and delete access to verifiable
-      credentials stored in the wallet after a successful issuance flow.
+      Credential retrieval. Read-only access to verifiable credentials
+      stored in the wallet after a successful issuance flow.

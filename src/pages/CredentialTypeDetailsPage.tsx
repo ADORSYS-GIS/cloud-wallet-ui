@@ -10,6 +10,7 @@ import { useCredentialOfferState } from '../state/issuance.state'
 import { submitConsent, submitTxCode, cancelSession } from '../api/issuance-session'
 import { useSseStream } from '../hooks/useSseStream'
 import { issuanceUserMessage, toIssuanceApiError } from '../utils/issuanceErrors'
+import { resolveIssuerDisplay } from '../utils/credentialDisplay'
 
 import type { ConsentResponse, IssuanceApiError, TxCodeSpec } from '../types/issuance'
 
@@ -32,26 +33,27 @@ type ClaimRow = { label: string; value: string }
 function buildDisplayRows(
   credType: NonNullable<ReturnType<typeof useSelectedType>>
 ): ClaimRow[] {
+  const display = credType.display[0]!
   const rows: ClaimRow[] = [
     { label: 'Credential Configuration ID', value: credType.credential_configuration_id },
     { label: 'Format', value: credType.format },
-    { label: 'Name', value: credType.display.name },
+    { label: 'Name', value: display.name },
   ]
 
-  if (credType.display.description) {
-    rows.push({ label: 'Description', value: credType.display.description })
+  if (display.description) {
+    rows.push({ label: 'Description', value: display.description })
   }
-  if (credType.display.background_color) {
-    rows.push({ label: 'Background Color', value: credType.display.background_color })
+  if (display.background_color) {
+    rows.push({ label: 'Background Color', value: display.background_color })
   }
-  if (credType.display.text_color) {
-    rows.push({ label: 'Text Color', value: credType.display.text_color })
+  if (display.text_color) {
+    rows.push({ label: 'Text Color', value: display.text_color })
   }
-  if (credType.display.logo?.uri) {
-    rows.push({ label: 'Logo URI', value: credType.display.logo.uri })
+  if (display.logo?.uri) {
+    rows.push({ label: 'Logo URI', value: display.logo.uri })
   }
-  if (credType.display.logo) {
-    rows.push({ label: 'Logo Alt Text', value: credType.display.logo.alt_text })
+  if (display.logo) {
+    rows.push({ label: 'Logo Alt Text', value: display.logo.alt_text })
   }
 
   return rows
@@ -167,10 +169,11 @@ export function CredentialTypeDetailsPage() {
   const session = offerState.offer
   const selectedType = useSelectedType(session, optionId)
 
-  const issuerName =
-    session?.issuer.display_name ??
-    (session ? new URL(session.issuer.credential_issuer).host : 'Issuer')
-  const issuerLogoUri = session?.issuer.logo_uri ?? null
+  const issuerDisplay = session
+    ? resolveIssuerDisplay(session.issuer, session.credential_issuer)
+    : null
+  const issuerName = issuerDisplay?.name ?? 'Issuer'
+  const issuerLogoUri = issuerDisplay?.logoUri ?? null
 
   const shouldRedirect = !session || !selectedType || !optionId
   useEffect(() => {
@@ -569,7 +572,7 @@ export function CredentialTypeDetailsPage() {
                 />
                 <div className="min-w-0">
                   <p className="truncate text-base font-semibold tracking-tight text-slate-900">
-                    {selectedType.display.name}
+                    {selectedType.display[0]!.name}
                   </p>
                   <p className="mt-0.5 truncate text-[14px] leading-relaxed text-slate-500">
                     {issuerName}

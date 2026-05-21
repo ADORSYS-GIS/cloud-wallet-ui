@@ -46,8 +46,9 @@ export type CredentialRecord = {
   /**
    * ISO 8601 expiry timestamp.
    * `null` when the credential has no expiry.
+   * `undefined` when the field is omitted from the response.
    */
-  expires_at: string | null
+  expires_at: string | null | undefined
   /**
    * Decoded credential claims.
    * Structure is credential-type specific; additional properties permitted.

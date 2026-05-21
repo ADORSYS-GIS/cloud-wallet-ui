@@ -60,25 +60,33 @@ function buildOffer(
   return {
     session_id: 'ses_123',
     expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-    issuer: {
-      credential_issuer: 'https://issuer.example.org',
-      display_name: 'Example Issuer',
-      logo_uri: null,
-    },
+    credential_issuer: 'https://issuer.example.org',
+    issuer: [
+      {
+        name: 'Example Issuer',
+        locale: 'en-US',
+        logo: {
+          uri: 'https://issuer.example.org/logo.svg',
+          alt_text: 'Issuer logo',
+        },
+      },
+    ],
     credential_types: [
       {
         credential_configuration_id: 'identity_credential',
         format: 'dc+sd-jwt',
-        display: {
-          name: 'Identity Credential',
-          description: 'Official identity document',
-          background_color: '#12107c',
-          text_color: '#ffffff',
-          logo: {
-            uri: 'https://issuer.example.org/logo.svg',
-            alt_text: 'Issuer logo',
+        display: [
+          {
+            name: 'Identity Credential',
+            description: 'Official identity document',
+            background_color: '#12107c',
+            text_color: '#ffffff',
+            logo: {
+              uri: 'https://issuer.example.org/logo.svg',
+              alt_text: 'Issuer logo',
+            },
           },
-        },
+        ],
       },
     ],
     flow: 'authorization_code',
@@ -554,13 +562,27 @@ describe('CredentialTypeDetailsPage', () => {
     })
   })
 
-  it('falls back to issuer host when display_name is missing', () => {
+  it('falls back to issuer host when display array is empty', () => {
     mockOfferState.offer = buildOffer({
-      issuer: {
-        credential_issuer: 'https://issuer-host.example.org',
-        display_name: null,
-        logo_uri: null,
-      },
+      credential_issuer: 'https://issuer-host.example.org',
+      issuer: [],
+    })
+    renderPage()
+    expect(screen.getByText('issuer-host.example.org')).toBeTruthy()
+  })
+
+  it('falls back to issuer host when first display entry has no name', () => {
+    mockOfferState.offer = buildOffer({
+      credential_issuer: 'https://issuer-host.example.org',
+      issuer: [
+        {
+          locale: 'en-US',
+          logo: {
+            uri: 'https://issuer.example.org/logo.png',
+            alt_text: 'Issuer logo',
+          },
+        },
+      ],
     })
     renderPage()
     expect(screen.getByText('issuer-host.example.org')).toBeTruthy()
@@ -1025,7 +1047,7 @@ describe('CredentialTypeDetailsPage', () => {
         {
           credential_configuration_id: 'identity_credential',
           format: 'dc+sd-jwt',
-          display: { name: 'Identity Credential' },
+          display: [{ name: 'Identity Credential' }],
         },
       ],
     })
