@@ -6,7 +6,10 @@ type DeleteSuccessBannerProps = {
   onDismiss: () => void
 }
 
-export function DeleteSuccessBanner({ credentialName, onDismiss }: DeleteSuccessBannerProps) {
+export function DeleteSuccessBanner({
+  credentialName,
+  onDismiss,
+}: DeleteSuccessBannerProps) {
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {

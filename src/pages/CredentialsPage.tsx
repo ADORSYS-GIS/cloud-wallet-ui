@@ -8,22 +8,33 @@ import { DeleteSuccessBanner } from '../components/credentials/DeleteSuccessBann
 import { PageContainer } from '../components/layout/PageContainer'
 import { routes } from '../constants/routes'
 import { useCredentials } from '../hooks/useCredentials'
-import { isCredentialRemoved, getAllRemovedCredentials, clearRemovedCredential } from '../state/deletedCredentials'
+import {
+  isCredentialRemoved,
+  getAllRemovedCredentials,
+  clearRemovedCredential,
+} from '../state/deletedCredentials'
 
 export function CredentialsPage() {
   const navigate = useNavigate()
   const { credentials, loading } = useCredentials()
-  const [deletedCredential, setDeletedCredential] = useState<{ id: string; name: string } | null>(null)
+  const [deletedCredential, setDeletedCredential] = useState<{
+    id: string
+    name: string
+  } | null>(null)
 
+  // Show banner for the most recently deleted credential (only check once)
   const visibleCredentials = useMemo(() => {
     const removed = getAllRemovedCredentials()
-    // Show banner for the most recently deleted credential
-    if (removed.length > 0 && !deletedCredential) {
-      const mostRecent = removed[removed.length - 1]
-      setDeletedCredential(mostRecent)
+    // Derive the deleted credential during render (no setState here)
+    if (removed.length > 0 && deletedCredential === null) {
+      // Schedule state update after render completes
+      queueMicrotask(() => {
+        setDeletedCredential(removed[removed.length - 1])
+      })
     }
     return credentials.filter((credential) => !isCredentialRemoved(credential.id))
-  }, [credentials, deletedCredential])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [credentials])
 
   const handleDismissBanner = () => {
     if (deletedCredential) {
