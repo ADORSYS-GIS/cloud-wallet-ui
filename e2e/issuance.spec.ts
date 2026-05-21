@@ -141,7 +141,7 @@ test.describe('Credential storage integration', () => {
     await expect(page.getByText('Your Credentials')).toBeVisible()
 
     // Click on the credential card to view details
-    await page.getByText('E2E Credential').click()
+    await page.getByText('E2E PID').click()
     await expect(page.getByText('Credential Details')).toBeVisible()
     await page.getByRole('button', { name: 'Show All' }).click()
     await expect(page.getByText('E2E', { exact: true })).toBeVisible()
