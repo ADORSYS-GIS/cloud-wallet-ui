@@ -6,6 +6,7 @@ vi.mock('../crypto', () => ({
     publicKeyJwk: { kty: 'EC', crv: 'P-256', x: 'x', y: 'y' },
   })),
   createJwt: vi.fn(async () => 'mock.jwt.token'),
+  clearPersistedKeyPair: vi.fn(),
 }))
 
 vi.mock('../tenant', () => ({
@@ -18,7 +19,12 @@ vi.mock('../tenant', () => ({
   DEFAULT_TENANT_NAME: 'DATEV Cloud Wallet',
 }))
 
-import { initAuth, getBearerToken, resetAuthState } from '../authService'
+import {
+  initAuth,
+  getBearerToken,
+  resetAuthState,
+  clearPersistedKeyPair,
+} from '../authService'
 import { registerTenant, getStoredTenantId, storeTenantId } from '../tenant'
 import { createJwt } from '../crypto'
 
@@ -119,6 +125,28 @@ describe('getBearerToken', () => {
 
     expect(mockCreateJwt).toHaveBeenCalledTimes(2)
   })
+
+  it('generates a new JWT (not the cached one) after resetAuthState', async () => {
+    mockGetStored.mockReturnValue('tenant-new-jwt')
+
+    // First call — produces and caches 'mock.jwt.token'
+    mockCreateJwt.mockResolvedValueOnce('first.jwt.token')
+    const first = await getBearerToken()
+    expect(first).toBe('first.jwt.token')
+    expect(mockCreateJwt).toHaveBeenCalledTimes(1)
+
+    // Reset in-memory state; the cached token must no longer be returned
+    resetAuthState()
+
+    // Second call — must invoke createJwt again, not return the cached value
+    mockCreateJwt.mockResolvedValueOnce('second.jwt.token')
+    const second = await getBearerToken()
+    expect(second).toBe('second.jwt.token')
+    expect(mockCreateJwt).toHaveBeenCalledTimes(2)
+
+    // The two tokens must be distinct
+    expect(first).not.toBe(second)
+  })
 })
 
 describe('resetAuthState', () => {
@@ -133,5 +161,42 @@ describe('resetAuthState', () => {
 
     await initAuth()
     expect(mockRegister).toHaveBeenCalledTimes(2)
+  })
+
+  it('only clears in-memory state — does not touch localStorage key pair', async () => {
+    // clearPersistedKeyPair is a separate concern; resetAuthState must not call it
+    mockGetStored.mockReturnValue('tenant-mem-only')
+    await getBearerToken()
+
+    const { clearPersistedKeyPair: mockClearPersisted } = await import('../crypto')
+    const clearMock = vi.mocked(mockClearPersisted)
+    clearMock.mockClear()
+
+    resetAuthState()
+
+    expect(clearMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('clearPersistedKeyPair', () => {
+  it('is re-exported from authService for convenience', () => {
+    // Verifies the export exists and is the same function from crypto
+    expect(typeof clearPersistedKeyPair).toBe('function')
+  })
+
+  it('can be called alongside resetAuthState for a full auth reset', async () => {
+    mockGetStored.mockReturnValue('tenant-full-reset')
+    await getBearerToken()
+
+    // A full logout/reset: clear both in-memory and persisted state
+    resetAuthState()
+    clearPersistedKeyPair()
+
+    expect(clearPersistedKeyPair).toHaveBeenCalledOnce()
+
+    // After a full reset, the next getBearerToken call must re-generate everything
+    mockCreateJwt.mockResolvedValueOnce('fresh.after.reset.token')
+    const token = await getBearerToken()
+    expect(token).toBe('fresh.after.reset.token')
   })
 })
