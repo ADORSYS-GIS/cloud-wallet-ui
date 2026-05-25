@@ -1057,5 +1057,4 @@ describe('CredentialTypeDetailsPage', () => {
     // Claims section should not be present when no claims
     expect(screen.queryByText('Claims to be issued:')).toBeNull()
   })
-
 })

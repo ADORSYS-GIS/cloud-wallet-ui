@@ -212,7 +212,10 @@ function validateCredentialDisplay(raw: unknown, index: number): CredentialDispl
   return { name, description, background_color, text_color, logo, background_image }
 }
 
-function validateClaimDescription(raw: unknown, index: number): import('../types/issuance').ClaimDescription {
+function validateClaimDescription(
+  raw: unknown,
+  index: number
+): import('../types/issuance').ClaimDescription {
   const ctx = `ClaimDescription[${index}]`
   const obj = requireObject(ctx, 'claim', raw)
 
@@ -235,7 +238,10 @@ function validateClaimDescription(raw: unknown, index: number): import('../types
   return claim
 }
 
-function validateClaimDisplay(raw: unknown, index: number): import('../types/issuance').ClaimDisplay {
+function validateClaimDisplay(
+  raw: unknown,
+  index: number
+): import('../types/issuance').ClaimDisplay {
   const ctx = `ClaimDisplay[${index}]`
   const obj = requireObject(ctx, 'display', raw)
 
@@ -258,7 +264,8 @@ function validateCredentialTypeDisplay(
   const ctx = `CredentialTypeDisplay[${index}]`
   const obj = requireObject(ctx, 'credential_type', raw)
   const rawDisplayArray = requireArray(ctx, 'display', obj.display)
-  if (rawDisplayArray.length === 0) throw new ContractError(ctx, 'display', rawDisplayArray)
+  if (rawDisplayArray.length === 0)
+    throw new ContractError(ctx, 'display', rawDisplayArray)
 
   const result: CredentialTypeDisplay = {
     credential_configuration_id: requireString(

@@ -28,8 +28,6 @@ function useSelectedType(
   }, [optionId, session])
 }
 
-type ClaimRow = { label: string; value: string }
-
 function formatClaimPath(path: (string | number | null)[]): string {
   return path.map((p) => (p === null ? '*' : String(p))).join('.')
 }
@@ -42,35 +40,6 @@ function getClaimDisplayName(
   return claim.display[0]?.name
 }
 
-function buildDisplayRows(
-  credType: NonNullable<ReturnType<typeof useSelectedType>>
-): ClaimRow[] {
-  const display = credType.display[0]!
-  const rows: ClaimRow[] = [
-    { label: 'Credential Configuration ID', value: credType.credential_configuration_id },
-    { label: 'Format', value: credType.format },
-    { label: 'Name', value: display.name },
-  ]
-
-  if (display.description) {
-    rows.push({ label: 'Description', value: display.description })
-  }
-  if (display.background_color) {
-    rows.push({ label: 'Background Color', value: display.background_color })
-  }
-  if (display.text_color) {
-    rows.push({ label: 'Text Color', value: display.text_color })
-  }
-  if (display.logo?.uri) {
-    rows.push({ label: 'Logo URI', value: display.logo.uri })
-  }
-  if (display.logo) {
-    rows.push({ label: 'Logo Alt Text', value: display.logo.alt_text })
-  }
-
-  return rows
-}
-
 function buildClaimRows(
   credType: NonNullable<ReturnType<typeof useSelectedType>>
 ): Array<{ path: string; name: string; mandatory: boolean }> | null {
@@ -80,9 +49,11 @@ function buildClaimRows(
     const pathStr = formatClaimPath(claim.path)
     const displayName = getClaimDisplayName(claim)
     // Use display name if available, otherwise use the last path segment
-    const name = displayName ?? (typeof claim.path[claim.path.length - 1] === 'string'
-      ? (claim.path[claim.path.length - 1] as string)
-      : pathStr)
+    const name =
+      displayName ??
+      (typeof claim.path[claim.path.length - 1] === 'string'
+        ? (claim.path[claim.path.length - 1] as string)
+        : pathStr)
     return {
       path: pathStr,
       name,
@@ -352,8 +323,6 @@ export function CredentialTypeDetailsPage() {
   )
 
   if (shouldRedirect || !session || !selectedType) return null
-
-  const displayRows = buildDisplayRows(selectedType)
 
   const handleIssueVc = async () => {
     if (consentInFlightRef.current || isCancelling) return
