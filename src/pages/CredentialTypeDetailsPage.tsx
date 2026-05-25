@@ -30,6 +30,18 @@ function useSelectedType(
 
 type ClaimRow = { label: string; value: string }
 
+function formatClaimPath(path: (string | number | null)[]): string {
+  return path.map((p) => (p === null ? '*' : String(p))).join('.')
+}
+
+function getClaimDisplayName(
+  claim: import('../types/issuance').ClaimDescription
+): string | undefined {
+  if (!claim.display || claim.display.length === 0) return undefined
+  // Prefer first display entry, could be enhanced to match locale
+  return claim.display[0]?.name
+}
+
 function buildDisplayRows(
   credType: NonNullable<ReturnType<typeof useSelectedType>>
 ): ClaimRow[] {
@@ -57,6 +69,26 @@ function buildDisplayRows(
   }
 
   return rows
+}
+
+function buildClaimRows(
+  credType: NonNullable<ReturnType<typeof useSelectedType>>
+): Array<{ path: string; name: string; mandatory: boolean }> | null {
+  if (!credType.claims || credType.claims.length === 0) return null
+
+  return credType.claims.map((claim) => {
+    const pathStr = formatClaimPath(claim.path)
+    const displayName = getClaimDisplayName(claim)
+    // Use display name if available, otherwise use the last path segment
+    const name = displayName ?? (typeof claim.path[claim.path.length - 1] === 'string'
+      ? (claim.path[claim.path.length - 1] as string)
+      : pathStr)
+    return {
+      path: pathStr,
+      name,
+      mandatory: claim.mandatory ?? false,
+    }
+  })
 }
 
 type ProcessingStep =
@@ -624,25 +656,39 @@ export function CredentialTypeDetailsPage() {
               )
             })()}
 
-            <p className="mb-2 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
-              Here is the digital identity info:
-            </p>
-            <ul className="space-y-px">
-              {displayRows.map((row, index) => (
-                <li
-                  key={row.label}
-                  className={[
-                    'flex min-h-7 items-start rounded-sm px-2 py-1.5 text-[13px] md:text-[14px] leading-tight text-slate-900 gap-2',
-                    index % 2 === 0 ? 'bg-[#efefef]' : 'bg-[#f8f8f8]',
-                  ].join(' ')}
-                >
-                  <span className="shrink-0 font-medium text-slate-700 min-w-[130px]">
-                    {row.label}
-                  </span>
-                  <span className="break-all text-slate-900">{row.value}</span>
-                </li>
-              ))}
-            </ul>
+            {/* Claims Section */}
+            {(() => {
+              const claimRows = buildClaimRows(selectedType)
+              if (!claimRows || claimRows.length === 0) return null
+              return (
+                <>
+                  <p className="mb-2 mt-4 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
+                    Here is the digital identity info:
+                  </p>
+                  <ul className="space-y-px">
+                    {claimRows.map((claim, index) => (
+                      <li
+                        key={claim.path}
+                        className={[
+                          'flex min-h-7 items-start rounded-sm px-2 py-1.5 text-[13px] md:text-[14px] leading-tight text-slate-900 gap-2',
+                          index % 2 === 0 ? 'bg-[#efefef]' : 'bg-[#f8f8f8]',
+                        ].join(' ')}
+                      >
+                        <span className="shrink-0 font-medium text-slate-700 min-w-[130px]">
+                          {claim.name}
+                          {claim.mandatory && (
+                            <span className="ml-1 text-red-500">*</span>
+                          )}
+                        </span>
+                        <span className="break-all text-slate-500 text-xs">
+                          {claim.path}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )
+            })()}
           </div>
         </section>
 
