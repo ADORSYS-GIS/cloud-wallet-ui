@@ -56,10 +56,17 @@ export function RemoveCredentialPage() {
 
     try {
       await deleteCredential(credentialId)
-      // Get credential name from display metadata or fallback to configuration ID
-      const credentialName =
-        credential?.display?.name ?? credential?.credential_configuration_id ?? 'Unknown'
-      markCredentialRemoved(credentialId, credentialName)
+      // Extract credential name from raw claims or fallback to credential ID
+      // Common fields that might contain the credential name/type
+      const rawName =
+        typeof credential?.vct === 'string'
+          ? credential.vct
+          : typeof credential?.type === 'string'
+            ? credential.type
+            : typeof credential?.credential_type === 'string'
+              ? credential.credential_type
+              : credentialId
+      markCredentialRemoved(credentialId, rawName)
       navigate(routes.credentials, { replace: true })
     } catch (error: unknown) {
       setErrorMessage(credentialDeleteErrorMessage(error))
