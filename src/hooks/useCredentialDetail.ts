@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react'
 import { getApiBaseUrl } from '../utils/env'
 import { getBearerToken } from '../auth/authService'
-import { validateCredentialRecord } from '../api/validation'
-import type { CredentialRecord } from '../types/credential'
+
+/**
+ * Raw credential data from the backend.
+ * The backend returns the parsed credential claims directly as a JSON object.
+ */
+export type RawCredentialData = Record<string, unknown>
 
 type DetailState = {
-  credential: CredentialRecord | null
+  credential: RawCredentialData | null
   loading: boolean
   error: Error | null
 }
 
+/**
+ * Fetch raw credential data for a given credential ID.
+ *
+ * The backend returns the parsed credential claims directly as a JSON object,
+ * without the CredentialRecord wrapper structure. This hook returns the raw
+ * claims data for direct rendering in the UI.
+ */
 export function useCredentialDetail(id: string): DetailState {
   const [state, setState] = useState<DetailState>({
     credential: null,
@@ -44,11 +55,20 @@ export function useCredentialDetail(id: string): DetailState {
           return
         }
 
-        const raw = (await response.json()) as unknown
+        const raw = (await response.json()) as RawCredentialData
         if (signal.aborted) return
 
-        const credential = validateCredentialRecord(raw)
-        setState({ credential, loading: false, error: null })
+        // Validate that we received an object (not null, array, or primitive)
+        if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+          setState({
+            credential: null,
+            loading: false,
+            error: new Error('Invalid credential data: expected an object'),
+          })
+          return
+        }
+
+        setState({ credential: raw, loading: false, error: null })
       } catch (err: unknown) {
         if (signal.aborted) return
         setState({
