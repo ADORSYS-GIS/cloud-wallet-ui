@@ -212,6 +212,51 @@ function validateCredentialDisplay(raw: unknown, index: number): CredentialDispl
   return { name, description, background_color, text_color, logo, background_image }
 }
 
+function validateClaimDescription(
+  raw: unknown,
+  index: number
+): import('../types/issuance').ClaimDescription {
+  const ctx = `ClaimDescription[${index}]`
+  const obj = requireObject(ctx, 'claim', raw)
+
+  const path = requireArray(ctx, 'path', obj.path)
+  if (path.length === 0) throw new ContractError(ctx, 'path', path)
+
+  const claim: import('../types/issuance').ClaimDescription = {
+    path: path as (string | number | null)[],
+  }
+
+  if (obj.mandatory !== undefined) {
+    claim.mandatory = requireBoolean(ctx, 'mandatory', obj.mandatory)
+  }
+
+  if (obj.display !== undefined) {
+    const rawDisplayArray = requireArray(ctx, 'display', obj.display)
+    claim.display = rawDisplayArray.map((d, i) => validateClaimDisplay(d, i))
+  }
+
+  return claim
+}
+
+function validateClaimDisplay(
+  raw: unknown,
+  index: number
+): import('../types/issuance').ClaimDisplay {
+  const ctx = `ClaimDisplay[${index}]`
+  const obj = requireObject(ctx, 'display', raw)
+
+  const display: import('../types/issuance').ClaimDisplay = {}
+
+  if (obj.name !== undefined) {
+    display.name = requireString(ctx, 'name', obj.name)
+  }
+  if (obj.locale !== undefined) {
+    display.locale = requireString(ctx, 'locale', obj.locale)
+  }
+
+  return display
+}
+
 function validateCredentialTypeDisplay(
   raw: unknown,
   index: number
@@ -221,7 +266,8 @@ function validateCredentialTypeDisplay(
   const rawDisplayArray = requireArray(ctx, 'display', obj.display)
   if (rawDisplayArray.length === 0)
     throw new ContractError(ctx, 'display', rawDisplayArray)
-  return {
+
+  const result: CredentialTypeDisplay = {
     credential_configuration_id: requireString(
       ctx,
       'credential_configuration_id',
@@ -230,6 +276,14 @@ function validateCredentialTypeDisplay(
     format: requireString(ctx, 'format', obj.format),
     display: rawDisplayArray.map((entry, i) => validateCredentialDisplay(entry, i)),
   }
+
+  // Include claims if present (optional per OpenAPI spec)
+  if (obj.claims !== undefined && obj.claims !== null) {
+    const rawClaimsArray = requireArray(ctx, 'claims', obj.claims)
+    result.claims = rawClaimsArray.map((c, i) => validateClaimDescription(c, i))
+  }
+
+  return result
 }
 
 function validateTxCodeSpec(raw: unknown): TxCodeSpec {

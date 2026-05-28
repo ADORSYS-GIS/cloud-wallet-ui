@@ -136,18 +136,13 @@ describe('CredentialTypeDetailsPage', () => {
 
   afterEach(() => cleanup())
 
-  it('renders credential type display fields per spec', () => {
+  it('renders credential card with display name and no claims section when claims are absent', () => {
     renderPage()
     expect(screen.getByText('Credential Type Details')).toBeTruthy()
+    // Verify the credential card is rendered with the display name
     expect(screen.getAllByText('Identity Credential').length).toBeGreaterThan(0)
-    expect(screen.getByText('Credential Configuration ID')).toBeTruthy()
-    expect(screen.getByText('Format')).toBeTruthy()
-    expect(screen.getByText('Name')).toBeTruthy()
-    expect(screen.getByText('Description')).toBeTruthy()
-    expect(screen.getByText('Background Color')).toBeTruthy()
-    expect(screen.getByText('Text Color')).toBeTruthy()
-    expect(screen.getByText('Logo URI')).toBeTruthy()
-    expect(screen.getByText('Logo Alt Text')).toBeTruthy()
+    // Claims section should not be present when no claims
+    expect(screen.queryByText('Claims to be issued:')).toBeNull()
   })
 
   it('renders Issue VC and Cancel buttons on the consent screen', () => {
@@ -1045,7 +1040,7 @@ describe('CredentialTypeDetailsPage', () => {
     })
   })
 
-  it('renders only core display rows when optional display fields are absent', () => {
+  it('renders credential card with name and no claims section when claims are absent', () => {
     mockOfferState.offer = buildOffer({
       credential_types: [
         {
@@ -1057,11 +1052,9 @@ describe('CredentialTypeDetailsPage', () => {
     })
 
     renderPage()
-    expect(screen.getByText('Credential Configuration ID')).toBeTruthy()
-    expect(screen.queryByText('Description')).toBeNull()
-    expect(screen.queryByText('Background Color')).toBeNull()
-    expect(screen.queryByText('Text Color')).toBeNull()
-    expect(screen.queryByText('Logo URI')).toBeNull()
-    expect(screen.queryByText('Logo Alt Text')).toBeNull()
+    // Verify the credential card is rendered with the name
+    expect(screen.getByText('Identity Credential')).toBeTruthy()
+    // Claims section should not be present when no claims
+    expect(screen.queryByText('Claims to be issued:')).toBeNull()
   })
 })

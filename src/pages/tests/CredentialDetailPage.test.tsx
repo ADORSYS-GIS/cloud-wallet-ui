@@ -6,7 +6,7 @@ import { routes } from '../../constants/routes'
 import { CredentialDetailPage } from '../CredentialDetailPage'
 import { useCredentialDetail } from '../../hooks/useCredentialDetail'
 import { CredentialsCacheProvider } from '../../state/credentialsCache.state'
-import type { CredentialRecord } from '../../types/credential'
+import type { RawCredentialData } from '../../hooks/useCredentialDetail'
 
 vi.mock('../../hooks/useCredentialDetail', () => ({
   useCredentialDetail: vi.fn(),
@@ -14,20 +14,14 @@ vi.mock('../../hooks/useCredentialDetail', () => ({
 
 const mockedUseCredentialDetail = vi.mocked(useCredentialDetail)
 
-function sampleCredential(overrides: Partial<CredentialRecord> = {}): CredentialRecord {
+// Raw credential claims from the backend (not wrapped in CredentialRecord)
+function sampleCredential(overrides: Partial<RawCredentialData> = {}): RawCredentialData {
   return {
-    id: 'cred-1',
-    credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-    format: 'dc+sd-jwt',
-    issuer: 'https://issuer.example.org',
-    status: 'active',
-    issued_at: '2026-04-08T14:35:00Z',
-    expires_at: null,
-    claims: {
-      given_name: 'Jane',
-      family_name: 'Doe',
-      id: '12345',
-    },
+    given_name: 'Jane',
+    family_name: 'Doe',
+    id: '12345',
+    iss: 'https://issuer.example.org',
+    vct: 'eu.europa.ec.eudi.pid.1',
     ...overrides,
   }
 }
@@ -156,9 +150,7 @@ describe('CredentialDetailPage', () => {
   it('renders object claim values as formatted JSON strings when revealed', () => {
     mockedUseCredentialDetail.mockReturnValue({
       credential: sampleCredential({
-        claims: {
-          address: { street: 'Main', city: 'Berlin' },
-        },
+        address: { street: 'Main', city: 'Berlin' },
       }),
       loading: false,
       error: null,
@@ -183,7 +175,7 @@ describe('CredentialDetailPage', () => {
 
   it('shows empty-details message when claims are empty', () => {
     mockedUseCredentialDetail.mockReturnValue({
-      credential: sampleCredential({ claims: {} }),
+      credential: {},
       loading: false,
       error: null,
     })
@@ -206,7 +198,7 @@ describe('CredentialDetailPage', () => {
 
   it('renders em-dash for null claim values when revealed', () => {
     mockedUseCredentialDetail.mockReturnValue({
-      credential: sampleCredential({ claims: { middle_name: null } }),
+      credential: sampleCredential({ middle_name: null }),
       loading: false,
       error: null,
     })

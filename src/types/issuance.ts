@@ -29,10 +29,22 @@ export type CredentialDisplay = {
   logo?: CredentialLogo | null
 }
 
+export type ClaimDisplay = {
+  name?: string
+  locale?: string
+}
+
+export type ClaimDescription = {
+  path: (string | number | null)[]
+  mandatory?: boolean
+  display?: ClaimDisplay[]
+}
+
 export type CredentialTypeDisplay = {
   credential_configuration_id: string
   format: string
   display: CredentialDisplay[]
+  claims?: ClaimDescription[] | null
 }
 
 export type TxCodeSpec = {

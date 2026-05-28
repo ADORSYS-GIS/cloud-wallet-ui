@@ -279,6 +279,255 @@ describe('validateStartIssuanceResponse', () => {
   it('throws ContractError when the response is a string', () => {
     expect(() => validateStartIssuanceResponse('bad')).toThrow(ContractError)
   })
+
+  it('accepts credential_types with valid claims array', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: ['given_name'],
+              mandatory: true,
+              display: [{ name: 'Given Name', locale: 'en-US' }],
+            },
+            {
+              path: ['family_name'],
+              mandatory: false,
+            },
+          ],
+        },
+      ],
+    }
+    const result = validateStartIssuanceResponse(input)
+    expect(result.credential_types[0].claims).toHaveLength(2)
+    expect(result.credential_types[0].claims?.[0].path).toEqual(['given_name'])
+    expect(result.credential_types[0].claims?.[0].mandatory).toBe(true)
+    expect(result.credential_types[0].claims?.[0].display).toEqual([
+      { name: 'Given Name', locale: 'en-US' },
+    ])
+    expect(result.credential_types[0].claims?.[1].path).toEqual(['family_name'])
+    expect(result.credential_types[0].claims?.[1].mandatory).toBe(false)
+  })
+
+  it('accepts credential_types with claims: null (normalized to undefined)', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: null,
+        },
+      ],
+    }
+    const result = validateStartIssuanceResponse(input)
+    // null claims is normalized to undefined (omitted from result)
+    expect(result.credential_types[0].claims).toBeUndefined()
+  })
+
+  it('accepts credential_types with claims omitted', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { claims: _, ...credentialTypeWithoutClaims } = {
+      ...validStartIssuanceResponse.credential_types[0],
+      claims: undefined,
+    }
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [credentialTypeWithoutClaims],
+    }
+    const result = validateStartIssuanceResponse(input)
+    expect(result.credential_types[0].claims).toBeUndefined()
+  })
+
+  it('throws ContractError when claims has empty path array', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: [],
+              mandatory: true,
+            },
+          ],
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when claims has non-boolean mandatory value', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: ['given_name'],
+              mandatory: 'yes',
+            },
+          ],
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when claims is not an array', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: { path: ['given_name'] },
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
+  it('accepts claim with only path (no mandatory, no display)', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: ['age_over_18'],
+            },
+          ],
+        },
+      ],
+    }
+    const result = validateStartIssuanceResponse(input)
+    expect(result.credential_types[0].claims?.[0].path).toEqual(['age_over_18'])
+    expect(result.credential_types[0].claims?.[0].mandatory).toBeUndefined()
+    expect(result.credential_types[0].claims?.[0].display).toBeUndefined()
+  })
+
+  it('accepts claim display with only name (no locale)', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: ['given_name'],
+              display: [{ name: 'Given Name' }],
+            },
+          ],
+        },
+      ],
+    }
+    const result = validateStartIssuanceResponse(input)
+    expect(result.credential_types[0].claims?.[0].display).toEqual([
+      { name: 'Given Name' },
+    ])
+  })
+
+  it('accepts claim display with only locale (no name)', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: ['given_name'],
+              display: [{ locale: 'en-US' }],
+            },
+          ],
+        },
+      ],
+    }
+    const result = validateStartIssuanceResponse(input)
+    expect(result.credential_types[0].claims?.[0].display).toEqual([{ locale: 'en-US' }])
+  })
+
+  it('accepts claim display with empty display array', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: ['given_name'],
+              display: [],
+            },
+          ],
+        },
+      ],
+    }
+    const result = validateStartIssuanceResponse(input)
+    expect(result.credential_types[0].claims?.[0].display).toEqual([])
+  })
+
+  it('throws ContractError when claim display entry is not an object', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: ['given_name'],
+              display: ['not an object'],
+            },
+          ],
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
+  it('throws ContractError when claim path is not an array', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: 'given_name',
+            },
+          ],
+        },
+      ],
+    }
+    expect(() => validateStartIssuanceResponse(input)).toThrow(ContractError)
+  })
+
+  it('accepts claim with path containing numbers and null values', () => {
+    const input = {
+      ...validStartIssuanceResponse,
+      credential_types: [
+        {
+          ...validStartIssuanceResponse.credential_types[0],
+          claims: [
+            {
+              path: ['addresses', 0, 'street'],
+            },
+            {
+              path: ['data', null, 'value'],
+            },
+          ],
+        },
+      ],
+    }
+    const result = validateStartIssuanceResponse(input)
+    expect(result.credential_types[0].claims?.[0].path).toEqual([
+      'addresses',
+      0,
+      'street',
+    ])
+    expect(result.credential_types[0].claims?.[1].path).toEqual(['data', null, 'value'])
+  })
 })
 
 describe('validateCredentialRecord', () => {

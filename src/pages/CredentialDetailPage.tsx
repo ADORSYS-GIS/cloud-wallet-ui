@@ -4,9 +4,8 @@ import { Header } from '../components/Header'
 import { CredentialDisplayCard } from '../components/credentials/CredentialDisplayCard'
 import { PageContainer } from '../components/layout/PageContainer'
 import { credentialRemovePath, routes } from '../constants/routes'
-import { useCredentialDetail } from '../hooks/useCredentialDetail'
+import { useCredentialDetail, type RawCredentialData } from '../hooks/useCredentialDetail'
 import { useCredentialsCache } from '../state/credentialsCache.state'
-import type { CredentialRecord } from '../types/credential'
 
 function claimValueString(value: unknown): string {
   if (value === null || value === undefined) return '—'
@@ -126,8 +125,38 @@ function ClaimsSection({ claims }: ClaimsSectionProps) {
 }
 
 type CredentialHeaderCardProps = {
-  credential: CredentialRecord
+  credential: RawCredentialData
   credentialId: string
+}
+
+/**
+ * Extract display metadata from raw credential claims.
+ * Tries to find common display fields in the raw data.
+ */
+function extractDisplayFromClaims(claims: RawCredentialData): {
+  name?: string
+  issuer_name?: string
+} {
+  // Common fields that might contain display information
+  const name =
+    typeof claims.vct === 'string'
+      ? claims.vct
+      : typeof claims.type === 'string'
+        ? claims.type
+        : typeof claims.credential_type === 'string'
+          ? claims.credential_type
+          : undefined
+
+  const issuer_name =
+    typeof claims.iss === 'string'
+      ? claims.iss
+      : typeof claims.issuer === 'string'
+        ? claims.issuer
+        : typeof claims.issuer_name === 'string'
+          ? claims.issuer_name
+          : undefined
+
+  return { name, issuer_name }
 }
 
 function CredentialHeaderCard({ credential, credentialId }: CredentialHeaderCardProps) {
@@ -136,15 +165,16 @@ function CredentialHeaderCard({ credential, credentialId }: CredentialHeaderCard
   // Try to get cached display metadata from the credentials list
   const cachedCredential = getCredential(credentialId)
 
-  // Use cached display if available, otherwise fall back to API response
-  const display = credential.display ?? cachedCredential?.display ?? {}
-  const fallbackTitle = credential.credential_configuration_id
-  const fallbackIssuer = credential.issuer
+  // Use cached display if available, otherwise extract from claims
+  const display = cachedCredential?.display
+  const extracted = extractDisplayFromClaims(credential)
+  const fallbackTitle = display?.name ?? extracted.name ?? 'Credential'
+  const fallbackIssuer = extracted.issuer_name
 
   return (
     <div className="mx-4">
       <CredentialDisplayCard
-        display={display}
+        display={display ?? {}}
         fallbackTitle={fallbackTitle}
         fallbackIssuer={fallbackIssuer}
         className="transition-all duration-200 hover:scale-[1.01] hover:shadow-md active:scale-[0.98] hover:bg-[#e6f4e6]"
@@ -210,7 +240,7 @@ function CredentialDetailContent({
   credential,
   credentialId,
 }: {
-  credential: CredentialRecord
+  credential: RawCredentialData
   credentialId: string
 }) {
   const navigate = useNavigate()
@@ -224,12 +254,12 @@ function CredentialDetailContent({
         className="min-h-0 flex-1 overflow-y-auto bg-white"
         aria-label="Credential claims"
       >
-        <ClaimsSection claims={credential.claims} />
+        <ClaimsSection claims={credential} />
       </section>
       <div className="shrink-0 border-t border-slate-200 bg-[#E9ECEF] px-2 pb-2">
         <button
           type="button"
-          onClick={() => navigate(credentialRemovePath(credential.id))}
+          onClick={() => navigate(credentialRemovePath(credentialId))}
           className="h-9 w-full rounded-md bg-red-600 text-center text-base font-semibold text-white shadow-[0_2px_7px_rgba(0,0,0,0.22)] transition-colors hover:bg-red-700"
         >
           Remove Credential

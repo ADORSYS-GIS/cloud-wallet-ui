@@ -36,15 +36,13 @@ const validCredentialListItem = {
 
 const validList = { credentials: [validCredentialListItem] }
 
+// Raw credential claims from the backend (not wrapped in CredentialRecord)
 const validCredentialDetail = {
-  id: 'cred-1',
-  credential_configuration_id: 'eu.europa.ec.eudi.pid.1',
-  format: 'dc+sd-jwt',
-  issuer: 'https://issuer.example.eu',
-  status: 'active',
-  issued_at: '2026-04-08T14:35:00Z',
-  expires_at: null,
-  claims: { given_name: 'Jane' },
+  given_name: 'Jane',
+  family_name: 'Doe',
+  iss: 'https://issuer.example.eu',
+  vct: 'eu.europa.ec.eudi.pid.1',
+  iat: 1683000000,
 }
 
 describe('useCredentials — request deduplication', () => {
@@ -285,7 +283,50 @@ describe('useCredentialDetail — request deduplication', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(result.current.credential).not.toBeNull()
-    expect(result.current.credential?.id).toBe('cred-1')
+    expect(result.current.credential?.given_name).toBe('Jane')
+    expect(result.current.credential?.family_name).toBe('Doe')
     expect(result.current.error).toBeNull()
+  })
+
+  it('sets error state when response is not an object', async () => {
+    const fetchMock = vi.fn(async () => makeJsonResponse('invalid string response'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { useCredentialDetail } = await import('../useCredentialDetail')
+    const { result } = renderHook(() => useCredentialDetail('cred-1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.credential).toBeNull()
+    expect(result.current.error).toBeInstanceOf(Error)
+    expect(result.current.error?.message).toContain('Invalid credential data')
+  })
+
+  it('sets error state when response is null', async () => {
+    const fetchMock = vi.fn(async () => makeJsonResponse(null))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { useCredentialDetail } = await import('../useCredentialDetail')
+    const { result } = renderHook(() => useCredentialDetail('cred-1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.credential).toBeNull()
+    expect(result.current.error).toBeInstanceOf(Error)
+    expect(result.current.error?.message).toContain('Invalid credential data')
+  })
+
+  it('sets error state when response is an array', async () => {
+    const fetchMock = vi.fn(async () => makeJsonResponse(['invalid', 'array']))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { useCredentialDetail } = await import('../useCredentialDetail')
+    const { result } = renderHook(() => useCredentialDetail('cred-1'))
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.credential).toBeNull()
+    expect(result.current.error).toBeInstanceOf(Error)
+    expect(result.current.error?.message).toContain('Invalid credential data')
   })
 })

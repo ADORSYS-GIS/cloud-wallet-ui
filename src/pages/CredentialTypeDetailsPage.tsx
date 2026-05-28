@@ -28,35 +28,38 @@ function useSelectedType(
   }, [optionId, session])
 }
 
-type ClaimRow = { label: string; value: string }
+function formatClaimPath(path: (string | number | null)[]): string {
+  return path.map((p) => (p === null ? '*' : String(p))).join('.')
+}
 
-function buildDisplayRows(
+function getClaimDisplayName(
+  claim: import('../types/issuance').ClaimDescription
+): string | undefined {
+  if (!claim.display || claim.display.length === 0) return undefined
+  // Prefer first display entry, could be enhanced to match locale
+  return claim.display[0]?.name
+}
+
+function buildClaimRows(
   credType: NonNullable<ReturnType<typeof useSelectedType>>
-): ClaimRow[] {
-  const display = credType.display[0]!
-  const rows: ClaimRow[] = [
-    { label: 'Credential Configuration ID', value: credType.credential_configuration_id },
-    { label: 'Format', value: credType.format },
-    { label: 'Name', value: display.name },
-  ]
+): Array<{ path: string; name: string; mandatory: boolean }> | null {
+  if (!credType.claims || credType.claims.length === 0) return null
 
-  if (display.description) {
-    rows.push({ label: 'Description', value: display.description })
-  }
-  if (display.background_color) {
-    rows.push({ label: 'Background Color', value: display.background_color })
-  }
-  if (display.text_color) {
-    rows.push({ label: 'Text Color', value: display.text_color })
-  }
-  if (display.logo?.uri) {
-    rows.push({ label: 'Logo URI', value: display.logo.uri })
-  }
-  if (display.logo) {
-    rows.push({ label: 'Logo Alt Text', value: display.logo.alt_text })
-  }
-
-  return rows
+  return credType.claims.map((claim) => {
+    const pathStr = formatClaimPath(claim.path)
+    const displayName = getClaimDisplayName(claim)
+    // Use display name if available, otherwise use the last path segment
+    const name =
+      displayName ??
+      (typeof claim.path[claim.path.length - 1] === 'string'
+        ? (claim.path[claim.path.length - 1] as string)
+        : pathStr)
+    return {
+      path: pathStr,
+      name,
+      mandatory: claim.mandatory ?? false,
+    }
+  })
 }
 
 type ProcessingStep =
@@ -321,8 +324,6 @@ export function CredentialTypeDetailsPage() {
 
   if (shouldRedirect || !session || !selectedType) return null
 
-  const displayRows = buildDisplayRows(selectedType)
-
   const handleIssueVc = async () => {
     if (consentInFlightRef.current || isCancelling) return
     if (isSessionExpired) {
@@ -538,6 +539,29 @@ export function CredentialTypeDetailsPage() {
     overlay.kind === 'submitting_tx_code' ||
     overlay.kind === 'tx_code_error'
 
+  const display = selectedType.display[0]
+  const backgroundColor = display?.background_color
+  const textColor = display?.text_color
+  const backgroundImage = display?.background_image?.uri
+  const logoUri = display?.logo?.uri ?? issuerLogoUri
+  const credentialName = display?.name ?? selectedType.credential_configuration_id
+  const description = display?.description
+
+  const cardStyle: React.CSSProperties = {
+    ...(backgroundImage
+      ? {
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : { backgroundColor: backgroundColor }),
+    color: textColor,
+  }
+
+  const textColorClass = textColor ? '' : 'text-slate-900'
+  const subTextColorClass = textColor ? '' : 'text-slate-500'
+  const claimRows = buildClaimRows(selectedType)
+
   return (
     <PageContainer fullWidth>
       <ProcessingOverlay
@@ -546,7 +570,7 @@ export function CredentialTypeDetailsPage() {
         onRestart={handleRestartFlow}
       />
 
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e9ecef] font-serif">
+      <div className="flex h-screen w-full flex-col overflow-hidden rounded-none bg-[#e9ecef] font-serif">
         <div className="grid grid-cols-[auto_1fr_auto] items-center border-b border-[#96a8b2] bg-gradient-to-r from-[#3f6f7e] to-[#4e7f8f] px-2 py-2">
           <button
             type="button"
@@ -562,87 +586,69 @@ export function CredentialTypeDetailsPage() {
           <div className="w-10" />
         </div>
 
-        <section className="flex-1 overflow-y-auto px-1 py-1">
+        <div className="shrink-0 px-1 py-1">
           <div className="rounded-md bg-[#e7eaed] p-1.5">
-            {(() => {
-              const display = selectedType.display[0]
-              const backgroundColor = display?.background_color
-              const textColor = display?.text_color
-              const backgroundImage = display?.background_image?.uri
-              const logoUri = display?.logo?.uri ?? issuerLogoUri
-              const credentialName =
-                display?.name ?? selectedType.credential_configuration_id
-              const description = display?.description
-
-              const cardStyle: React.CSSProperties = {
-                // Only use background color if there's no background image
-                // Background image takes precedence
-                ...(backgroundImage
-                  ? {
-                      backgroundImage: `url(${backgroundImage})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                    }
-                  : { backgroundColor: backgroundColor }),
-                color: textColor,
-              }
-
-              const textColorClass = textColor ? '' : 'text-slate-900'
-              const subTextColorClass = textColor ? '' : 'text-slate-500'
-
-              return (
-                <div
-                  className={`mb-3 overflow-hidden rounded-2xl border border-slate-200/50 text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:scale-[1.01] hover:shadow-md active:scale-[0.98] ${!backgroundColor && !backgroundImage ? 'bg-white hover:bg-[#e6f4e6]' : ''}`}
-                  style={cardStyle}
-                >
-                  <div className="flex flex-col gap-3 px-5 py-5">
-                    <IssuerAvatar displayName={issuerName} logoUri={logoUri} size="md" />
-                    <div className="min-w-0">
-                      <p
-                        className={`truncate text-base font-semibold tracking-tight ${textColorClass}`}
-                        style={textColor ? { color: textColor } : undefined}
-                      >
-                        {credentialName}
-                      </p>
-                      <p
-                        className={`mt-0.5 truncate text-[14px] leading-relaxed ${subTextColorClass}`}
-                        style={textColor ? { color: textColor, opacity: 0.8 } : undefined}
-                      >
-                        {issuerName}
-                      </p>
-                    </div>
-                    {description && (
-                      <p
-                        className={`text-[13px] leading-relaxed ${subTextColorClass}`}
-                        style={textColor ? { color: textColor, opacity: 0.7 } : undefined}
-                      >
-                        {description}
-                      </p>
-                    )}
-                  </div>
+            <div
+              className={`overflow-hidden rounded-2xl border border-slate-200/50 text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-200 hover:scale-[1.01] hover:shadow-md active:scale-[0.98] ${!backgroundColor && !backgroundImage ? 'bg-white hover:bg-[#e6f4e6]' : ''}`}
+              style={cardStyle}
+            >
+              <div className="flex flex-col gap-3 px-5 py-5">
+                <IssuerAvatar displayName={issuerName} logoUri={logoUri} size="md" />
+                <div className="min-w-0">
+                  <p
+                    className={`truncate text-base font-semibold tracking-tight ${textColorClass}`}
+                    style={textColor ? { color: textColor } : undefined}
+                  >
+                    {credentialName}
+                  </p>
+                  <p
+                    className={`mt-0.5 truncate text-[14px] leading-relaxed ${subTextColorClass}`}
+                    style={textColor ? { color: textColor, opacity: 0.8 } : undefined}
+                  >
+                    {issuerName}
+                  </p>
                 </div>
-              )
-            })()}
+                {description && (
+                  <p
+                    className={`text-[13px] leading-relaxed ${subTextColorClass}`}
+                    style={textColor ? { color: textColor, opacity: 0.7 } : undefined}
+                  >
+                    {description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
-            <p className="mb-2 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
-              Here is the digital identity info:
-            </p>
-            <ul className="space-y-px">
-              {displayRows.map((row, index) => (
-                <li
-                  key={row.label}
-                  className={[
-                    'flex min-h-7 items-start rounded-sm px-2 py-1.5 text-[13px] md:text-[14px] leading-tight text-slate-900 gap-2',
-                    index % 2 === 0 ? 'bg-[#efefef]' : 'bg-[#f8f8f8]',
-                  ].join(' ')}
-                >
-                  <span className="shrink-0 font-medium text-slate-700 min-w-[130px]">
-                    {row.label}
-                  </span>
-                  <span className="break-all text-slate-900">{row.value}</span>
-                </li>
-              ))}
-            </ul>
+        <section className="flex-1 overflow-y-auto px-1 pb-1">
+          <div className="rounded-md bg-[#e7eaed] p-1.5">
+            {claimRows && claimRows.length > 0 && (
+              <>
+                <p className="mb-2 text-[18px] md:text-[19px] font-semibold leading-tight text-slate-900">
+                  Here is the digital identity info:
+                </p>
+                <ul className="space-y-px">
+                  {claimRows.map((claim, index) => (
+                    <li
+                      key={claim.path}
+                      className={[
+                        'flex min-h-7 items-start rounded-sm px-2 py-1.5 text-[13px] md:text-[14px] leading-tight text-slate-900 gap-2',
+                        index % 2 === 0 ? 'bg-[#efefef]' : 'bg-[#f8f8f8]',
+                      ].join(' ')}
+                    >
+                      <span className="shrink-0 font-medium text-slate-700 min-w-[130px]">
+                        {claim.name}
+                        {claim.mandatory && <span className="ml-1 text-red-500">*</span>}
+                      </span>
+                      <span className="break-all text-slate-500 text-xs">
+                        {claim.path}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         </section>
 
@@ -667,7 +673,7 @@ export function CredentialTypeDetailsPage() {
           </div>
         )}
 
-        <div className="px-2 pb-1">
+        <div className="shrink-0 px-2 pb-1">
           <button
             type="button"
             onClick={() => void handleIssueVc()}
