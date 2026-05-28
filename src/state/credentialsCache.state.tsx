@@ -1,5 +1,12 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import type { CredentialListItem } from '../types/credential'
 
 const STORAGE_KEY = 'cloud_wallet_credentials_cache'
@@ -70,8 +77,8 @@ function saveToStorage(credentials: Map<string, CredentialListItem>): void {
 const CredentialsCacheContext = createContext<CredentialsCacheState | null>(null)
 
 export function CredentialsCacheProvider({ children }: { children: React.ReactNode }) {
-  const [credentials, setCredentialsMap] = useState<Map<string, CredentialListItem>>(
-    () => loadFromStorage()
+  const [credentials, setCredentialsMap] = useState<Map<string, CredentialListItem>>(() =>
+    loadFromStorage()
   )
 
   // Persist to localStorage whenever credentials change
