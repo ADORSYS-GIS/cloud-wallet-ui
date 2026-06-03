@@ -23,6 +23,11 @@ const STORAGE_KEY = 'cloud_wallet_presentation_flow'
 
 const IDLE_STATE: PersistedPresentationState = { status: 'idle' }
 
+const DEFAULT_SUBMISSION_FAILED_ERROR: PresentationError = {
+  code: 'submission_failed',
+  message: 'Presentation submission failed.',
+}
+
 function isTerminalStatus(status: PresentationStatus): boolean {
   return status === 'success' || status === 'error'
 }
@@ -47,14 +52,82 @@ function isPresentationStatus(value: unknown): value is PresentationStatus {
   )
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isVerifierMetadata(value: unknown): value is VerifierMetadata {
+  return isRecord(value) && typeof value.client_id === 'string'
+}
+
+function isParsedPresentationRequest(value: unknown): value is ParsedPresentationRequest {
+  return isRecord(value)
+}
+
+function isMatchingCredential(value: unknown): value is MatchingCredential {
+  return (
+    isRecord(value) &&
+    typeof value.credentialId === 'string' &&
+    typeof value.queryId === 'string' &&
+    typeof value.format === 'string'
+  )
+}
+
+function isSelectedCredential(value: unknown): value is SelectedCredential {
+  return isMatchingCredential(value)
+}
+
+function isDisclosedClaimMap(value: unknown): value is DisclosedClaimMap {
+  if (!isRecord(value)) return false
+  return Object.values(value).every(
+    (claims) =>
+      Array.isArray(claims) && claims.every((claim) => typeof claim === 'string')
+  )
+}
+
+function isPresentationError(value: unknown): value is PresentationError {
+  return (
+    isRecord(value) && typeof value.code === 'string' && typeof value.message === 'string'
+  )
+}
+
+function validatePersistedFields(
+  record: Record<string, unknown>
+): PersistedPresentationState | null {
+  if (record.verifier !== undefined && !isVerifierMetadata(record.verifier)) return null
+  if (record.request !== undefined && !isParsedPresentationRequest(record.request))
+    return null
+  if (record.error !== undefined && !isPresentationError(record.error)) return null
+  if (
+    record.matchingCredentials !== undefined &&
+    (!Array.isArray(record.matchingCredentials) ||
+      !record.matchingCredentials.every(isMatchingCredential))
+  ) {
+    return null
+  }
+  if (
+    record.selectedCredentials !== undefined &&
+    (!Array.isArray(record.selectedCredentials) ||
+      !record.selectedCredentials.every(isSelectedCredential))
+  ) {
+    return null
+  }
+  if (
+    record.disclosedClaims !== undefined &&
+    !isDisclosedClaimMap(record.disclosedClaims)
+  ) {
+    return null
+  }
+  return record as PersistedPresentationState
+}
+
 function parsePersistedState(raw: string): PersistedPresentationState | null {
   try {
     const parsed: unknown = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') return null
-    const record = parsed as Record<string, unknown>
-    if (!isPresentationStatus(record.status)) return null
-    if (!isPersistableStatus(record.status)) return null
-    return parsed as PersistedPresentationState
+    if (!isRecord(parsed)) return null
+    if (!isPresentationStatus(parsed.status)) return null
+    if (!isPersistableStatus(parsed.status)) return null
+    return validatePersistedFields(parsed)
   } catch {
     return null
   }
@@ -107,7 +180,11 @@ export type PresentationState = PersistedPresentationState & {
   setMatchingCredentials: (credentials: MatchingCredential[]) => void
   setSelectedCredentials: (credentials: SelectedCredential[]) => void
   setDisclosedClaims: (claims: DisclosedClaimMap) => void
-  setSubmissionResult: (result: PresentationResult) => void
+  /**
+   * Sets submission outcome and terminal status. On failure, uses `error` when provided,
+   * otherwise keeps an existing error or falls back to `submission_failed`.
+   */
+  setSubmissionResult: (result: PresentationResult, error?: PresentationError) => void
   setError: (error: PresentationError) => void
   /** Reset all presentation state and remove persisted data. */
   clear: () => void
@@ -115,6 +192,7 @@ export type PresentationState = PersistedPresentationState & {
 
 const PresentationContext = createContext<PresentationState | null>(null)
 
+/** In-progress flow state is persisted; terminal success/error stays in memory until `clear()`. */
 export function PresentationProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<PersistedPresentationState>(loadFromStorage)
 
@@ -126,6 +204,15 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
     saveToStorage(data)
   }, [data])
 
+  const clear = useCallback(() => {
+    setData(IDLE_STATE)
+    removeFromStorage()
+  }, [])
+
+  /**
+   * Updates lifecycle status only. Does not reset request, credentials, or disclosure fields.
+   * Call `clear()` when starting a new presentation flow or after the user leaves a result screen.
+   */
   const setStatus = useCallback((status: PresentationStatus) => {
     setData((prev) => {
       if (status === 'success') {
@@ -136,7 +223,15 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const setRequest = useCallback((request: ParsedPresentationRequest) => {
-    setData((prev) => ({ ...prev, request }))
+    setData((prev) => ({
+      ...prev,
+      request,
+      matchingCredentials: undefined,
+      selectedCredentials: undefined,
+      disclosedClaims: undefined,
+      submissionResult: undefined,
+      error: undefined,
+    }))
   }, [])
 
   const setVerifier = useCallback((verifier: VerifierMetadata) => {
@@ -145,7 +240,12 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
 
   const setMatchingCredentials = useCallback(
     (matchingCredentials: MatchingCredential[]) => {
-      setData((prev) => ({ ...prev, matchingCredentials }))
+      setData((prev) => ({
+        ...prev,
+        matchingCredentials,
+        selectedCredentials: undefined,
+        disclosedClaims: undefined,
+      }))
     },
     []
   )
@@ -161,14 +261,19 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
     setData((prev) => ({ ...prev, disclosedClaims }))
   }, [])
 
-  const setSubmissionResult = useCallback((submissionResult: PresentationResult) => {
-    setData((prev) => ({
-      ...prev,
-      submissionResult,
-      status: submissionResult.success ? 'success' : 'error',
-      error: submissionResult.success ? undefined : prev.error,
-    }))
-  }, [])
+  const setSubmissionResult = useCallback(
+    (submissionResult: PresentationResult, error?: PresentationError) => {
+      setData((prev) => ({
+        ...prev,
+        submissionResult,
+        status: submissionResult.success ? 'success' : 'error',
+        error: submissionResult.success
+          ? undefined
+          : (error ?? prev.error ?? DEFAULT_SUBMISSION_FAILED_ERROR),
+      }))
+    },
+    []
+  )
 
   const setError = useCallback((error: PresentationError) => {
     setData((prev) => ({
@@ -178,16 +283,6 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
       submissionResult: undefined,
     }))
   }, [])
-
-  const clear = useCallback(() => {
-    setData(IDLE_STATE)
-    removeFromStorage()
-  }, [])
-
-  useEffect(() => {
-    if (!isTerminalStatus(data.status)) return
-    clear()
-  }, [clear, data.status])
 
   const isFlowActive =
     data.status !== 'idle' && data.status !== 'success' && data.status !== 'error'
@@ -233,3 +328,15 @@ export function usePresentationState(): PresentationState {
   }
   return ctx
 }
+
+export type {
+  DisclosedClaimMap,
+  MatchingCredential,
+  ParsedPresentationRequest,
+  PresentationError,
+  PresentationErrorCode,
+  PresentationResult,
+  PresentationStatus,
+  SelectedCredential,
+  VerifierMetadata,
+} from '../types/presentation'
