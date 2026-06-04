@@ -746,108 +746,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-  # -------------------------------------------------------------------------
-  # 11. Presentation activity (audit history)
-  # -------------------------------------------------------------------------
-  /presentation/activity:
-    get:
-      operationId: listPresentationActivity
-      summary: List presentation activity records for the authenticated tenant
-      description: |
-        Returns metadata-only summaries of completed presentations (newest first).
-        Does not include sensitive claim values. Records older than the configured
-        retention period (default 30 days) are excluded by the backend.
-      tags:
-        - Presentation
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: page_size
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - name: from
-          in: query
-          description: Inclusive start date (YYYY-MM-DD).
-          schema:
-            type: string
-            format: date
-        - name: to
-          in: query
-          description: Inclusive end date (YYYY-MM-DD).
-          schema:
-            type: string
-            format: date
-        - name: verifier_name
-          in: query
-          description: Case-insensitive substring filter on verifier display name.
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Paginated presentation activity list.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PresentationActivityListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /presentation/activity/{id}:
-    get:
-      operationId: getPresentationActivity
-      summary: Get a single presentation activity record
-      tags:
-        - Presentation
-      parameters:
-        - $ref: '#/components/parameters/PresentationActivityId'
-      responses:
-        '200':
-          description: Presentation activity record.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PresentationActivityRecord'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          description: Record not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-    delete:
-      operationId: deletePresentationActivity
-      summary: Delete a presentation activity record (privacy)
-      tags:
-        - Presentation
-      parameters:
-        - $ref: '#/components/parameters/PresentationActivityId'
-      responses:
-        '204':
-          description: Record deleted. No response body.
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          description: Record not found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
 # ---------------------------------------------------------------------------
 # Components
 # ---------------------------------------------------------------------------
@@ -903,15 +801,6 @@ components:
         type: string
         format: uuid
         example: c3d4e5f6-7890-abcd-ef12-3456789abcde
-
-    PresentationActivityId:
-      name: id
-      in: path
-      required: true
-      description: Presentation activity record UUID.
-      schema:
-        type: string
-        format: uuid
 
   # -------------------------------------------------------------------------
   # Reusable Responses
@@ -1552,71 +1441,6 @@ components:
           items:
             $ref: '#/components/schemas/CredentialRecord'
 
-    PresentationActivityVerifier:
-      type: object
-      required:
-        - client_id
-      properties:
-        client_id:
-          type: string
-          description: Verifier client identifier (may include a Client Identifier Prefix).
-        name:
-          type: string
-          nullable: true
-        logo_uri:
-          type: string
-          format: uri
-          nullable: true
-
-    PresentationActivityRecord:
-      type: object
-      required:
-        - id
-        - presented_at
-        - verifier
-        - credential_types
-        - disclosed_claim_count
-      properties:
-        id:
-          type: string
-          format: uuid
-        presented_at:
-          type: string
-          format: date-time
-        verifier:
-          $ref: '#/components/schemas/PresentationActivityVerifier'
-        credential_types:
-          type: array
-          items:
-            type: string
-          description: Credential configuration IDs or display labels shared in the presentation.
-        disclosed_claim_count:
-          type: integer
-          minimum: 0
-          description: Number of claims disclosed (metadata only; values are not stored).
-
-    PresentationActivityListResponse:
-      type: object
-      required:
-        - items
-        - total
-        - page
-        - page_size
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/PresentationActivityRecord'
-        total:
-          type: integer
-          minimum: 0
-        page:
-          type: integer
-          minimum: 1
-        page_size:
-          type: integer
-          minimum: 1
-
 # ---------------------------------------------------------------------------
 # Tags
 # ---------------------------------------------------------------------------
@@ -1632,7 +1456,3 @@ tags:
     description: |
       Credential retrieval. Read-only access to verifiable credentials
       stored in the wallet after a successful issuance flow.
-  - name: Presentation
-    description: |
-      OpenID4VP presentation activity history. Metadata-only audit records
-      for completed presentations (no sensitive claim values).
