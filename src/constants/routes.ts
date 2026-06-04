@@ -2,6 +2,8 @@ export const routes = {
   registration: '/registration',
   home: '/',
   scan: '/scan',
+  presentationActivity: '/activity',
+  presentationActivityDetail: '/activity/:activityId',
   credentialTypes: '/credential-types',
   credentialTypeDetails: '/credential-types/:optionId',
   credentials: '/credentials',
@@ -24,4 +26,8 @@ export function issuanceSuccessPath(credentialId?: string) {
   return credentialId
     ? `/issuance/success/${encodeURIComponent(credentialId)}`
     : '/issuance/success'
+}
+
+export function presentationActivityDetailPath(activityId: string) {
+  return `/activity/${encodeURIComponent(activityId)}`
 }

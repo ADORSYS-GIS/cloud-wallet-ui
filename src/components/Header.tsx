@@ -9,6 +9,7 @@ type HeaderProps = {
   hidePwaBanner?: boolean
   title?: string
   leftSlot?: ReactNode
+  rightSlot?: ReactNode
 }
 
 export function Header({
@@ -16,6 +17,7 @@ export function Header({
   hidePwaBanner = false,
   title = DEFAULT_TITLE,
   leftSlot,
+  rightSlot,
 }: HeaderProps) {
   const { installApp, isInstallable, isInstalling, isInstalled, isIosInstallable } =
     usePWA()
@@ -76,6 +78,9 @@ export function Header({
           <h1 className="min-w-0 truncate text-center font-semibold leading-none text-slate-100 md:text-[28px]">
             {title}
           </h1>
+          <div className="flex w-8 shrink-0 justify-end">
+            {rightSlot ?? <span className="inline-block w-6" aria-hidden />}
+          </div>
         </header>
       )}
     </>

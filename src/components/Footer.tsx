@@ -4,7 +4,7 @@ import credsIcon from '../assets/icon-creds.svg'
 import qrIcon from '../assets/icon-qr.svg'
 import { routes } from '../constants/routes'
 
-export type FooterActiveTab = 'creds' | 'home'
+export type FooterActiveTab = 'activity' | 'creds' | 'home'
 
 type FooterProps = {
   onScanClick: () => void
@@ -20,6 +20,8 @@ export function Footer({
   activeTab,
 }: FooterProps) {
   const location = useLocation()
+  const activityActive =
+    activeTab === 'activity' || location.pathname.startsWith(routes.presentationActivity)
   const credsActive =
     activeTab === 'creds' || location.pathname.startsWith(routes.credentials)
 
@@ -30,10 +32,15 @@ export function Footer({
     <nav className="relative mt-auto grid grid-cols-3 items-end bg-[#FFFFFF] px-8 pb-7 pt-2 text-slate-900">
       <div className="absolute -top-4 left-1/2 h-8 w-16 -translate-x-1/2 rounded-t-full bg-[#E9ECEF]" />
 
-      <div className={tabClass(false)} aria-label="Activity — coming soon">
+      <Link
+        to={routes.presentationActivity}
+        className={tabClass(activityActive)}
+        aria-current={activityActive ? 'page' : undefined}
+        aria-label={!showLabels ? 'Activity' : undefined}
+      >
         <img src={activityIcon} alt="" className="h-6 w-6" />
         {showLabels && <span className="text-xs leading-none">Activity</span>}
-      </div>
+      </Link>
 
       <div className="flex justify-center">
         <button

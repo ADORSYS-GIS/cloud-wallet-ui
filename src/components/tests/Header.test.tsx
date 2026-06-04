@@ -102,4 +102,9 @@ describe('Header', () => {
     expect(screen.queryByRole('button', { name: 'Install app' })).toBeNull()
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
   })
+
+  it('renders rightSlot in the main header', () => {
+    render(<Header rightSlot={<button type="button">Settings</button>} />)
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeDefined()
+  })
 })

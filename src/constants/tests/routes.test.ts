@@ -3,7 +3,10 @@ import {
   credentialDetailPath,
   credentialTypeDetailsPath,
   issuanceSuccessPath,
+  presentationActivityDetailPath,
 } from '../routes'
+
+const ACTIVITY_ID = 'c3d4e5f6-7890-abcd-ef12-3456789abcde'
 
 describe('routes helpers', () => {
   it('builds credential type details path with encoding', () => {
@@ -20,5 +23,11 @@ describe('routes helpers', () => {
 
   it('builds issuance success path without credential id', () => {
     expect(issuanceSuccessPath()).toBe('/issuance/success')
+  })
+
+  it('builds presentation activity detail path with encoding', () => {
+    expect(presentationActivityDetailPath(ACTIVITY_ID)).toBe(
+      `/activity/${encodeURIComponent(ACTIVITY_ID)}`
+    )
   })
 })
