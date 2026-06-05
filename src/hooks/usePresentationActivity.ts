@@ -8,6 +8,7 @@ import type {
   PresentationActivityRecord,
 } from '../types/presentationActivity'
 import { DEFAULT_PRESENTATION_ACTIVITY_PAGE_SIZE } from '../types/presentationActivity'
+import { presentationActivityUserMessage } from '../utils/presentationActivityErrors'
 
 export type PresentationActivityFilters = {
   from: string
@@ -88,9 +89,7 @@ export function usePresentationActivity(): UsePresentationActivityReturn {
         if (signal.aborted) return
         setItems([])
         setHasMore(false)
-        setErrorMessage(
-          err instanceof Error ? err.message : 'Could not load presentation activity.'
-        )
+        setErrorMessage(presentationActivityUserMessage(err, 'list'))
       } finally {
         if (!signal.aborted) setLoading(false)
       }
@@ -113,11 +112,7 @@ export function usePresentationActivity(): UsePresentationActivityReturn {
         setPage(response.page)
         setHasMore(response.page * response.page_size < response.total)
       } catch (err: unknown) {
-        setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : 'Could not load more presentation activity.'
-        )
+        setErrorMessage(presentationActivityUserMessage(err, 'load_more'))
       } finally {
         setLoadingMore(false)
       }

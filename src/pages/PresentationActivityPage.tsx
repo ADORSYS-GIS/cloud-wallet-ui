@@ -11,6 +11,7 @@ import { PresentationActivityItem } from '../components/presentation/Presentatio
 import { routes } from '../constants/routes'
 import { usePresentationActivity } from '../hooks/usePresentationActivity'
 import type { PresentationActivityRecord } from '../types/presentationActivity'
+import { presentationActivityUserMessage } from '../utils/presentationActivityErrors'
 import { verifierDisplayLabel } from '../utils/presentationActivity'
 
 export function PresentationActivityPage() {
@@ -46,9 +47,7 @@ export function PresentationActivityPage() {
       await removeItem(pendingDelete.id)
       setPendingDelete(null)
     } catch (err: unknown) {
-      reportError(
-        err instanceof Error ? err.message : 'Could not delete this presentation record.'
-      )
+      reportError(presentationActivityUserMessage(err, 'delete'))
     } finally {
       setDeleting(false)
     }
@@ -77,7 +76,9 @@ export function PresentationActivityPage() {
           </section>
         )}
 
-        {!loading && items.length === 0 && <PresentationActivityEmptyState />}
+        {!loading && items.length === 0 && !errorMessage && (
+          <PresentationActivityEmptyState />
+        )}
 
         {!loading && items.length > 0 && (
           <section

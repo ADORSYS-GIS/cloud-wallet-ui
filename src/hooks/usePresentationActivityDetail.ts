@@ -4,6 +4,7 @@ import {
   getPresentationActivityById,
 } from '../api/presentationActivity'
 import type { PresentationActivityRecord } from '../types/presentationActivity'
+import { presentationActivityUserMessage } from '../utils/presentationActivityErrors'
 
 type UsePresentationActivityDetailReturn = {
   record: PresentationActivityRecord | null
@@ -42,9 +43,7 @@ export function usePresentationActivityDetail(
       } catch (err: unknown) {
         if (signal.aborted) return
         setRecord(null)
-        setErrorMessage(
-          err instanceof Error ? err.message : 'Could not load presentation details.'
-        )
+        setErrorMessage(presentationActivityUserMessage(err, 'detail'))
       } finally {
         if (!signal.aborted) setLoading(false)
       }
@@ -62,9 +61,7 @@ export function usePresentationActivityDetail(
     try {
       await deletePresentationActivity(activityId)
     } catch (err: unknown) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Could not delete this presentation record.'
-      )
+      setErrorMessage(presentationActivityUserMessage(err, 'delete'))
       setDeleting(false)
       throw err
     }

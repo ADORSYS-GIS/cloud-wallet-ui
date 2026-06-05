@@ -56,7 +56,38 @@ describe('PresentationActivityPage', () => {
     )
 
     expect(screen.getByText('There is no past activity to show.')).toBeDefined()
+    expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Activity History' })).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull()
+  })
+
+  it('hides empty state when load failed with an error message', () => {
+    mockUsePresentationActivity.mockReturnValue({
+      items: [],
+      loading: false,
+      loadingMore: false,
+      errorMessage:
+        'Activity history is not available right now. Try again later or contact your administrator if this continues.',
+      hasMore: false,
+      filters: { from: '', to: '', verifierName: '' },
+      setFilters: vi.fn(),
+      loadMore: vi.fn(),
+      removeItem: vi.fn(),
+      reportError: vi.fn(),
+      clearError: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <PresentationActivityPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByText('There is no past activity to show.')).toBeNull()
+    expect(
+      screen.getByText(
+        'Activity history is not available right now. Try again later or contact your administrator if this continues.'
+      )
+    ).toBeDefined()
   })
 })
