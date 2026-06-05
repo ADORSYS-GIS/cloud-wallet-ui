@@ -66,7 +66,13 @@ function SetterProbe() {
       <button
         type="button"
         onClick={() =>
-          state.setRequest({ client_id: 'verifier-client', response_type: 'vp_token' })
+          state.setRequest({
+            client_id: 'verifier-client',
+            nonce: 'nonce-123',
+            response_type: 'vp_token',
+            response_mode: 'direct_post',
+            scope: 'openid',
+          })
         }
       >
         set-request
@@ -111,7 +117,13 @@ function SetterProbe() {
             { credentialId: 'cred-1', queryId: 'query-1', format: 'dc+sd-jwt' },
           ])
           state.setDisclosedClaims({ 'cred-1': ['given_name'] })
-          state.setRequest({ client_id: 'new-request', response_type: 'vp_token' })
+          state.setRequest({
+            client_id: 'new-request',
+            nonce: 'nonce-456',
+            response_type: 'vp_token',
+            response_mode: 'direct_post',
+            scope: 'openid',
+          })
         }}
       >
         new-request
