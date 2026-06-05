@@ -27,12 +27,18 @@ describe('presentationActivityUserMessage', () => {
   })
 
   it('maps detail 404 separately', () => {
-    const message = presentationActivityUserMessage(new ApiError(404, 'not found'), 'detail')
+    const message = presentationActivityUserMessage(
+      new ApiError(404, 'not found'),
+      'detail'
+    )
     expect(message).toContain('could not be found')
   })
 
   it('maps delete failures', () => {
-    const message = presentationActivityUserMessage(new ApiError(500, 'server error'), 'delete')
+    const message = presentationActivityUserMessage(
+      new ApiError(500, 'server error'),
+      'delete'
+    )
     expect(message).toContain('delete')
   })
 })

@@ -57,7 +57,11 @@ export function presentationActivityUserMessage(
 
   if (error instanceof Error && error.message.trim()) {
     const msg = error.message.trim()
-    if (/failed with \d{3}/i.test(msg) || msg.startsWith('GET ') || msg.startsWith('DELETE ')) {
+    if (
+      /failed with \d{3}/i.test(msg) ||
+      msg.startsWith('GET ') ||
+      msg.startsWith('DELETE ')
+    ) {
       return presentationActivityUserMessage(new ApiError(0, msg), context)
     }
     return msg
