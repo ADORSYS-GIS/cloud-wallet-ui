@@ -126,6 +126,7 @@ export type PresentationError = {
 export type PresentationAuthorizationRequest = {
   client_id: string
   request_uri?: string
+  request_uri_method?: 'GET' | 'POST'
   request?: string
   response_type?: string
   nonce?: string

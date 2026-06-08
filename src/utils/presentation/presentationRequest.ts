@@ -10,6 +10,8 @@ const SUPPORTED_RESPONSE_MODES = new Set([
   'fragment',
   'query',
 ])
+const MAX_REQUEST_URI_LENGTH = 4096
+const MAX_CLIENT_ID_LENGTH = 2048
 
 export type ParsedPresentationRequestParams =
   | { ok: true; authorization: PresentationAuthorizationRequest }
@@ -35,12 +37,44 @@ function pickOptionalParam(
   return value || undefined
 }
 
+/** `request_uri` and `client_metadata_uri` must be HTTPS per OID4VP security requirements. */
 function isHttpsUrl(value: string): boolean {
   try {
     return new URL(value).protocol === 'https:'
   } catch {
     return false
   }
+}
+
+function isJwtStructure(value: string): boolean {
+  const parts = value.split('.')
+  return parts.length === 3 && parts.every((part) => part.length > 0)
+}
+
+function isRequestUriMethod(
+  value: string
+): value is NonNullable<PresentationAuthorizationRequest['request_uri_method']> {
+  return value === 'GET' || value === 'POST'
+}
+
+function isValidClientId(value: string): boolean {
+  if (value.length > MAX_CLIENT_ID_LENGTH) {
+    return false
+  }
+  if (value.startsWith('https://')) {
+    try {
+      new URL(value)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const knownPrefixes = ['did:', 'x509_san_dns:', 'x509_hash:', 'urn:']
+  if (knownPrefixes.some((prefix) => value.startsWith(prefix))) {
+    return true
+  }
+  // Opaque client_id values are permitted; backend performs authoritative validation.
+  return value.length > 0 && !/\s/.test(value)
 }
 
 /**
@@ -55,6 +89,9 @@ export function parsePresentationRequestParams(
   if (!client_id) {
     return invalidRequest('Missing required parameter: client_id.')
   }
+  if (!isValidClientId(client_id)) {
+    return invalidRequest('Invalid client_id format.')
+  }
 
   const request_uri = pickOptionalParam(searchParams, 'request_uri')
   const request = pickOptionalParam(searchParams, 'request')
@@ -65,8 +102,31 @@ export function parsePresentationRequestParams(
     return invalidRequest('Provide either request_uri or request, not both.')
   }
 
-  if (request_uri && !isHttpsUrl(request_uri)) {
-    return invalidRequest('Invalid request_uri format. Expected an https URL.')
+  if (request_uri) {
+    if (request_uri.length > MAX_REQUEST_URI_LENGTH) {
+      return invalidRequest('request_uri exceeds maximum allowed length.')
+    }
+    if (!isHttpsUrl(request_uri)) {
+      return invalidRequest('Invalid request_uri format. Expected an https URL.')
+    }
+  }
+
+  if (request && !isJwtStructure(request)) {
+    return invalidRequest(
+      'Invalid request format. Expected a JWT (header.payload.signature).'
+    )
+  }
+
+  const requestUriMethodRaw = pickOptionalParam(searchParams, 'request_uri_method')
+  let request_uri_method: PresentationAuthorizationRequest['request_uri_method']
+  if (requestUriMethodRaw) {
+    if (!isRequestUriMethod(requestUriMethodRaw)) {
+      return invalidRequest('Unsupported request_uri_method. Expected GET or POST.')
+    }
+    request_uri_method = requestUriMethodRaw
+  }
+  if (request_uri_method && !request_uri) {
+    return invalidRequest('request_uri_method is only valid with request_uri.')
   }
 
   const response_type = searchParams.get('response_type')?.trim()
@@ -74,7 +134,10 @@ export function parsePresentationRequestParams(
   const scope = pickOptionalParam(searchParams, 'scope')
   const dcql_query = pickOptionalParam(searchParams, 'dcql_query')
 
-  // JAR flows: request_uri / signed request may carry the remaining parameters.
+  // JAR flows (`request_uri` or signed `request`): response_type, nonce, and
+  // scope/dcql_query may live inside the fetched or embedded JWT. We do not
+  // decode the JWT client-side; POST /presentation/start resolves and validates
+  // the full authorization request server-side.
   const isJarFlow = Boolean(request_uri || request)
 
   if (!isJarFlow) {
@@ -115,6 +178,7 @@ export function parsePresentationRequestParams(
 
   if (request_uri) authorization.request_uri = request_uri
   if (request) authorization.request = request
+  if (request_uri_method) authorization.request_uri_method = request_uri_method
   if (response_type) authorization.response_type = response_type
   if (nonce) authorization.nonce = nonce
 

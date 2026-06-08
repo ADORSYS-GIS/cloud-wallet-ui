@@ -12,6 +12,7 @@ const mockStartRequest = vi.fn()
 const mockReset = vi.fn()
 
 let mockSessionState: PresentationSessionState = { status: 'idle' }
+let mockPresentationStatus = 'idle'
 
 vi.mock('react-router-dom', async () => {
   const actual =
@@ -24,6 +25,12 @@ vi.mock('../../../hooks/presentation/usePresentationSession', () => ({
     sessionState: mockSessionState,
     startRequest: mockStartRequest,
     reset: mockReset,
+  }),
+}))
+
+vi.mock('../../../state/presentation.state', () => ({
+  usePresentationState: () => ({
+    status: mockPresentationStatus,
   }),
 }))
 
@@ -72,6 +79,7 @@ describe('PresentationRequestPage', () => {
     mockStartRequest.mockReset()
     mockReset.mockReset()
     mockSessionState = { status: 'idle' }
+    mockPresentationStatus = 'idle'
   })
 
   it('shows validation error when query params are missing', () => {
@@ -116,14 +124,13 @@ describe('PresentationRequestPage', () => {
     expect(mockStartRequest).toHaveBeenCalled()
   })
 
-  it('does not navigate away on success', async () => {
-    mockSessionState = { status: 'success' }
+  it('does not start a duplicate request when the flow is already in progress', async () => {
+    mockPresentationStatus = 'loading'
     renderPage()
 
     await waitFor(() => {
-      expect(mockStartRequest).toHaveBeenCalledTimes(1)
+      expect(mockStartRequest).not.toHaveBeenCalled()
     })
-    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('resets and returns home when back is pressed', async () => {

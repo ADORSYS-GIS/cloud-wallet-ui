@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PresentationErrorCard } from '../../components/presentation/PresentationErrorCard'
 import { PresentationLoadingState } from '../../components/presentation/PresentationLoadingState'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
 import { routes } from '../../constants/routes'
 import { usePresentationSession } from '../../hooks/presentation/usePresentationSession'
+import { usePresentationState } from '../../state/presentation.state'
 import { parsePresentationRequestParams } from '../../utils/presentation/presentationRequest'
 
 export function PresentationRequestPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { sessionState, startRequest, reset } = usePresentationSession()
-  const hasStartedRef = useRef(false)
+  const presentation = usePresentationState()
 
   const parsedParams = useMemo(
     () => parsePresentationRequestParams(searchParams),
@@ -19,12 +20,18 @@ export function PresentationRequestPage() {
   )
 
   useEffect(() => {
-    if (!parsedParams.ok || hasStartedRef.current) {
+    if (!parsedParams.ok) {
       return
     }
-    hasStartedRef.current = true
+
+    const flowAlreadyStarted =
+      presentation.status !== 'idle' && presentation.status !== 'error'
+    if (flowAlreadyStarted || sessionState.status === 'loading') {
+      return
+    }
+
     void startRequest(parsedParams.authorization)
-  }, [parsedParams, startRequest])
+  }, [parsedParams, presentation.status, sessionState.status, startRequest])
 
   const handleBack = () => {
     reset()
@@ -36,9 +43,7 @@ export function PresentationRequestPage() {
       navigate(routes.scan)
       return
     }
-    hasStartedRef.current = false
     reset()
-    hasStartedRef.current = true
     void startRequest(parsedParams.authorization)
   }
 

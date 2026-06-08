@@ -4,6 +4,8 @@ import {
   presentationRequestPath,
 } from '../presentationRequest'
 
+const validJwt = 'eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.mock-signature'
+
 const validParams = new URLSearchParams({
   client_id: 'https://verifier.example',
   request_uri: 'https://verifier.example/request',
@@ -23,10 +25,20 @@ describe('parsePresentationRequestParams', () => {
     }
   })
 
+  it('accepts request_uri_method when provided with request_uri', () => {
+    const params = new URLSearchParams(validParams)
+    params.set('request_uri_method', 'POST')
+    const result = parsePresentationRequestParams(params)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.authorization.request_uri_method).toBe('POST')
+    }
+  })
+
   it('accepts a direct JWT request parameter', () => {
     const params = new URLSearchParams({
       client_id: 'verifier-client',
-      request: 'eyJhbGciOiJFUzI1NiJ9.mock',
+      request: validJwt,
       response_type: 'vp_token id_token',
       nonce: 'nonce-abc',
       dcql_query: '{"credentials":[]}',
@@ -58,6 +70,16 @@ describe('parsePresentationRequestParams', () => {
     }
   })
 
+  it('rejects invalid client_id format', () => {
+    const params = new URLSearchParams(validParams)
+    params.set('client_id', 'https://not a valid url')
+    const result = parsePresentationRequestParams(params)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.message).toContain('client_id')
+    }
+  })
+
   it('rejects invalid request_uri format', () => {
     const params = new URLSearchParams(validParams)
     params.set('request_uri', 'not-a-valid-uri')
@@ -71,6 +93,48 @@ describe('parsePresentationRequestParams', () => {
   it('rejects http request_uri', () => {
     const params = new URLSearchParams(validParams)
     params.set('request_uri', 'http://verifier.example/request')
+    const result = parsePresentationRequestParams(params)
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects request_uri that exceeds maximum length', () => {
+    const params = new URLSearchParams(validParams)
+    params.set('request_uri', `https://verifier.example/${'a'.repeat(4096)}`)
+    const result = parsePresentationRequestParams(params)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.message).toContain('request_uri')
+    }
+  })
+
+  it('rejects malformed JWT request parameter', () => {
+    const params = new URLSearchParams({
+      client_id: 'verifier-client',
+      request: 'not-a-jwt',
+    })
+    const result = parsePresentationRequestParams(params)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.message).toContain('JWT')
+    }
+  })
+
+  it('rejects unsupported request_uri_method', () => {
+    const params = new URLSearchParams(validParams)
+    params.set('request_uri_method', 'PUT')
+    const result = parsePresentationRequestParams(params)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.message).toContain('request_uri_method')
+    }
+  })
+
+  it('rejects request_uri_method without request_uri', () => {
+    const params = new URLSearchParams({
+      client_id: 'verifier-client',
+      request: validJwt,
+      request_uri_method: 'GET',
+    })
     const result = parsePresentationRequestParams(params)
     expect(result.ok).toBe(false)
   })
@@ -94,6 +158,7 @@ describe('parsePresentationRequestParams', () => {
       presentationRequestPath({
         client_id: 'verifier',
         request_uri: 'https://verifier.example/request',
+        request_uri_method: 'POST',
         response_type: 'vp_token',
         nonce: 'n1',
         scope: 'openid',

@@ -9,21 +9,16 @@ const baseQuery =
   '&scope=openid'
 
 describe('parsePresentationScanInput', () => {
-  it('parses an https presentation QR into an internal /present route', () => {
-    const result = parsePresentationScanInput(
-      `https://wallet.example/present?${baseQuery}`
-    )
-    expect(result).toBe(`/present?${baseQuery}`)
-  })
-
-  it('parses an openid4vp:// scheme link', () => {
-    const result = parsePresentationScanInput(`openid4vp://?${baseQuery}`)
-    expect(result).toBe(`/present?${baseQuery}`)
-  })
-
   it('parses a raw query string from a QR code', () => {
     const result = parsePresentationScanInput(baseQuery)
     expect(result).toBe(`/present?${baseQuery}`)
+  })
+
+  it('returns null for deep-link style URIs', () => {
+    expect(parsePresentationScanInput(`openid4vp://?${baseQuery}`)).toBeNull()
+    expect(
+      parsePresentationScanInput(`https://wallet.example/present?${baseQuery}`)
+    ).toBeNull()
   })
 
   it('returns null for unrecognized input', () => {

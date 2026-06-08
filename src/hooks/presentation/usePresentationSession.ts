@@ -29,6 +29,10 @@ export function usePresentationSession(): UsePresentationSessionReturn {
 
   const startRequest = useCallback(
     async (authorization: PresentationAuthorizationRequest) => {
+      if (presentation.status === 'loading') {
+        return
+      }
+
       setSessionState({ status: 'loading' })
       presentation.clear()
       presentation.setStatus('loading')
