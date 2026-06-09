@@ -15,6 +15,7 @@ import { IssuanceSuccessPage } from './pages/IssuanceSuccessPage'
 import { PresentationActivityDetailPage } from './pages/PresentationActivityDetailPage'
 import { PresentationActivityPage } from './pages/PresentationActivityPage'
 import { RegistrationPage } from './pages/RegistrationPage'
+import { PresentationRequestPage } from './pages/presentation/PresentationRequestPage'
 import { getStoredTenantId } from './auth/tenant'
 
 function RequireRegistration({ children }: { children: ReactNode }) {
@@ -55,6 +56,14 @@ function App() {
                 element={
                   <RequireRegistration>
                     <ScanPage />
+                  </RequireRegistration>
+                }
+              />
+              <Route
+                path={routes.present}
+                element={
+                  <RequireRegistration>
+                    <PresentationRequestPage />
                   </RequireRegistration>
                 }
               />

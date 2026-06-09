@@ -60,8 +60,24 @@ function isVerifierMetadata(value: unknown): value is VerifierMetadata {
   return isRecord(value) && typeof value.client_id === 'string'
 }
 
+function isDcqlQuery(value: unknown): value is ParsedPresentationRequest['dcql_query'] {
+  return (
+    isRecord(value) && Array.isArray(value.credentials) && value.credentials.length > 0
+  )
+}
+
 function isParsedPresentationRequest(value: unknown): value is ParsedPresentationRequest {
-  return isRecord(value)
+  if (!isRecord(value)) return false
+  const hasScope = typeof value.scope === 'string'
+  const hasDcql = isDcqlQuery(value.dcql_query)
+  return (
+    typeof value.client_id === 'string' &&
+    typeof value.nonce === 'string' &&
+    typeof value.response_type === 'string' &&
+    typeof value.response_mode === 'string' &&
+    (hasScope || hasDcql) &&
+    !(hasScope && hasDcql)
+  )
 }
 
 function isMatchingCredential(value: unknown): value is MatchingCredential {

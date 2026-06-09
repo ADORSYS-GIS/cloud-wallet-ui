@@ -2,6 +2,7 @@ export const routes = {
   registration: '/registration',
   home: '/',
   scan: '/scan',
+  present: '/present',
   presentationActivity: '/activity',
   presentationActivityDetail: '/activity/:activityId',
   credentialTypes: '/credential-types',
