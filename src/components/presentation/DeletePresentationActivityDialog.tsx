@@ -22,7 +22,7 @@ export function DeletePresentationActivityDialog({
       role="presentation"
       onClick={onCancel}
     >
-      {/* Same inset as activity list: PageContainer max-w-[810px] + px-4 */}
+      {/* Match activity list width: PageContainer max-w-[810px] + list px-4 */}
       <div
         className="mx-auto w-full max-w-[810px] px-4"
         onClick={(e) => e.stopPropagation()}
@@ -31,7 +31,7 @@ export function DeletePresentationActivityDialog({
           role="alertdialog"
           aria-labelledby="delete-presentation-title"
           aria-describedby="delete-presentation-desc"
-          className="w-full rounded-[10px] border border-slate-300 bg-white px-4 py-5"
+          className="ml-[0.5%] mr-[2.5%] w-[97%] min-w-0 max-w-[97%] rounded-[10px] border border-slate-300 bg-white px-2 py-5"
         >
           <div className="relative pr-7">
             <h2
