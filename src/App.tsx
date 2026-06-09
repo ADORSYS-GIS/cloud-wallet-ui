@@ -13,6 +13,7 @@ import { CredentialsCacheProvider } from './state/credentialsCache.state'
 import { CredentialTypesPage } from './pages/CredentialTypesPage'
 import { IssuanceSuccessPage } from './pages/IssuanceSuccessPage'
 import { RegistrationPage } from './pages/RegistrationPage'
+import { PresentationRequestPage } from './pages/presentation/PresentationRequestPage'
 import { getStoredTenantId } from './auth/tenant'
 
 function RequireRegistration({ children }: { children: ReactNode }) {
@@ -53,6 +54,14 @@ function App() {
                 element={
                   <RequireRegistration>
                     <ScanPage />
+                  </RequireRegistration>
+                }
+              />
+              <Route
+                path={routes.present}
+                element={
+                  <RequireRegistration>
+                    <PresentationRequestPage />
                   </RequireRegistration>
                 }
               />

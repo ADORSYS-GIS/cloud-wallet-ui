@@ -55,17 +55,18 @@ export type DcqlQuery = {
 }
 
 /**
- * Normalized presentation authorization request after parsing
- * (authorization request or signed request object).
+ * Normalized authorization request from POST /presentation/start.
+ * Populated by the backend after resolving the scanned QR (including JAR fetch).
+ * Validated by `validateParsedPresentationRequest` before use in the UI.
  */
 export type ParsedPresentationRequest = {
-  response_type?: string
-  response_mode?: string
-  client_id?: string
-  scope?: string
+  client_id: string
+  nonce: string
+  response_type: string
+  response_mode: string
   dcql_query?: DcqlQuery
+  scope?: string
   state?: string
-  nonce?: string
   request_uri?: string
   request_uri_method?: string
   presentation_definition?: Record<string, unknown>
@@ -115,6 +116,36 @@ export type PresentationError = {
   code: PresentationErrorCode
   message: string
   error_description?: string | null
+}
+
+/**
+ * Raw parameters from a scanned presentation QR, sent to POST /presentation/start.
+ * JAR QRs may only include `client_id` and `request_uri`; remaining fields are
+ * resolved server-side into {@link ParsedPresentationRequest}.
+ */
+export type PresentationAuthorizationRequest = {
+  client_id: string
+  request_uri?: string
+  request_uri_method?: 'GET' | 'POST'
+  request?: string
+  response_type?: string
+  nonce?: string
+  state?: string
+  response_mode?: string
+  scope?: string
+  dcql_query?: string
+  client_metadata?: string
+  client_metadata_uri?: string
+}
+
+/** Body for POST /presentation/start. */
+export type StartPresentationRequest = PresentationAuthorizationRequest
+
+/** Response from POST /presentation/start (normalized by the wallet backend). */
+export type StartPresentationResponse = {
+  request: ParsedPresentationRequest
+  verifier: VerifierMetadata
+  matching_credentials: MatchingCredential[]
 }
 
 /** Serializable presentation flow data persisted to localStorage. */

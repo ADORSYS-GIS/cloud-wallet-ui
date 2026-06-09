@@ -9,6 +9,7 @@ import { useIssuanceSession } from '../hooks/useIssuanceSession'
 import type { IssuanceApiError } from '../types/issuance'
 import { issuanceUserMessage } from '../utils/issuanceErrors'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
+import { parsePresentationScanInput } from '../utils/presentation/presentationScanInput'
 import illuWallet from '../assets/illu-wallet.png'
 import { E2E_SCAN_SAMPLE_OFFER } from '../e2e/scan-sample-offer'
 
@@ -67,6 +68,14 @@ export function ScanPage() {
 
       const parsedOffer = parseCredentialOfferInput(value)
       if (!parsedOffer) {
+        const presentationPath = parsePresentationScanInput(value)
+        if (presentationPath) {
+          setScanStatus('done')
+          scanInProgressRef.current = false
+          navigate(presentationPath)
+          return
+        }
+
         const apiError: IssuanceApiError = {
           httpStatus: 400,
           error: 'invalid_credential_offer',
@@ -89,7 +98,7 @@ export function ScanPage() {
       setScanStatus('done')
       scanInProgressRef.current = false
     },
-    [stopScanner, submitOffer]
+    [navigate, stopScanner, submitOffer]
   )
 
   useEffect(() => {
