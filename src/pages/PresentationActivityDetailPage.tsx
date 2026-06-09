@@ -41,6 +41,7 @@ export function PresentationActivityDetailPage() {
         <Header
           title="Shared Claims"
           hidePwaBanner
+          compact
           leftSlot={
             <button
               type="button"
