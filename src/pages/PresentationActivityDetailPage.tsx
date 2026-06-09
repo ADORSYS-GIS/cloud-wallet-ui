@@ -6,7 +6,6 @@ import { Header } from '../components/Header'
 import { SharedClaimsCredentialCard } from '../components/presentation/SharedClaimsCredentialCard'
 import { routes } from '../constants/routes'
 import { usePresentationActivityDetail } from '../hooks/usePresentationActivityDetail'
-import { disclosedClaimCountDetailLabel } from '../utils/presentationActivityErrors'
 import {
   credentialTypeDescription,
   credentialTypeDisplayName,
@@ -34,6 +33,7 @@ export function PresentationActivityDetailPage() {
   const description = primaryCredentialType
     ? credentialTypeDescription(primaryCredentialType)
     : undefined
+  const descriptionText = description ?? 'No description available for this credential.'
 
   return (
     <PageContainer fullWidth>
@@ -76,8 +76,13 @@ export function PresentationActivityDetailPage() {
             <div className="mt-6">
               <p className="text-[15px] font-bold text-slate-900">Description:</p>
               <div className="mt-2 rounded-md border border-slate-300 bg-white px-4 py-3">
-                <p className="text-[14px] leading-relaxed text-slate-800">
-                  {description ?? 'No description available for this credential.'}
+                <p
+                  className={[
+                    'text-[14px] leading-relaxed text-slate-800',
+                    showAllDetails ? '' : 'line-clamp-2',
+                  ].join(' ')}
+                >
+                  {descriptionText}
                 </p>
               </div>
               <div className="mt-2 flex justify-end">
@@ -90,25 +95,6 @@ export function PresentationActivityDetailPage() {
                 </button>
               </div>
             </div>
-
-            {showAllDetails && (
-              <div className="mt-4 space-y-3 rounded-md border border-slate-200 bg-white px-4 py-4 text-[14px] text-slate-700">
-                <p>
-                  <span className="font-semibold text-slate-900">Verifier: </span>
-                  {record.verifier.client_id}
-                </p>
-                <p>
-                  <span className="font-semibold text-slate-900">Credential types: </span>
-                  {record.credential_types.length > 0
-                    ? record.credential_types.join(', ')
-                    : '—'}
-                </p>
-                <p>
-                  <span className="font-semibold text-slate-900">Claims shared: </span>
-                  {disclosedClaimCountDetailLabel(record.disclosed_claim_count)}
-                </p>
-              </div>
-            )}
           </section>
         )}
       </div>

@@ -154,7 +154,7 @@ describe('PresentationActivityDetailPage', () => {
     expect(screen.getByRole('button', { name: 'Show All' })).toBeDefined()
   })
 
-  it('expands additional metadata when Show All is clicked', () => {
+  it('toggles description expansion without showing verifier metadata', () => {
     mockUseDetail.mockReturnValue({
       record,
       loading: false,
@@ -167,7 +167,9 @@ describe('PresentationActivityDetailPage', () => {
     renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: 'Show All' }))
-    expect(screen.getByText(/Credential types:/)).toBeDefined()
     expect(screen.getByRole('button', { name: 'Show Less' })).toBeDefined()
+    expect(screen.queryByText(/Credential types:/)).toBeNull()
+    expect(screen.queryByText(/Verifier:/)).toBeNull()
+    expect(screen.queryByText(/Claims shared:/)).toBeNull()
   })
 })
