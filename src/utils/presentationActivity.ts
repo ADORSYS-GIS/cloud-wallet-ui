@@ -92,8 +92,7 @@ const CREDENTIAL_TYPE_LABELS: Record<string, string> = {
 }
 
 const CREDENTIAL_TYPE_DESCRIPTIONS: Record<string, string> = {
-  'eu.europa.ec.eudi.pid.1':
-    'DATEV Unternehmensdaten für E-Rechnungsprozesse',
+  'eu.europa.ec.eudi.pid.1': 'DATEV Unternehmensdaten für E-Rechnungsprozesse',
   'org.iso.18013.5.1.mDL': 'ISO 18013-5 mobile driving licence credential',
 }
 

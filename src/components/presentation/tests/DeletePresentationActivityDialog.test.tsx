@@ -99,7 +99,11 @@ describe('DeletePresentationActivityDialog', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Deleting…' })).toBeDefined()
-    expect(screen.getByRole('button', { name: 'Cancel' }).getAttribute('disabled')).not.toBeNull()
-    expect(screen.getByRole('button', { name: 'Deleting…' }).getAttribute('disabled')).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Cancel' }).getAttribute('disabled')
+    ).not.toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Deleting…' }).getAttribute('disabled')
+    ).not.toBeNull()
   })
 })

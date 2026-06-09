@@ -36,10 +36,7 @@ function renderPage(path = `/activity/${activityId}`) {
           path={routes.presentationActivityDetail}
           element={<PresentationActivityDetailPage />}
         />
-        <Route
-          path={routes.presentationActivity}
-          element={<div>Activity list</div>}
-        />
+        <Route path={routes.presentationActivity} element={<div>Activity list</div>} />
       </Routes>
     </MemoryRouter>
   )
