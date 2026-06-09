@@ -103,8 +103,9 @@ describe('Header', () => {
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
   })
 
-  it('renders rightSlot in the main header', () => {
-    render(<Header rightSlot={<button type="button">Settings</button>} />)
-    expect(screen.getByRole('button', { name: 'Settings' })).toBeDefined()
+  it('uses smaller title styling when compact is set', () => {
+    render(<Header title="Shared Claims" compact hidePwaBanner />)
+    const heading = screen.getByRole('heading', { name: 'Shared Claims' })
+    expect(heading.className).toContain('text-[16px]')
   })
 })

@@ -10,9 +10,7 @@ type HeaderProps = {
   title?: string
   /** Smaller header bar and title (presentation detail screens). */
   compact?: boolean
-  titleClassName?: string
   leftSlot?: ReactNode
-  rightSlot?: ReactNode
 }
 
 const DEFAULT_TITLE_CLASS =
@@ -26,9 +24,7 @@ export function Header({
   hidePwaBanner = false,
   title = DEFAULT_TITLE,
   compact = false,
-  titleClassName,
   leftSlot,
-  rightSlot,
 }: HeaderProps) {
   const { installApp, isInstallable, isInstalling, isInstalled, isIosInstallable } =
     usePWA()
@@ -91,16 +87,9 @@ export function Header({
           <div className="flex w-8 shrink-0 justify-start">
             {leftSlot ?? <span className="inline-block w-6" aria-hidden />}
           </div>
-          <h1
-            className={
-              titleClassName ?? (compact ? COMPACT_TITLE_CLASS : DEFAULT_TITLE_CLASS)
-            }
-          >
+          <h1 className={compact ? COMPACT_TITLE_CLASS : DEFAULT_TITLE_CLASS}>
             {title}
           </h1>
-          <div className="flex w-8 shrink-0 justify-end">
-            {rightSlot ?? <span className="inline-block w-6" aria-hidden />}
-          </div>
         </header>
       )}
     </>

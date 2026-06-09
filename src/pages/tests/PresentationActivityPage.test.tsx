@@ -56,7 +56,7 @@ describe('PresentationActivityPage', () => {
     expect(screen.getByText('There is no past activity to show.')).toBeDefined()
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Activity History' })).toBeDefined()
-    expect(screen.getByRole('button', { name: 'Settings' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull()
   })
 
   it('shows empty state without error banner when list endpoint is unavailable', () => {
