@@ -87,9 +87,7 @@ export function Header({
           <div className="flex w-8 shrink-0 justify-start">
             {leftSlot ?? <span className="inline-block w-6" aria-hidden />}
           </div>
-          <h1 className={compact ? COMPACT_TITLE_CLASS : DEFAULT_TITLE_CLASS}>
-            {title}
-          </h1>
+          <h1 className={compact ? COMPACT_TITLE_CLASS : DEFAULT_TITLE_CLASS}>{title}</h1>
         </header>
       )}
     </>
