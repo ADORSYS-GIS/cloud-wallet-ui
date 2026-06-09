@@ -6,13 +6,11 @@ import { PageErrorBanner } from '../components/feedback/PageErrorBanner'
 import { PageContainer } from '../components/layout/PageContainer'
 import { DeletePresentationActivityDialog } from '../components/presentation/DeletePresentationActivityDialog'
 import { PresentationActivityEmptyState } from '../components/presentation/PresentationActivityEmptyState'
-import { PresentationActivityFilters } from '../components/presentation/PresentationActivityFilters'
 import { PresentationActivityItem } from '../components/presentation/PresentationActivityItem'
 import { routes } from '../constants/routes'
 import { usePresentationActivity } from '../hooks/usePresentationActivity'
 import type { PresentationActivityRecord } from '../types/presentationActivity'
 import { presentationActivityUserMessage } from '../utils/presentationActivityErrors'
-import { verifierDisplayLabel } from '../utils/presentationActivity'
 
 export function PresentationActivityPage() {
   const navigate = useNavigate()
@@ -22,8 +20,6 @@ export function PresentationActivityPage() {
     loadingMore,
     errorMessage,
     hasMore,
-    filters,
-    setFilters,
     loadMore,
     removeItem,
     reportError,
@@ -34,11 +30,6 @@ export function PresentationActivityPage() {
     null
   )
   const [deleting, setDeleting] = useState(false)
-
-  const hasActiveFilters = Boolean(
-    filters.from || filters.to || filters.verifierName.trim()
-  )
-  const showFilters = !loading && (items.length > 0 || hasActiveFilters)
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return
@@ -55,37 +46,63 @@ export function PresentationActivityPage() {
 
   return (
     <PageContainer>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
-        <Header title="Activity History" />
+      <div className="flex h-dvh w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
+        <div className="shrink-0">
+          <Header
+            title="Activity History"
+            rightSlot={
+              <button
+                type="button"
+                className="text-white"
+                aria-label="Settings"
+                disabled
+                title="Settings (coming soon)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  className="h-6 w-6"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z"
+                  />
+                </svg>
+              </button>
+            }
+          />
+        </div>
 
         {errorMessage && (
-          <PageErrorBanner message={errorMessage} onDismiss={clearError} />
+          <div className="shrink-0">
+            <PageErrorBanner message={errorMessage} onDismiss={clearError} />
+          </div>
         )}
 
-        {showFilters && (
-          <PresentationActivityFilters
-            filters={filters}
-            onChange={setFilters}
-            disabled={loading}
-          />
-        )}
+        <section
+          className="min-h-0 flex-1 overflow-y-auto bg-[#E9ECEF]"
+          aria-label="Presentation activity list"
+        >
+          {loading && (
+            <div className="flex min-h-full items-center justify-center py-16 text-slate-600">
+              Loading activity…
+            </div>
+          )}
 
-        {loading && (
-          <section className="flex flex-1 items-center justify-center bg-[#E9ECEF] py-16 text-slate-600">
-            Loading activity…
-          </section>
-        )}
+          {!loading && items.length === 0 && <PresentationActivityEmptyState />}
 
-        {!loading && items.length === 0 && !errorMessage && (
-          <PresentationActivityEmptyState />
-        )}
-
-        {!loading && items.length > 0 && (
-          <section
-            className="min-h-0 flex-1 overflow-y-auto bg-[#E9ECEF] py-4"
-            aria-label="Presentation activity list"
-          >
-            <div className="flex flex-col gap-4 px-4">
+          {!loading && items.length > 0 && (
+            <div className="flex flex-col gap-4 px-4 py-4">
               {items.map((record) => (
                 <PresentationActivityItem
                   key={record.id}
@@ -98,27 +115,27 @@ export function PresentationActivityPage() {
                   type="button"
                   onClick={loadMore}
                   disabled={loadingMore}
+                  aria-busy={loadingMore}
                   className="mx-auto w-full max-w-xs rounded-md bg-white py-3 text-center text-[15px] font-semibold text-[#4b7c8c] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-60"
                 >
                   {loadingMore ? 'Loading…' : 'Load more'}
                 </button>
               )}
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
-        <Footer
-          activeTab="activity"
-          onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
-          scanDisabled={false}
-        />
+        <div className="shrink-0">
+          <Footer
+            activeTab="activity"
+            onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
+            scanDisabled={false}
+          />
+        </div>
       </div>
 
       <DeletePresentationActivityDialog
         open={pendingDelete !== null}
-        verifierLabel={
-          pendingDelete ? verifierDisplayLabel(pendingDelete.verifier) : 'this verifier'
-        }
         deleting={deleting}
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => void handleConfirmDelete()}

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  credentialTypeDescription,
+  credentialTypeDisplayName,
   filterWithinRetentionWindow,
+  formatPresentationActivityListTimestamp,
   sortPresentationActivityNewestFirst,
   verifierDisplayLabel,
 } from '../presentationActivity'
@@ -40,6 +43,28 @@ describe('filterWithinRetentionWindow', () => {
     const filtered = filterWithinRetentionWindow([recent, old], 30)
     expect(filtered).toHaveLength(1)
     expect(filtered[0].id).toBe(recent.id)
+  })
+})
+
+describe('formatPresentationActivityListTimestamp', () => {
+  it('formats timestamps for the activity list', () => {
+    expect(formatPresentationActivityListTimestamp('2026-06-08T09:21:25.000Z')).toMatch(
+      /^Jun 08 2026 \d{2}:\d{2}:\d{2}$/
+    )
+  })
+})
+
+describe('credentialTypeDisplayName', () => {
+  it('maps known credential types to human-readable titles', () => {
+    expect(credentialTypeDisplayName('eu.europa.ec.eudi.pid.1')).toBe(
+      'Identity Credential'
+    )
+  })
+})
+
+describe('credentialTypeDescription', () => {
+  it('returns a description for known credential types', () => {
+    expect(credentialTypeDescription('eu.europa.ec.eudi.pid.1')).toContain('DATEV')
   })
 })
 

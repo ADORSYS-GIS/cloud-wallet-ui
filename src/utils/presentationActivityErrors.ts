@@ -2,6 +2,20 @@ import { ApiError } from '../api/client'
 
 export type PresentationActivityErrorContext = 'list' | 'detail' | 'delete' | 'load_more'
 
+export function disclosedClaimCountLabel(count: number): string {
+  if (count === 0) {
+    return 'No claims shared (values not stored)'
+  }
+  return `${count} claim${count === 1 ? '' : 's'} shared (values not stored)`
+}
+
+export function disclosedClaimCountDetailLabel(count: number): string {
+  if (count === 0) {
+    return 'No claims shared (metadata only — values are not stored)'
+  }
+  return `${count} claim${count === 1 ? '' : 's'} shared (metadata only — values are not stored)`
+}
+
 export function presentationActivityUserMessage(
   error: unknown,
   context: PresentationActivityErrorContext = 'list'

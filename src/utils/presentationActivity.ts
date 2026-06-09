@@ -54,11 +54,59 @@ export function verifierDisplayLabel(
   return clientId
 }
 
-export function formatPresentationTimestamp(iso: string): string {
+const MONTH_LABELS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
+/** Activity list timestamp — matches Figma (e.g. "Jun 08 2026 09:21:25"). */
+export function formatPresentationActivityListTimestamp(iso: string): string {
   const date = new Date(iso)
   if (!Number.isFinite(date.getTime())) return iso
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
+  const month = MONTH_LABELS[date.getMonth()]
+  const day = String(date.getDate()).padStart(2, '0')
+  const year = date.getFullYear()
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${month} ${day} ${year} ${hours}:${minutes}:${seconds}`
+}
+
+export function formatPresentationTimestamp(iso: string): string {
+  return formatPresentationActivityListTimestamp(iso)
+}
+
+const CREDENTIAL_TYPE_LABELS: Record<string, string> = {
+  'eu.europa.ec.eudi.pid.1': 'Identity Credential',
+  'org.iso.18013.5.1.mDL': 'Mobile Driving Licence',
+}
+
+const CREDENTIAL_TYPE_DESCRIPTIONS: Record<string, string> = {
+  'eu.europa.ec.eudi.pid.1':
+    'DATEV Unternehmensdaten für E-Rechnungsprozesse',
+  'org.iso.18013.5.1.mDL': 'ISO 18013-5 mobile driving licence credential',
+}
+
+/** Human-readable credential title for shared-claims UI. */
+export function credentialTypeDisplayName(typeId: string): string {
+  const trimmed = typeId.trim()
+  if (!trimmed) return 'Credential'
+  return CREDENTIAL_TYPE_LABELS[trimmed] ?? trimmed
+}
+
+/** Description shown on the shared-claims detail card. */
+export function credentialTypeDescription(typeId: string): string | undefined {
+  const trimmed = typeId.trim()
+  if (!trimmed) return undefined
+  return CREDENTIAL_TYPE_DESCRIPTIONS[trimmed]
 }

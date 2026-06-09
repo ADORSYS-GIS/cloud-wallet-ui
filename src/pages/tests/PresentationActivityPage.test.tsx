@@ -41,8 +41,6 @@ describe('PresentationActivityPage', () => {
       loadingMore: false,
       errorMessage: null,
       hasMore: false,
-      filters: { from: '', to: '', verifierName: '' },
-      setFilters: vi.fn(),
       loadMore: vi.fn(),
       removeItem: vi.fn(),
       reportError: vi.fn(),
@@ -58,19 +56,16 @@ describe('PresentationActivityPage', () => {
     expect(screen.getByText('There is no past activity to show.')).toBeDefined()
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Activity History' })).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeDefined()
   })
 
-  it('hides empty state when load failed with an error message', () => {
+  it('shows empty state without error banner when list endpoint is unavailable', () => {
     mockUsePresentationActivity.mockReturnValue({
       items: [],
       loading: false,
       loadingMore: false,
-      errorMessage:
-        'Activity history is not available right now. Try again later or contact your administrator if this continues.',
+      errorMessage: null,
       hasMore: false,
-      filters: { from: '', to: '', verifierName: '' },
-      setFilters: vi.fn(),
       loadMore: vi.fn(),
       removeItem: vi.fn(),
       reportError: vi.fn(),
@@ -83,11 +78,31 @@ describe('PresentationActivityPage', () => {
       </MemoryRouter>
     )
 
-    expect(screen.queryByText('There is no past activity to show.')).toBeNull()
+    expect(screen.getByText('There is no past activity to show.')).toBeDefined()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('shows error banner for actionable failures such as delete', () => {
+    mockUsePresentationActivity.mockReturnValue({
+      items: [],
+      loading: false,
+      loadingMore: false,
+      errorMessage: 'Could not delete this presentation record. Please try again.',
+      hasMore: false,
+      loadMore: vi.fn(),
+      removeItem: vi.fn(),
+      reportError: vi.fn(),
+      clearError: vi.fn(),
+    })
+
+    render(
+      <MemoryRouter>
+        <PresentationActivityPage />
+      </MemoryRouter>
+    )
+
     expect(
-      screen.getByText(
-        'Activity history is not available right now. Try again later or contact your administrator if this continues.'
-      )
+      screen.getByText('Could not delete this presentation record. Please try again.')
     ).toBeDefined()
   })
 })

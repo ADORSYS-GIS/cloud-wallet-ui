@@ -71,6 +71,7 @@ export async function getPresentationActivityById(
   if (!isPresentationActivityId(id)) {
     throw new Error('Invalid presentation activity id')
   }
+
   const raw = await apiGet<unknown>(`/presentation/activity/${encodeURIComponent(id)}`)
   return validatePresentationActivityRecord(raw)
 }
@@ -84,5 +85,6 @@ export async function deletePresentationActivity(id: string): Promise<void> {
   if (!isPresentationActivityId(id)) {
     throw new Error('Invalid presentation activity id')
   }
+
   await apiDelete(`/presentation/activity/${encodeURIComponent(id)}`)
 }

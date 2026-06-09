@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../api/client'
-import { presentationActivityUserMessage } from '../presentationActivityErrors'
+import {
+  disclosedClaimCountLabel,
+  presentationActivityUserMessage,
+} from '../presentationActivityErrors'
 
 describe('presentationActivityUserMessage', () => {
   it('maps list 404 to a user-friendly message without API path', () => {
@@ -40,5 +43,15 @@ describe('presentationActivityUserMessage', () => {
       'delete'
     )
     expect(message).toContain('delete')
+  })
+})
+
+describe('disclosedClaimCountLabel', () => {
+  it('uses friendly copy for zero claims', () => {
+    expect(disclosedClaimCountLabel(0)).toBe('No claims shared (values not stored)')
+  })
+
+  it('pluralizes claim count', () => {
+    expect(disclosedClaimCountLabel(2)).toBe('2 claims shared (values not stored)')
   })
 })

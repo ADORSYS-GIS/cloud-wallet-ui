@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { Footer } from '../components/Footer'
-import { Header } from '../components/Header'
 import { PageErrorBanner } from '../components/feedback/PageErrorBanner'
 import { PageContainer } from '../components/layout/PageContainer'
-import { IssuerAvatar } from '../components/issuance/IssuerAvater'
-import { DeletePresentationActivityDialog } from '../components/presentation/DeletePresentationActivityDialog'
+import { Header } from '../components/Header'
+import { SharedClaimsCredentialCard } from '../components/presentation/SharedClaimsCredentialCard'
 import { routes } from '../constants/routes'
 import { usePresentationActivityDetail } from '../hooks/usePresentationActivityDetail'
+import { disclosedClaimCountDetailLabel } from '../utils/presentationActivityErrors'
 import {
-  formatPresentationTimestamp,
+  credentialTypeDescription,
+  credentialTypeDisplayName,
   isPresentationActivityId,
   verifierDisplayLabel,
 } from '../utils/presentationActivity'
@@ -17,39 +17,35 @@ import {
 export function PresentationActivityDetailPage() {
   const { activityId } = useParams<{ activityId: string }>()
   const navigate = useNavigate()
-  const { record, loading, errorMessage, deleting, forget, clearError } =
+  const { record, loading, errorMessage, clearError } =
     usePresentationActivityDetail(activityId)
 
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [showAllDetails, setShowAllDetails] = useState(false)
 
   if (!activityId || !isPresentationActivityId(activityId)) {
     return <Navigate to={routes.presentationActivity} replace />
   }
 
-  const handleForget = async () => {
-    try {
-      await forget()
-      setConfirmDeleteOpen(false)
-      navigate(routes.presentationActivity, { replace: true })
-    } catch {
-      setConfirmDeleteOpen(false)
-    }
-  }
-
   const verifierLabel = record ? verifierDisplayLabel(record.verifier) : ''
+  const primaryCredentialType = record?.credential_types[0]
+  const credentialTitle = primaryCredentialType
+    ? credentialTypeDisplayName(primaryCredentialType)
+    : 'Credential'
+  const description = primaryCredentialType
+    ? credentialTypeDescription(primaryCredentialType)
+    : undefined
 
   return (
-    <PageContainer>
-      <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
+    <PageContainer fullWidth>
+      <div className="flex h-dvh w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
         <Header
-          title="Presentation Details"
+          title="Shared Claims"
           hidePwaBanner
           leftSlot={
             <button
               type="button"
               onClick={() => navigate(routes.presentationActivity)}
-              disabled={deleting}
-              className="h-10 w-10 rounded-full text-4xl leading-none text-white disabled:opacity-50"
+              className="h-10 w-10 rounded-full text-4xl leading-none text-white"
               aria-label="Back to activity"
             >
               ‹
@@ -69,76 +65,52 @@ export function PresentationActivityDetailPage() {
 
         {!loading && record && (
           <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-              <div className="flex items-center gap-4">
-                <IssuerAvatar
-                  displayName={verifierLabel}
-                  logoUri={record.verifier.logo_uri ?? null}
-                  size="md"
-                />
-                <div className="min-w-0">
-                  <p className="text-base font-semibold text-slate-900">
-                    {verifierLabel}
-                  </p>
-                  <p className="mt-0.5 break-all text-[13px] text-slate-500">
-                    {record.verifier.client_id}
-                  </p>
-                </div>
+            <SharedClaimsCredentialCard
+              credentialTitle={credentialTitle}
+              verifierLabel={verifierLabel}
+              description={description}
+              logoUri={record.verifier.logo_uri ?? null}
+            />
+
+            <div className="mt-6">
+              <p className="text-[15px] font-bold text-slate-900">Description:</p>
+              <div className="mt-2 rounded-md border border-slate-300 bg-white px-4 py-3">
+                <p className="text-[14px] leading-relaxed text-slate-800">
+                  {description ?? 'No description available for this credential.'}
+                </p>
               </div>
-
-              <dl className="mt-6 space-y-4">
-                <div>
-                  <dt className="text-[13px] font-medium text-slate-500">Presented</dt>
-                  <dd className="mt-1 text-[15px] text-slate-900">
-                    {formatPresentationTimestamp(record.presented_at)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[13px] font-medium text-slate-500">
-                    Credential types shared
-                  </dt>
-                  <dd className="mt-1 text-[15px] text-slate-900">
-                    {record.credential_types.length > 0
-                      ? record.credential_types.join(', ')
-                      : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[13px] font-medium text-slate-500">
-                    Claims shared
-                  </dt>
-                  <dd className="mt-1 text-[15px] text-slate-900">
-                    {record.disclosed_claim_count} (metadata only — values are not stored)
-                  </dd>
-                </div>
-              </dl>
-
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteOpen(true)}
-                disabled={deleting}
-                className="mt-8 w-full rounded-md border border-red-200 bg-red-50 py-3 text-center text-[15px] font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-              >
-                Delete from history
-              </button>
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowAllDetails((prev) => !prev)}
+                  className="text-[14px] font-medium text-[#4b7c8c] hover:underline"
+                >
+                  {showAllDetails ? 'Show Less' : 'Show All'}
+                </button>
+              </div>
             </div>
+
+            {showAllDetails && (
+              <div className="mt-4 space-y-3 rounded-md border border-slate-200 bg-white px-4 py-4 text-[14px] text-slate-700">
+                <p>
+                  <span className="font-semibold text-slate-900">Verifier: </span>
+                  {record.verifier.client_id}
+                </p>
+                <p>
+                  <span className="font-semibold text-slate-900">Credential types: </span>
+                  {record.credential_types.length > 0
+                    ? record.credential_types.join(', ')
+                    : '—'}
+                </p>
+                <p>
+                  <span className="font-semibold text-slate-900">Claims shared: </span>
+                  {disclosedClaimCountDetailLabel(record.disclosed_claim_count)}
+                </p>
+              </div>
+            )}
           </section>
         )}
-
-        <Footer
-          activeTab="activity"
-          onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
-          scanDisabled={deleting}
-        />
       </div>
-
-      <DeletePresentationActivityDialog
-        open={confirmDeleteOpen}
-        verifierLabel={verifierLabel || 'this verifier'}
-        deleting={deleting}
-        onCancel={() => setConfirmDeleteOpen(false)}
-        onConfirm={() => void handleForget()}
-      />
     </PageContainer>
   )
 }
