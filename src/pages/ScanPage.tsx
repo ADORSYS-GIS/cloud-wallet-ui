@@ -4,12 +4,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { PageContainer } from '../components/layout/PageContainer'
 import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
+import { PresentationErrorCard } from '../components/presentation/PresentationErrorCard'
 import { credentialTypeDetailsPath, routes } from '../constants/routes'
+import { usePresentationSession } from '../hooks/presentation/usePresentationSession'
 import { useIssuanceSession } from '../hooks/useIssuanceSession'
 import type { IssuanceApiError } from '../types/issuance'
+import type { PresentationError } from '../types/presentation'
 import { issuanceUserMessage } from '../utils/issuanceErrors'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
+import { detectRequestType } from '../utils/presentation/detectRequestType'
 import { parsePresentationScanInput } from '../utils/presentation/presentationScanInput'
+import { presentationUserMessage } from '../utils/presentation/presentationErrors'
 import illuWallet from '../assets/illu-wallet.png'
 import { E2E_SCAN_SAMPLE_OFFER } from '../e2e/scan-sample-offer'
 
@@ -22,18 +27,25 @@ export function ScanPage() {
 
   const [scanStatus, setScanStatus] = useState<ScanStatus>('idle')
   const [feedbackMessage, setFeedbackMessage] = useState(
-    'Point your camera at a credential offer QR code.'
+    'Point your camera at a credential offer or presentation request QR code.'
   )
   const [isScannerActive, setIsScannerActive] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [facingMode, setFacingMode] = useState<FacingMode>('environment')
   const [isSwapping, setIsSwapping] = useState(false)
-  const [localScanError, setLocalScanError] = useState<{
+  const [localIssuanceError, setLocalIssuanceError] = useState<{
     apiError: IssuanceApiError
     userMessage: string
   } | null>(null)
+  const [localPresentationError, setLocalPresentationError] =
+    useState<PresentationError | null>(null)
 
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
+  const {
+    sessionState: presentationSession,
+    startRequest: startPresentationRequest,
+    reset: resetPresentation,
+  } = usePresentationSession()
 
   useEffect(() => {
     if (offerState.status === 'success' && offerState.session) {
@@ -65,40 +77,73 @@ export function ScanPage() {
       scanInProgressRef.current = true
 
       stopScanner()
+      setLocalIssuanceError(null)
+      setLocalPresentationError(null)
 
-      const parsedOffer = parseCredentialOfferInput(value)
-      if (!parsedOffer) {
-        const presentationPath = parsePresentationScanInput(value)
-        if (presentationPath) {
+      const requestType = detectRequestType(value)
+
+      if (requestType === 'issuance' || requestType === 'unknown') {
+        const parsedOffer = parseCredentialOfferInput(value)
+        if (parsedOffer) {
+          setScanStatus('processing')
+          setFeedbackMessage('Credential offer detected. Contacting issuer…')
+          await submitOffer(parsedOffer.normalizedUri)
           setScanStatus('done')
           scanInProgressRef.current = false
-          navigate(presentationPath)
+          return
+        }
+      }
+
+      if (requestType === 'presentation' || requestType === 'unknown') {
+        const presentationResult = parsePresentationScanInput(value)
+        if (presentationResult?.ok) {
+          setScanStatus('processing')
+          setFeedbackMessage('Presentation request detected. Contacting verifier…')
+          const result = await startPresentationRequest(presentationResult.authorization)
+          if (result.ok) {
+            navigate(routes.present)
+          } else {
+            setLocalPresentationError(result.error)
+            setScanStatus('done')
+          }
+          scanInProgressRef.current = false
           return
         }
 
-        const apiError: IssuanceApiError = {
-          httpStatus: 400,
-          error: 'invalid_credential_offer',
-          error_description: null,
+        if (presentationResult && !presentationResult.ok) {
+          setLocalPresentationError(presentationResult.error)
+          setScanStatus('done')
+          scanInProgressRef.current = false
+          return
         }
-        setLocalScanError({
-          apiError,
-          userMessage: issuanceUserMessage(apiError),
-        })
-        setScanStatus('done')
-        scanInProgressRef.current = false
-        return
       }
 
-      setScanStatus('processing')
-      setFeedbackMessage('Contacting issuer…')
+      const apiError: IssuanceApiError = {
+        httpStatus: 400,
+        error: 'invalid_credential_offer',
+        error_description: null,
+      }
+      const invalidQrMessage =
+        requestType === 'presentation'
+          ? presentationUserMessage({
+              httpStatus: 400,
+              code: 'invalid_request',
+              message:
+                'The scanned QR code does not contain a valid presentation request. Please try again.',
+              error_description: null,
+            })
+          : requestType === 'issuance'
+            ? issuanceUserMessage(apiError)
+            : 'The scanned QR code is not a valid credential offer or presentation request. Please try again.'
 
-      await submitOffer(parsedOffer.normalizedUri)
-
+      setLocalIssuanceError({
+        apiError,
+        userMessage: invalidQrMessage,
+      })
       setScanStatus('done')
       scanInProgressRef.current = false
     },
-    [navigate, stopScanner, submitOffer]
+    [navigate, startPresentationRequest, stopScanner, submitOffer]
   )
 
   useEffect(() => {
@@ -208,13 +253,25 @@ export function ScanPage() {
     }
   }
 
-  const showErrorCard =
-    scanStatus === 'done' && (offerState.status === 'error' || localScanError !== null)
-  const showFullscreenStatus = offerState.status === 'loading' || showErrorCard
-  const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
+  const showIssuanceErrorCard =
+    scanStatus === 'done' &&
+    (offerState.status === 'error' || localIssuanceError !== null)
+  const showPresentationErrorCard =
+    scanStatus === 'done' && localPresentationError !== null
+  const showPresentationLoading =
+    scanStatus === 'processing' && presentationSession.status === 'loading'
+  const showErrorCard = showIssuanceErrorCard || showPresentationErrorCard
+  const showFullscreenStatus =
+    offerState.status === 'loading' || showPresentationLoading || showErrorCard
+  const showSpinner =
+    (scanStatus === 'processing' && presentationSession.status !== 'loading') ||
+    offerState.status === 'loading'
 
   const handleErrorRetry = () => {
     resetOffer()
+    resetPresentation()
+    setLocalIssuanceError(null)
+    setLocalPresentationError(null)
     void startScan()
   }
 
@@ -225,35 +282,48 @@ export function ScanPage() {
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        {showFullscreenStatus && offerState.status === 'loading' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
-            <div className="flex flex-col items-center px-6 text-center">
-              <div className="relative mb-16 h-52 w-52">
-                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
-                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
-                <img
-                  src={illuWallet}
-                  alt=""
-                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
-                />
-              </div>
-              <div className="text-base text-slate-700">
-                Just a moment while we make a secure connection...
+        {showFullscreenStatus &&
+          (offerState.status === 'loading' || showPresentationLoading) && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+              <div className="flex flex-col items-center px-6 text-center">
+                <div className="relative mb-16 h-52 w-52">
+                  <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+                  <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+                  <img
+                    src={illuWallet}
+                    alt=""
+                    className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+                  />
+                </div>
+                <div className="text-base text-slate-700">
+                  {showPresentationLoading
+                    ? 'Processing proof request…'
+                    : 'Just a moment while we make a secure connection...'}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {showErrorCard && (
+        {showIssuanceErrorCard && (
           <IssuanceErrorCard
             error={offerState.status === 'error' ? offerState.apiError : null}
             rawMessage={
               offerState.status === 'error'
                 ? offerState.rawMessage
-                : localScanError?.userMessage
+                : localIssuanceError?.userMessage
             }
             onRetry={handleErrorRetry}
           />
+        )}
+
+        {showPresentationErrorCard && localPresentationError && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+            <PresentationErrorCard
+              error={localPresentationError}
+              onRetry={handleErrorRetry}
+              retryLabel="Scan again"
+            />
+          </div>
         )}
 
         {!showFullscreenStatus && (

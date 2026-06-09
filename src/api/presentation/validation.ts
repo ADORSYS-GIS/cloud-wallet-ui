@@ -5,7 +5,7 @@ import type {
   StartPresentationResponse,
   VerifierMetadata,
 } from '../../types/presentation'
-import { ContractError } from '../validation'
+import { ContractError, validateCredentialListItemDisplay } from '../validation'
 
 const SUPPORTED_RESPONSE_TYPES = new Set(['vp_token', 'vp_token id_token'])
 const SUPPORTED_RESPONSE_MODES = new Set([
@@ -65,12 +65,17 @@ function validateMatchingCredential(raw: unknown, index: number): MatchingCreden
     obj.displayName === undefined
       ? undefined
       : requireString(ctx, 'displayName', obj.displayName)
+  const display =
+    obj.display === undefined
+      ? undefined
+      : validateCredentialListItemDisplay(ctx, obj.display)
 
   return {
     credentialId,
     queryId,
     format,
     ...(displayName !== undefined ? { displayName } : {}),
+    ...(display !== undefined ? { display } : {}),
   }
 }
 

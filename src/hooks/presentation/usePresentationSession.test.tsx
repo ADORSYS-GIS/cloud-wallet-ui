@@ -44,17 +44,23 @@ describe('usePresentationSession', () => {
           credentialId: 'cred-1',
           queryId: 'identity',
           format: 'dc+sd-jwt',
-          displayName: 'Identity Credential',
+          display: {
+            name: 'Identity Credential',
+            issuer_name: 'Keycloak-demo Solution Adorsys',
+            logo: null,
+          },
         },
       ],
     })
 
     const { result } = renderHook(() => usePresentationSession(), { wrapper })
 
+    let startResult: Awaited<ReturnType<typeof result.current.startRequest>> | undefined
     await act(async () => {
-      await result.current.startRequest(authorization)
+      startResult = await result.current.startRequest(authorization)
     })
 
+    expect(startResult).toEqual({ ok: true })
     await waitFor(() => {
       expect(result.current.sessionState.status).toBe('success')
     })
@@ -68,10 +74,12 @@ describe('usePresentationSession', () => {
 
     const { result } = renderHook(() => usePresentationSession(), { wrapper })
 
+    let startResult: Awaited<ReturnType<typeof result.current.startRequest>> | undefined
     await act(async () => {
-      await result.current.startRequest(authorization)
+      startResult = await result.current.startRequest(authorization)
     })
 
+    expect(startResult?.ok).toBe(false)
     expect(result.current.sessionState.status).toBe('error')
     if (result.current.sessionState.status === 'error') {
       expect(result.current.sessionState.error.code).toBe('internal_error')
@@ -89,13 +97,15 @@ describe('usePresentationSession', () => {
 
     const { result } = renderHook(() => usePresentationSession(), { wrapper })
 
+    let startResult: Awaited<ReturnType<typeof result.current.startRequest>> | undefined
     await act(async () => {
-      await result.current.startRequest(authorization)
+      startResult = await result.current.startRequest(authorization)
     })
 
-    expect(result.current.sessionState.status).toBe('error')
-    if (result.current.sessionState.status === 'error') {
-      expect(result.current.sessionState.error.code).toBe('invalid_presentation_request')
+    expect(startResult?.ok).toBe(false)
+    if (startResult && !startResult.ok) {
+      expect(startResult.error.code).toBe('invalid_presentation_request')
     }
+    expect(result.current.sessionState.status).toBe('error')
   })
 })

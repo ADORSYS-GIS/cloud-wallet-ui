@@ -1,0 +1,23 @@
+{
+  "folders": [
+    {
+      "path": "../../../../DEBUG/keycloak-oauth-sig/oid4vci-deployment",
+    },
+    {
+      "path": "../../../../DEBUG/keycloak-oid4vc-mock-fe",
+    },
+    {
+      "path": "../../../../DEBUG/workbranch/token-status-link",
+    },
+    {
+      "path": "../../../../wallet",
+    },
+    {
+      "path": "../../..",
+    },
+    {
+      "path": "../../../../../OID4VP-plugin/keycloak-oid4vp-plugin",
+    },
+  ],
+  "settings": {},
+}

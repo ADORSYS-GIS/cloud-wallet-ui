@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { startPresentation } from '../../api/presentation/start'
 import { usePresentationState } from '../../state/presentation.state'
 import type {
@@ -13,11 +13,21 @@ export type PresentationSessionState =
   | { status: 'success' }
   | { status: 'error'; error: PresentationError }
 
+export type StartPresentationResult =
+  | { ok: true }
+  | { ok: false; error: PresentationError }
+
 export type UsePresentationSessionReturn = {
   sessionState: PresentationSessionState
   /** Validate and submit an OpenID4VP authorization request to the wallet backend. */
-  startRequest: (authorization: PresentationAuthorizationRequest) => Promise<void>
+  startRequest: (
+    authorization: PresentationAuthorizationRequest
+  ) => Promise<StartPresentationResult>
   reset: () => void
+}
+
+function authorizationKey(authorization: PresentationAuthorizationRequest): string {
+  return JSON.stringify(authorization)
 }
 
 export function usePresentationSession(): UsePresentationSessionReturn {
@@ -25,38 +35,51 @@ export function usePresentationSession(): UsePresentationSessionReturn {
     status: 'idle',
   })
 
-  const presentation = usePresentationState()
+  const { clear, setStatus, setRequest, setVerifier, setMatchingCredentials, setError } =
+    usePresentationState()
+  const inFlightKeyRef = useRef<string | null>(null)
 
   const startRequest = useCallback(
-    async (authorization: PresentationAuthorizationRequest) => {
-      if (presentation.status === 'loading') {
-        return
+    async (
+      authorization: PresentationAuthorizationRequest
+    ): Promise<StartPresentationResult> => {
+      const requestKey = authorizationKey(authorization)
+      if (inFlightKeyRef.current === requestKey) {
+        return {
+          ok: false,
+          error: { code: 'internal_error', message: 'Request already in progress.' },
+        }
       }
 
+      inFlightKeyRef.current = requestKey
       setSessionState({ status: 'loading' })
-      presentation.clear()
-      presentation.setStatus('loading')
+      clear()
+      setStatus('loading')
 
       try {
         const response = await startPresentation(authorization)
-        presentation.setRequest(response.request)
-        presentation.setVerifier(response.verifier)
-        presentation.setMatchingCredentials(response.matching_credentials)
-        presentation.setStatus('selecting')
+        setRequest(response.request)
+        setVerifier(response.verifier)
+        setMatchingCredentials(response.matching_credentials)
+        setStatus('selecting')
         setSessionState({ status: 'success' })
+        return { ok: true }
       } catch (error: unknown) {
         const apiError = toPresentationError(error)
-        presentation.setError(apiError)
+        setError(apiError)
         setSessionState({ status: 'error', error: apiError })
+        return { ok: false, error: apiError }
+      } finally {
+        inFlightKeyRef.current = null
       }
     },
-    [presentation]
+    [clear, setError, setMatchingCredentials, setRequest, setStatus, setVerifier]
   )
 
   const reset = useCallback(() => {
     setSessionState({ status: 'idle' })
-    presentation.clear()
-  }, [presentation])
+    clear()
+  }, [clear])
 
   return { sessionState, startRequest, reset }
 }

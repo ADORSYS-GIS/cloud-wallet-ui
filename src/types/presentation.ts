@@ -1,4 +1,4 @@
-import type { CredentialFormat } from './credential'
+import type { CredentialFormat, CredentialListItemDisplay } from './credential'
 
 /**
  * Lifecycle status for the OpenID4VP presentation flow.
@@ -74,12 +74,17 @@ export type ParsedPresentationRequest = {
   [key: string]: unknown
 }
 
-/** Wallet credential that satisfies a DCQL credential query. */
+/**
+ * Wallet credential that satisfies a DCQL credential query.
+ * `display` carries the same card metadata as stored credentials (from issuance).
+ */
 export type MatchingCredential = {
   credentialId: string
   queryId: string
   format: CredentialFormat | string
+  /** @deprecated Prefer `display.name` from the backend. */
   displayName?: string
+  display?: CredentialListItemDisplay
 }
 
 /** Credential chosen by the holder for presentation. */
