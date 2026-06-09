@@ -11,13 +11,13 @@ export function PresentationCredentialSelection({
   onSelect,
 }: PresentationCredentialSelectionProps) {
   return (
-    <div className="flex flex-1 flex-col px-4 pb-6 pt-10">
-      <div className="mb-8 text-center">
-        <h2 className="text-xl font-semibold text-slate-800">Select a Credential</h2>
-        <p className="mt-1 text-base text-slate-700">to present to</p>
+    <div className="flex flex-1 flex-col pb-6 pt-8">
+      <div className="mb-6 px-4 text-center">
+        <h2 className="text-xl font-normal text-slate-900">Select a credential</h2>
+        <p className="mt-1 text-base text-slate-600">to present to</p>
       </div>
 
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col">
         {matchingCredentials.map((credential) => (
           <li key={credential.credentialId}>
             <PresentationCredentialCard

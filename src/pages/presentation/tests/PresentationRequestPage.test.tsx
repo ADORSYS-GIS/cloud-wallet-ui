@@ -7,6 +7,17 @@ import { PresentationRequestPage } from '../PresentationRequestPage'
 import { routes } from '../../../constants/routes'
 import type { MatchingCredential } from '../../../types/presentation'
 
+const matchingCredential: MatchingCredential = {
+  credentialId: 'cred-1',
+  queryId: 'identity',
+  format: 'dc+sd-jwt',
+  display: {
+    name: 'DATEV Unternehmensdaten',
+    issuer_name: 'Keycloak demo Solutions Adorsys',
+    logo: null,
+  },
+}
+
 const mockNavigate = vi.fn()
 const mockReset = vi.fn()
 const mockSetSelectedCredentials = vi.fn()
@@ -88,25 +99,14 @@ describe('PresentationRequestPage', () => {
 
   it('shows matching credentials after the backend responds', () => {
     mockPresentationStatus = 'selecting'
-    mockMatchingCredentials = [
-      {
-        credentialId: 'cred-1',
-        queryId: 'identity',
-        format: 'dc+sd-jwt',
-        display: {
-          name: 'Identity Credential',
-          issuer_name: 'Keycloak-demo Solution Adorsys',
-          logo: null,
-        },
-      },
-    ]
+    mockMatchingCredentials = [matchingCredential]
 
     renderPage()
 
-    expect(screen.getByText('Select a Credential')).toBeTruthy()
+    expect(screen.getByText('Select a credential')).toBeTruthy()
     expect(screen.getByText('to present to')).toBeTruthy()
-    expect(screen.getByText('Identity Credential')).toBeTruthy()
-    expect(screen.getByText('Keycloak-demo Solution Adorsys')).toBeTruthy()
+    expect(screen.getByText('DATEV Unternehmensdaten')).toBeTruthy()
+    expect(screen.getByText('Keycloak demo Solutions Adorsys')).toBeTruthy()
   })
 
   it('shows empty state when no credentials match the request', () => {
@@ -122,18 +122,7 @@ describe('PresentationRequestPage', () => {
 
   it('resets and returns home when back is pressed', async () => {
     mockPresentationStatus = 'selecting'
-    mockMatchingCredentials = [
-      {
-        credentialId: 'cred-1',
-        queryId: 'identity',
-        format: 'dc+sd-jwt',
-        display: {
-          name: 'Identity Credential',
-          issuer_name: 'Keycloak-demo Solution Adorsys',
-          logo: null,
-        },
-      },
-    ]
+    mockMatchingCredentials = [matchingCredential]
 
     renderPage()
     const user = userEvent.setup()

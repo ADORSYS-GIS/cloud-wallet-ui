@@ -1,6 +1,6 @@
+import { useState } from 'react'
 import type { MatchingCredential } from '../../types/presentation'
 import { resolveMatchingCredentialDisplay } from '../../utils/presentation/matchingCredentialDisplay'
-import { IssuerAvatar } from '../issuance/IssuerAvater'
 
 type PresentationCredentialCardProps = {
   credential: MatchingCredential
@@ -11,51 +11,39 @@ export function PresentationCredentialCard({
   credential,
   onClick,
 }: PresentationCredentialCardProps) {
-  const { name, issuerName, logoUri, backgroundColor, backgroundImage, textColor } =
-    resolveMatchingCredentialDisplay(credential)
+  const { name, issuerName, logoUri } = resolveMatchingCredentialDisplay(credential)
+  const [imgFailed, setImgFailed] = useState(false)
 
-  const hasCustomBackground = Boolean(backgroundColor || backgroundImage)
-  const cardStyle: React.CSSProperties = backgroundImage
-    ? {
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        color: textColor,
-      }
-    : backgroundColor
-      ? { backgroundColor, color: textColor }
-      : {}
-
-  const titleClass = textColor ? '' : 'text-slate-900'
-  const subtitleClass = textColor ? '' : 'text-slate-500'
+  const initials = name.slice(0, 2).toUpperCase()
+  const showLogo = Boolean(logoUri) && !imgFailed
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={[
-        'w-full rounded-2xl px-4 py-4 text-left shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition-all duration-200 active:scale-[0.99]',
-        hasCustomBackground ? 'hover:brightness-95' : 'bg-[#dfe3e7] hover:bg-[#d5dbe0]',
-      ].join(' ')}
-      style={cardStyle}
+      className="w-full border-b border-[#d1d5db] bg-[#f2f2f2] px-3 py-3 text-left font-sans transition-transform duration-200 hover:scale-[1.003] active:scale-[0.99]"
     >
       <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-          <IssuerAvatar displayName={issuerName} logoUri={logoUri} size="md" />
-        </div>
-        <div className="min-w-0">
-          <p
-            className={`truncate text-base font-semibold ${titleClass}`}
-            style={textColor ? { color: textColor } : undefined}
+        {showLogo ? (
+          <img
+            src={logoUri ?? undefined}
+            alt=""
+            className="h-9 w-9 shrink-0 object-contain"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center bg-[#99e827] text-[10px] font-bold leading-none text-white"
+            aria-hidden
           >
+            {initials}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold leading-6 text-slate-900">
             {name}
           </p>
-          <p
-            className={`mt-0.5 truncate text-sm ${subtitleClass}`}
-            style={textColor ? { color: textColor, opacity: 0.8 } : undefined}
-          >
-            {issuerName}
-          </p>
+          <p className="truncate text-sm leading-[21px] text-slate-700">{issuerName}</p>
         </div>
       </div>
     </button>
