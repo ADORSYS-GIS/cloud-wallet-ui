@@ -102,10 +102,4 @@ describe('Header', () => {
     expect(screen.queryByRole('button', { name: 'Install app' })).toBeNull()
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
   })
-
-  it('uses smaller title styling when compact is set', () => {
-    render(<Header title="Shared Claims" compact hidePwaBanner />)
-    const heading = screen.getByRole('heading', { name: 'Shared Claims' })
-    expect(heading.className).toContain('text-[16px]')
-  })
 })

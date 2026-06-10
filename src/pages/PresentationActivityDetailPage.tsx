@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { PageErrorBanner } from '../components/feedback/PageErrorBanner'
+import { FlowSubHeader } from '../components/layout/FlowSubHeader'
+import { FlowSubHeaderCard } from '../components/layout/FlowSubHeaderCard'
 import { PageContainer } from '../components/layout/PageContainer'
-import { Header } from '../components/Header'
 import { SharedClaimsCredentialCard } from '../components/presentation/SharedClaimsCredentialCard'
 import { routes } from '../constants/routes'
 import { usePresentationActivityDetail } from '../hooks/usePresentationActivityDetail'
@@ -37,21 +38,11 @@ export function PresentationActivityDetailPage() {
 
   return (
     <PageContainer fullWidth>
-      <div className="flex h-dvh w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF] font-serif">
-        <Header
+      <div className="flex h-screen w-full flex-col overflow-hidden rounded-none bg-[#e9ecef] font-serif">
+        <FlowSubHeader
           title="Shared Claims"
-          hidePwaBanner
-          compact
-          leftSlot={
-            <button
-              type="button"
-              onClick={() => navigate(routes.presentationActivity)}
-              className="h-10 w-10 rounded-full text-4xl leading-none text-white"
-              aria-label="Back to activity"
-            >
-              ‹
-            </button>
-          }
+          onBack={() => navigate(routes.presentationActivity)}
+          backLabel="Back to activity"
         />
 
         {errorMessage && (
@@ -65,37 +56,41 @@ export function PresentationActivityDetailPage() {
         )}
 
         {!loading && record && (
-          <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            <SharedClaimsCredentialCard
-              credentialTitle={credentialTitle}
-              verifierLabel={verifierLabel}
-              description={description}
-              logoUri={record.verifier.logo_uri ?? null}
-            />
+          <>
+            <FlowSubHeaderCard>
+              <SharedClaimsCredentialCard
+                credentialTitle={credentialTitle}
+                verifierLabel={verifierLabel}
+                description={description}
+                logoUri={record.verifier.logo_uri ?? null}
+              />
+            </FlowSubHeaderCard>
 
-            <div className="mt-6">
-              <p className="text-[15px] font-bold text-slate-900">Description:</p>
-              <div className="mt-2 rounded-md border border-slate-300 bg-white px-4 py-3">
-                <p
-                  className={[
-                    'text-[14px] leading-relaxed text-slate-800',
-                    showAllDetails ? '' : 'line-clamp-2',
-                  ].join(' ')}
-                >
-                  {descriptionText}
-                </p>
+            <section className="flex-1 overflow-y-auto px-4 pb-4">
+              <div className="mt-2">
+                <p className="text-[15px] font-bold text-slate-900">Description:</p>
+                <div className="mt-2 rounded-md border border-slate-300 bg-white px-4 py-3">
+                  <p
+                    className={[
+                      'text-[14px] leading-relaxed text-slate-800',
+                      showAllDetails ? '' : 'line-clamp-2',
+                    ].join(' ')}
+                  >
+                    {descriptionText}
+                  </p>
+                </div>
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllDetails((prev) => !prev)}
+                    className="text-[14px] font-medium text-[#4b7c8c] hover:underline"
+                  >
+                    {showAllDetails ? 'Show Less' : 'Show All'}
+                  </button>
+                </div>
               </div>
-              <div className="mt-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowAllDetails((prev) => !prev)}
-                  className="text-[14px] font-medium text-[#4b7c8c] hover:underline"
-                >
-                  {showAllDetails ? 'Show Less' : 'Show All'}
-                </button>
-              </div>
-            </div>
-          </section>
+            </section>
+          </>
         )}
       </div>
     </PageContainer>

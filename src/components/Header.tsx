@@ -8,22 +8,13 @@ type HeaderProps = {
   showMainHeader?: boolean
   hidePwaBanner?: boolean
   title?: string
-  /** Smaller header bar and title (presentation detail screens). */
-  compact?: boolean
   leftSlot?: ReactNode
 }
-
-const DEFAULT_TITLE_CLASS =
-  'min-w-0 truncate text-center font-semibold leading-none text-slate-100 md:text-[28px]'
-
-const COMPACT_TITLE_CLASS =
-  'min-w-0 truncate text-center text-[16px] font-semibold leading-none text-slate-100 md:text-[18px]'
 
 export function Header({
   showMainHeader = true,
   hidePwaBanner = false,
   title = DEFAULT_TITLE,
-  compact = false,
   leftSlot,
 }: HeaderProps) {
   const { installApp, isInstallable, isInstalling, isInstalled, isIosInstallable } =
@@ -78,16 +69,13 @@ export function Header({
       )}
 
       {showMainHeader && (
-        <header
-          className={[
-            'grid grid-cols-[auto_1fr_auto] items-center gap-2 bg-[#4b7c8c] px-4',
-            compact ? 'py-2' : 'py-6',
-          ].join(' ')}
-        >
+        <header className="grid grid-cols-[auto_1fr_auto] items-center gap-2 bg-[#4b7c8c] px-4 py-6">
           <div className="flex w-8 shrink-0 justify-start">
             {leftSlot ?? <span className="inline-block w-6" aria-hidden />}
           </div>
-          <h1 className={compact ? COMPACT_TITLE_CLASS : DEFAULT_TITLE_CLASS}>{title}</h1>
+          <h1 className="min-w-0 truncate text-center font-semibold leading-none text-slate-100 md:text-[28px]">
+            {title}
+          </h1>
         </header>
       )}
     </>

@@ -145,7 +145,8 @@ describe('PresentationActivityDetailPage', () => {
 
     renderPage()
 
-    expect(screen.getByRole('heading', { name: 'Shared Claims' })).toBeDefined()
+    expect(screen.getByText('Shared Claims')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Back to activity' })).toBeDefined()
     expect(screen.getByText('Identity Credential')).toBeDefined()
     expect(screen.getByText('Keycloak-demo Solution Adorsys')).toBeDefined()
     expect(

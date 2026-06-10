@@ -7,10 +7,6 @@ type SharedClaimsCredentialCardProps = {
   logoUri?: string | null
 }
 
-/** Matches activity list card dimensions and hover treatment. */
-const cardClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-colors duration-200 hover:bg-[#e6f4e6]'
-
 export function SharedClaimsCredentialCard({
   credentialTitle,
   verifierLabel,
@@ -18,24 +14,20 @@ export function SharedClaimsCredentialCard({
   logoUri = null,
 }: SharedClaimsCredentialCardProps) {
   return (
-    <div className={cardClass}>
-      <div className="flex items-start gap-4">
-        <div className="shrink-0">
-          <IssuerAvatar displayName={credentialTitle} logoUri={logoUri} size="md" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-bold leading-snug text-slate-900">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/50 bg-white text-left shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+      <div className="flex flex-col gap-3 px-5 py-5">
+        <IssuerAvatar displayName={credentialTitle} logoUri={logoUri} size="md" />
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold tracking-tight text-slate-900">
             {credentialTitle}
           </p>
-          <p className="mt-1 text-[14px] leading-relaxed text-slate-600">
+          <p className="mt-0.5 truncate text-[14px] leading-relaxed text-slate-500">
             {verifierLabel}
           </p>
-          {description && (
-            <p className="mt-2 text-[13px] leading-relaxed text-slate-500">
-              {description}
-            </p>
-          )}
         </div>
+        {description && (
+          <p className="text-[13px] leading-relaxed text-slate-500">{description}</p>
+        )}
       </div>
     </div>
   )
