@@ -8,6 +8,8 @@ type PresentationPageShellProps = {
   title: string
   onBack: () => void
   children: ReactNode
+  /** Figma proof-details screens omit the bottom tab bar. */
+  showFooter?: boolean
 }
 
 /**
@@ -18,6 +20,7 @@ export function PresentationPageShell({
   title,
   onBack,
   children,
+  showFooter = true,
 }: PresentationPageShellProps) {
   const navigate = useNavigate()
 
@@ -41,11 +44,13 @@ export function PresentationPageShell({
 
         {children}
 
-        <Footer
-          activeTab="creds"
-          onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
-          scanDisabled={false}
-        />
+        {showFooter && (
+          <Footer
+            activeTab="creds"
+            onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
+            scanDisabled={false}
+          />
+        )}
       </div>
     </PageContainer>
   )

@@ -7,6 +7,7 @@ import { routes } from '../../constants/routes'
 import { usePresentationSession } from '../../hooks/presentation/usePresentationSession'
 import { usePresentationState } from '../../state/presentation.state'
 import { parsePresentationRequestParams } from '../../utils/presentation/presentationRequest'
+import { ProofDetailsPage } from './ProofDetailsPage'
 
 export function PresentationRequestPage() {
   const navigate = useNavigate()
@@ -47,9 +48,36 @@ export function PresentationRequestPage() {
     void startRequest(parsedParams.authorization)
   }
 
+  const handleDecline = () => {
+    reset()
+    navigate(routes.home)
+  }
+
+  const handleShare = () => {
+    presentation.setStatus('reviewing')
+  }
+
+  const showProofDetails =
+    parsedParams.ok &&
+    presentation.status === 'selecting' &&
+    presentation.request &&
+    presentation.verifier
+
+  const showLoading =
+    parsedParams.ok &&
+    (sessionState.status === 'loading' || presentation.status === 'loading')
+
+  const showError =
+    parsedParams.ok &&
+    (sessionState.status === 'error' || presentation.status === 'error')
+
   return (
-    <PresentationPageShell title="Proof Request" onBack={handleBack}>
-      <section className="flex flex-1 flex-col">
+    <PresentationPageShell
+      title={showProofDetails ? 'Proof Details' : 'Proof Request'}
+      onBack={handleBack}
+      showFooter={!showProofDetails}
+    >
+      <section className="flex min-h-0 flex-1 flex-col">
         {!parsedParams.ok && (
           <PresentationErrorCard
             error={parsedParams.error}
@@ -58,12 +86,29 @@ export function PresentationRequestPage() {
           />
         )}
 
-        {parsedParams.ok && sessionState.status === 'loading' && (
-          <PresentationLoadingState />
+        {showLoading && <PresentationLoadingState />}
+
+        {showError && (
+          <PresentationErrorCard
+            error={
+              sessionState.status === 'error'
+                ? sessionState.error
+                : (presentation.error ?? {
+                    code: 'internal_error',
+                    message: 'Presentation request failed.',
+                  })
+            }
+            onRetry={handleRetry}
+          />
         )}
 
-        {parsedParams.ok && sessionState.status === 'error' && (
-          <PresentationErrorCard error={sessionState.error} onRetry={handleRetry} />
+        {showProofDetails && presentation.request && presentation.verifier && (
+          <ProofDetailsPage
+            request={presentation.request}
+            verifier={presentation.verifier}
+            onShare={handleShare}
+            onDecline={handleDecline}
+          />
         )}
       </section>
     </PresentationPageShell>

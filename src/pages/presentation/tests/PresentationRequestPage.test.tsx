@@ -13,6 +13,28 @@ const mockReset = vi.fn()
 
 let mockSessionState: PresentationSessionState = { status: 'idle' }
 let mockPresentationStatus = 'idle'
+const mockSetStatus = vi.fn()
+
+const mockPresentationRequest = {
+  client_id: 'https://verifier.example',
+  nonce: 'nonce-123',
+  response_type: 'vp_token',
+  response_mode: 'direct_post',
+  dcql_query: {
+    credentials: [
+      {
+        id: 'identity',
+        format: 'dc+sd-jwt',
+        claims: [{ path: ['username'], values: ['francis'] }],
+      },
+    ],
+  },
+}
+
+const mockVerifier = {
+  client_id: 'https://verifier.example',
+  name: 'Verifier App',
+}
 
 vi.mock('react-router-dom', async () => {
   const actual =
@@ -31,6 +53,16 @@ vi.mock('../../../hooks/presentation/usePresentationSession', () => ({
 vi.mock('../../../state/presentation.state', () => ({
   usePresentationState: () => ({
     status: mockPresentationStatus,
+    request: mockPresentationStatus === 'selecting' ? mockPresentationRequest : undefined,
+    verifier: mockPresentationStatus === 'selecting' ? mockVerifier : undefined,
+    error:
+      mockPresentationStatus === 'error'
+        ? {
+            code: 'internal_error',
+            message: 'Presentation request failed.',
+          }
+        : undefined,
+    setStatus: mockSetStatus,
   }),
 }))
 
@@ -78,6 +110,7 @@ describe('PresentationRequestPage', () => {
     mockNavigate.mockReset()
     mockStartRequest.mockReset()
     mockReset.mockReset()
+    mockSetStatus.mockReset()
     mockSessionState = { status: 'idle' }
     mockPresentationStatus = 'idle'
   })
@@ -137,6 +170,39 @@ describe('PresentationRequestPage', () => {
     renderPage()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(mockReset).toHaveBeenCalled()
+    expect(mockNavigate).toHaveBeenCalledWith(routes.home)
+  })
+
+  it('shows proof details after the session starts successfully', () => {
+    mockSessionState = { status: 'success' }
+    mockPresentationStatus = 'selecting'
+    renderPage()
+
+    expect(screen.getByText('Proof Details')).toBeTruthy()
+    expect(screen.getByText('Select a Claim')).toBeTruthy()
+    expect(screen.getByText('Username')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Share' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy()
+  })
+
+  it('continues the flow when share is pressed', async () => {
+    mockSessionState = { status: 'success' }
+    mockPresentationStatus = 'selecting'
+    renderPage()
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Share' }))
+    expect(mockSetStatus).toHaveBeenCalledWith('reviewing')
+  })
+
+  it('declines and returns home', async () => {
+    mockSessionState = { status: 'success' }
+    mockPresentationStatus = 'selecting'
+    renderPage()
+
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Decline' }))
     expect(mockReset).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith(routes.home)
   })
