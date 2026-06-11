@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react'
-import { useLayoutEffect, useRef, useState } from 'react'
-import { cleanup, render, screen } from '@testing-library/react'
+import { useState } from 'react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -17,24 +17,25 @@ function HomeStub() {
 }
 
 function SeedSuccessState({ children }: { children: ReactNode }) {
-  const presentation = usePresentationState()
-  const [ready, setReady] = useState(false)
-  const seeded = useRef(false)
+  const { status, setSubmissionResult } = usePresentationState()
+  const [seeded, setSeeded] = useState(false)
 
-  useLayoutEffect(() => {
-    if (seeded.current) {
-      return
-    }
-    seeded.current = true
-    presentation.setSubmissionResult({
-      success: true,
-      redirect_uri: 'https://verifier.example/callback',
-    })
-    setReady(true)
-  })
-
-  if (!ready) {
-    return null
+  if (!seeded && status !== 'success') {
+    return (
+      <button
+        type="button"
+        data-testid="seed-success"
+        onClick={() => {
+          setSubmissionResult({
+            success: true,
+            redirect_uri: 'https://verifier.example/callback',
+          })
+          setSeeded(true)
+        }}
+      >
+        seed success
+      </button>
+    )
   }
 
   return children
@@ -52,11 +53,19 @@ function renderSuccessPage(options?: { seedSuccess?: boolean }) {
     </MemoryRouter>
   )
 
-  return render(
+  const view = render(
     <PresentationProvider>
       {seedSuccess ? <SeedSuccessState>{routesTree}</SeedSuccessState> : routesTree}
     </PresentationProvider>
   )
+
+  if (seedSuccess) {
+    act(() => {
+      screen.getByTestId('seed-success').click()
+    })
+  }
+
+  return view
 }
 
 describe('PresentationSuccessPage', () => {
