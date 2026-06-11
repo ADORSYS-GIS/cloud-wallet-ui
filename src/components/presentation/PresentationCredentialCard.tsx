@@ -1,4 +1,4 @@
-import { IssuerAvatar } from '../issuance/IssuerAvater'
+import { IssuerAvatar } from '../issuance/IssuerAvatar'
 import type { SelectableCredential } from '../../utils/presentation/matchingCredentialDisplay'
 import { resolveMatchingCredentialDisplay } from '../../utils/presentation/matchingCredentialDisplay'
 
