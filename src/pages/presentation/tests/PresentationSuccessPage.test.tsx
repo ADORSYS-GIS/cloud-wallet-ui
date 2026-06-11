@@ -17,18 +17,19 @@ function HomeStub() {
 }
 
 function SeedSuccessState({ children }: { children: ReactNode }) {
-  const { status, setSubmissionResult } = usePresentationState()
+  const presentation = usePresentationState()
   const [seeded, setSeeded] = useState(false)
 
-  if (!seeded && status !== 'success') {
+  if (!seeded && presentation.status !== 'success') {
     return (
       <button
         type="button"
         data-testid="seed-success"
         onClick={() => {
-          setSubmissionResult({
-            success: true,
-            redirect_uri: 'https://verifier.example/callback',
+          presentation.setConsentResponse({
+            status: 'completed',
+            redirect_uri: null,
+            verifier_response: null,
           })
           setSeeded(true)
         }}

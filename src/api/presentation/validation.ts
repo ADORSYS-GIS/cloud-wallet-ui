@@ -12,9 +12,14 @@ import type {
 import { ContractError } from '../validation'
 
 const VERIFICATION_METHODS = new Set<VerifierVerificationMethod>([
+  'pre-registered',
+  'decentralized_identifier',
+  'redirect_uri',
   'verifier_attestation',
-  'x509',
-  'did_resolution',
+  'x509_san_dns',
+  'x509_san_uri',
+  'x509_hash',
+  'openid_federation',
 ])
 
 function requireString(ctx: string, field: string, value: unknown): string {
@@ -123,13 +128,10 @@ function validateRequestedClaim(raw: unknown, index: number): RequestedClaim {
     obj.value_required === undefined
       ? undefined
       : requireBoolean(ctx, 'value_required', obj.value_required)
-  const value_preview = optionalNullableString(ctx, 'value_preview', obj.value_preview)
-
   return {
     path,
     ...(display_name !== undefined ? { display_name } : {}),
     ...(value_required !== undefined ? { value_required } : {}),
-    ...(value_preview !== undefined ? { value_preview } : {}),
   }
 }
 

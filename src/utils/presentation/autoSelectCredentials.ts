@@ -2,7 +2,7 @@ import type { CredentialMatch, CredentialSelection } from '../../types/presentat
 
 /**
  * Auto-select wallet credentials when each required match has a single candidate.
- * Falls back to the first candidate when multiple exist (until #87 selection UI).
+ * Falls back to the first candidate when multiple exist.
  */
 export function autoSelectCredentials(
   credentialMatches: CredentialMatch[]

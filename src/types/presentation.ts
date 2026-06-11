@@ -19,9 +19,14 @@ export type PresentationStatus =
 export type PresentationFlow = 'cross_device' | 'same_device'
 
 export type VerifierVerificationMethod =
+  | 'pre-registered'
+  | 'decentralized_identifier'
+  | 'redirect_uri'
   | 'verifier_attestation'
-  | 'x509'
-  | 'did_resolution'
+  | 'x509_san_dns'
+  | 'x509_san_uri'
+  | 'x509_hash'
+  | 'openid_federation'
 
 /** Verifier display block from POST /presentation/start (OpenAPI VerifierDisplay). */
 export type VerifierDisplay = {
@@ -39,8 +44,6 @@ export type RequestedClaim = {
   path: ClaimsPathPointer
   display_name?: string | null
   value_required?: boolean
-  /** Optional constrained value preview when provided by the backend. */
-  value_preview?: string | null
 }
 
 export type CredentialSummaryDisplay = CredentialListItemDisplay

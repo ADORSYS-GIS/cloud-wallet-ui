@@ -12,14 +12,13 @@ function claimLabel(claim: RequestedClaim): string {
 }
 
 function claimValuePreview(claim: RequestedClaim): string | undefined {
-  if (claim.value_preview) return claim.value_preview
   if (claim.value_required) return 'Required'
   return undefined
 }
 
 /**
  * Flatten credential_matches into Figma-style claim cards for Proof Details.
- * Uses the first candidate per match (auto-selection path until #87).
+ * Uses the first candidate per match (auto-selection path).
  */
 export function flattenRequestedClaims(
   credentialMatches: CredentialMatch[]

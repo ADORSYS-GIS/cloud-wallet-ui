@@ -560,16 +560,10 @@ export function validateTenantRegistrationResponse(
   const obj = requireObject(ctx, 'response', raw)
 
   const tenant_id = requireString(ctx, 'tenant_id', obj.tenant_id)
-  // OpenAPI requires UUID v4. Mock/review backends may return opaque ids in local dev.
+  // Validate UUID format (8-4-4-4-12 pattern)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(tenant_id)) {
-    if (import.meta.env.MODE === 'development') {
-      console.warn(
-        `[dev] Accepting non-UUID tenant_id from backend: ${tenant_id}. Production builds require UUID v4.`
-      )
-    } else {
-      throw new ContractError(ctx, 'tenant_id', tenant_id)
-    }
+    throw new ContractError(ctx, 'tenant_id', tenant_id)
   }
 
   const name = requireString(ctx, 'name', obj.name)

@@ -10,7 +10,7 @@ const verifier: VerifierDisplay = {
   logo_uri: 'https://verifier.example/logo.png',
   policy_uri: 'https://verifier.example/privacy',
   verified: true,
-  verification_method: 'x509',
+  verification_method: 'x509_san_dns',
 }
 
 const credentialMatches: CredentialMatch[] = [
@@ -25,9 +25,7 @@ const credentialMatches: CredentialMatch[] = [
           issuer_name: 'Example Issuer',
           credential_type: 'dc+sd-jwt',
         },
-        requested_claims: [
-          { path: ['username'], display_name: 'Username', value_preview: 'francis' },
-        ],
+        requested_claims: [{ path: ['username'], display_name: 'Username' }],
       },
     ],
   },
@@ -51,7 +49,6 @@ describe('ProofDetailsPage', () => {
     expect(screen.getByText('is requesting the following credentials:')).toBeTruthy()
     expect(screen.getByText('Verifier App')).toBeTruthy()
     expect(screen.getByText('Username')).toBeTruthy()
-    expect(screen.getByText('francis')).toBeTruthy()
   })
 
   it('calls share and decline handlers', async () => {

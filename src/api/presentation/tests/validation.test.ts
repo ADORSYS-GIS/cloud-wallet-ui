@@ -14,7 +14,7 @@ const validStartResponse = {
     logo_uri: 'https://verifier.example.eu/assets/logo.svg',
     policy_uri: 'https://verifier.example.eu/privacy',
     verified: true,
-    verification_method: 'x509',
+    verification_method: 'x509_san_dns',
   },
   purpose: 'Age verification for access to restricted content.',
   credential_matches: [
@@ -83,6 +83,29 @@ describe('validateStartPresentationResponse', () => {
       validateStartPresentationResponse({
         ...validStartResponse,
         flow: 'invalid',
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('accepts OpenAPI verification_method values', () => {
+    const result = validateStartPresentationResponse({
+      ...validStartResponse,
+      verifier: {
+        ...validStartResponse.verifier,
+        verification_method: 'decentralized_identifier',
+      },
+    })
+    expect(result.verifier.verification_method).toBe('decentralized_identifier')
+  })
+
+  it('throws ContractError for unknown verification_method', () => {
+    expect(() =>
+      validateStartPresentationResponse({
+        ...validStartResponse,
+        verifier: {
+          ...validStartResponse.verifier,
+          verification_method: 'x509',
+        },
       })
     ).toThrow(ContractError)
   })

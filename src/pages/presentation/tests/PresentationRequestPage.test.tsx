@@ -215,6 +215,16 @@ describe('PresentationRequestPage', () => {
     expect(mockSubmitShare).toHaveBeenCalledTimes(1)
   })
 
+  it('navigates to presentation success when consent completes without redirect', () => {
+    mockSessionState = { status: 'success' }
+    mockPresentationStatus = 'success'
+    renderPage()
+
+    expect(mockNavigate).toHaveBeenCalledWith(routes.presentationSuccess, {
+      replace: true,
+    })
+  })
+
   it('submits decline and returns home', async () => {
     mockSessionState = { status: 'success' }
     mockPresentationStatus = 'selecting'

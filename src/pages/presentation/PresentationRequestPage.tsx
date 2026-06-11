@@ -36,6 +36,19 @@ export function PresentationRequestPage() {
     void startRequest(parsedParams.authorization)
   }, [parsedParams, presentation.status, sessionState.status, startRequest])
 
+  useEffect(() => {
+    if (
+      !parsedParams.ok ||
+      presentation.status !== 'success' ||
+      presentation.consentResponse?.status !== 'completed' ||
+      presentation.consentResponse.redirect_uri
+    ) {
+      return
+    }
+
+    navigate(routes.presentationSuccess, { replace: true })
+  }, [navigate, parsedParams.ok, presentation.consentResponse, presentation.status])
+
   const handleBack = () => {
     reset()
     navigate(routes.home)
@@ -75,9 +88,6 @@ export function PresentationRequestPage() {
     (sessionState.status === 'loading' || presentation.status === 'loading')
 
   const showSubmitting = parsedParams.ok && isSubmitting
-
-  const showSuccess =
-    parsedParams.ok && presentation.status === 'success' && presentation.consentResponse
 
   const showError =
     parsedParams.ok &&
@@ -120,25 +130,6 @@ export function PresentationRequestPage() {
             }
             onRetry={handleRetry}
           />
-        )}
-
-        {showSuccess && (
-          <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-            <p className="text-lg font-semibold text-slate-900">Presentation completed</p>
-            <p className="mt-2 text-sm text-slate-600">
-              Your credentials were shared successfully.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                reset()
-                navigate(routes.home)
-              }}
-              className="mt-6 h-10 rounded-[4px] bg-[#99e827] px-6 text-[16px] text-slate-900"
-            >
-              Return to wallet
-            </button>
-          </div>
         )}
 
         {showProofDetails && presentation.verifier && presentation.credentialMatches && (

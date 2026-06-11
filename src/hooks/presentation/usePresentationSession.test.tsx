@@ -35,7 +35,7 @@ const startResponse = {
   verifier: {
     name: 'Keycloak-demo',
     verified: true,
-    verification_method: 'x509' as const,
+    verification_method: 'x509_san_dns' as const,
   },
   purpose: 'Age verification.',
   credential_matches: [
