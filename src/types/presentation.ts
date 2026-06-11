@@ -92,19 +92,47 @@ export type SelectedCredential = {
 /** Maps wallet credential ID → selected claim ids/paths for selective disclosure. */
 export type DisclosedClaimMap = Record<string, string[]>
 
+export type PresentationConsentStatus = 'completed' | 'rejected'
+
+/** Outcome of POST /presentation/{session_id}/consent. */
+export type PresentationConsentResponse = {
+  status: PresentationConsentStatus
+  redirect_uri: string | null
+  verifier_response: Record<string, unknown> | null
+}
+
+/** Credential chosen for a single DCQL query id (API wire format). */
+export type CredentialSelection = {
+  query_id: string
+  credential_id: string
+}
+
+/** Body for POST /presentation/{session_id}/consent. */
+export type PresentationConsentRequest = {
+  accepted: boolean
+  selected_credentials?: CredentialSelection[]
+  transaction_data_acknowledged?: boolean
+}
+
 export type PresentationResult = {
   success: boolean
-  redirect_uri?: string
+  status?: PresentationConsentStatus
+  redirect_uri?: string | null
+  verifier_response?: Record<string, unknown> | null
   state?: string
 }
 
 export type PresentationErrorCode =
   | 'invalid_request'
   | 'invalid_presentation_request'
+  | 'invalid_credential_selection'
+  | 'transaction_data_not_acknowledged'
   | 'session_not_found'
   | 'invalid_session_state'
   | 'verifier_metadata_fetch_failed'
   | 'no_matching_credentials'
+  | 'presentation_build_failed'
+  | 'verifier_submission_failed'
   | 'user_rejected'
   | 'submission_failed'
   | 'unauthorized'

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { ContractError } from '../../validation'
-import { validateStartPresentationResponse } from '../validation'
+import {
+  validatePresentationConsentResponse,
+  validateStartPresentationResponse,
+} from '../validation'
 
 const validRequest = {
   client_id: 'https://verifier.example',
@@ -28,6 +31,71 @@ const validResponse = {
     },
   ],
 }
+
+describe('validatePresentationConsentResponse', () => {
+  const validCompletedCrossDevice = {
+    status: 'completed',
+    redirect_uri: null,
+    verifier_response: { redirect_uri: 'https://verifier.example.eu/success' },
+  }
+
+  const validCompletedSameDevice = {
+    status: 'completed',
+    redirect_uri: 'https://verifier.example.eu/callback#vp_token=abc',
+    verifier_response: null,
+  }
+
+  const validRejected = {
+    status: 'rejected',
+    redirect_uri: null,
+    verifier_response: null,
+  }
+
+  it('accepts completed cross-device response', () => {
+    expect(validatePresentationConsentResponse(validCompletedCrossDevice)).toEqual(
+      validCompletedCrossDevice
+    )
+  })
+
+  it('accepts completed same-device response', () => {
+    expect(validatePresentationConsentResponse(validCompletedSameDevice)).toEqual(
+      validCompletedSameDevice
+    )
+  })
+
+  it('accepts rejected response', () => {
+    expect(validatePresentationConsentResponse(validRejected)).toEqual(validRejected)
+  })
+
+  it('throws ContractError when status is missing', () => {
+    expect(() =>
+      validatePresentationConsentResponse({
+        redirect_uri: null,
+        verifier_response: null,
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('throws ContractError for unknown status', () => {
+    expect(() =>
+      validatePresentationConsentResponse({
+        status: 'pending',
+        redirect_uri: null,
+        verifier_response: null,
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('throws ContractError when redirect_uri is not string or null', () => {
+    expect(() =>
+      validatePresentationConsentResponse({
+        status: 'completed',
+        redirect_uri: 42,
+        verifier_response: null,
+      })
+    ).toThrow(ContractError)
+  })
+})
 
 describe('validateStartPresentationResponse', () => {
   it('accepts a valid response', () => {

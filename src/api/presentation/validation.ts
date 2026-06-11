@@ -2,6 +2,8 @@ import type {
   DcqlQuery,
   MatchingCredential,
   ParsedPresentationRequest,
+  PresentationConsentResponse,
+  PresentationConsentStatus,
   StartPresentationResponse,
   VerifierMetadata,
 } from '../../types/presentation'
@@ -154,6 +156,55 @@ function validateParsedPresentationRequest(raw: unknown): ParsedPresentationRequ
   }
 
   return request
+}
+
+const PRESENTATION_CONSENT_STATUSES = new Set<PresentationConsentStatus>([
+  'completed',
+  'rejected',
+])
+
+function requireStringOrNull(ctx: string, field: string, value: unknown): string | null {
+  if (value !== null && typeof value !== 'string') {
+    throw new ContractError(ctx, field, value)
+  }
+  return value as string | null
+}
+
+function requireObjectOrNull(
+  ctx: string,
+  field: string,
+  value: unknown
+): Record<string, unknown> | null {
+  if (value === null) return null
+  return requireObject(ctx, field, value)
+}
+
+/**
+ * Validate POST /presentation/{session_id}/consent response against the wallet API contract.
+ */
+export function validatePresentationConsentResponse(
+  raw: unknown
+): PresentationConsentResponse {
+  const ctx = 'PresentationConsentResponse'
+  const obj = requireObject(ctx, 'response', raw)
+
+  const status = requireString(ctx, 'status', obj.status)
+  if (!PRESENTATION_CONSENT_STATUSES.has(status as PresentationConsentStatus)) {
+    throw new ContractError(ctx, 'status', status)
+  }
+
+  const redirect_uri = requireStringOrNull(ctx, 'redirect_uri', obj.redirect_uri)
+  const verifier_response = requireObjectOrNull(
+    ctx,
+    'verifier_response',
+    obj.verifier_response
+  )
+
+  return {
+    status: status as PresentationConsentStatus,
+    redirect_uri,
+    verifier_response,
+  }
 }
 
 /**

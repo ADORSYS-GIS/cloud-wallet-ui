@@ -1,0 +1,122 @@
+import { useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  buildPresentationConsentRequest,
+  submitPresentationConsent,
+} from '../../api/presentation/consent'
+import { routes } from '../../constants/routes'
+import { usePresentationState } from '../../state/presentation.state'
+import type {
+  PresentationError,
+  PresentationResult,
+  SelectedCredential,
+} from '../../types/presentation'
+import { toPresentationError } from '../../utils/presentation/presentationErrors'
+
+export type PresentationSubmissionParams = {
+  sessionId: string
+  accepted: boolean
+  selectedCredentials?: SelectedCredential[]
+  transactionDataAcknowledged?: boolean
+}
+
+export type UsePresentationSubmissionReturn = {
+  /** True while POST /presentation/{session_id}/consent is in flight. */
+  isSubmitting: boolean
+  submitConsent: (params: PresentationSubmissionParams) => Promise<void>
+}
+
+const USER_REJECTED_ERROR: PresentationError = {
+  code: 'user_rejected',
+  message: 'You declined to share your credentials.',
+}
+
+function toPresentationResult(
+  status: 'completed' | 'rejected',
+  redirect_uri: string | null,
+  verifier_response: Record<string, unknown> | null
+): PresentationResult {
+  return {
+    success: status === 'completed',
+    status,
+    redirect_uri,
+    verifier_response,
+  }
+}
+
+/**
+ * Orchestrates synchronous presentation consent submission (issue #90).
+ *
+ * - Sets `submitting` status and shows loading while the backend builds/submits the VP Token.
+ * - Same-device `completed` + `redirect_uri`: navigates the browser back to the Verifier.
+ * - Cross-device `completed`: updates state and routes to the success screen.
+ * - `rejected` or API errors: updates state and routes to the error screen.
+ */
+export function usePresentationSubmission(): UsePresentationSubmissionReturn {
+  const navigate = useNavigate()
+  const presentation = usePresentationState()
+  const inFlightRef = useRef(false)
+
+  const isSubmitting = presentation.status === 'submitting'
+
+  const submitConsent = useCallback(
+    async ({
+      sessionId,
+      accepted,
+      selectedCredentials = [],
+      transactionDataAcknowledged,
+    }: PresentationSubmissionParams) => {
+      if (inFlightRef.current) {
+        return
+      }
+
+      inFlightRef.current = true
+      presentation.setStatus('submitting')
+
+      try {
+        const body = buildPresentationConsentRequest(
+          accepted,
+          selectedCredentials,
+          transactionDataAcknowledged
+        )
+        const response = await submitPresentationConsent(sessionId, body)
+
+        if (response.status === 'completed') {
+          const result = toPresentationResult(
+            response.status,
+            response.redirect_uri,
+            response.verifier_response
+          )
+          presentation.setSubmissionResult(result)
+
+          if (response.redirect_uri) {
+            window.location.assign(response.redirect_uri)
+            return
+          }
+
+          navigate(routes.presentationSuccess)
+          return
+        }
+
+        presentation.setSubmissionResult(
+          toPresentationResult(
+            response.status,
+            response.redirect_uri,
+            response.verifier_response
+          ),
+          USER_REJECTED_ERROR
+        )
+        navigate(routes.presentationError)
+      } catch (error: unknown) {
+        const apiError = toPresentationError(error)
+        presentation.setError(apiError)
+        navigate(routes.presentationError)
+      } finally {
+        inFlightRef.current = false
+      }
+    },
+    [navigate, presentation]
+  )
+
+  return { isSubmitting, submitConsent }
+}

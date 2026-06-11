@@ -58,10 +58,22 @@ export function presentationUserMessage(error: PresentationErrorShape): string {
       return error.message
     case 'invalid_presentation_request':
       return 'This presentation request is invalid or has expired. Please ask the verifier for a new QR code.'
+    case 'invalid_credential_selection':
+      return 'The selected credential is not valid for this proof request. Please choose again.'
+    case 'transaction_data_not_acknowledged':
+      return 'Please review and confirm the transaction details before sharing your credentials.'
     case 'verifier_metadata_fetch_failed':
       return "We couldn't load information about the verifier. Please try again."
     case 'no_matching_credentials':
       return "You don't have a credential that satisfies this proof request."
+    case 'presentation_build_failed':
+      return 'We could not prepare your presentation. Please try again.'
+    case 'verifier_submission_failed':
+      return 'The verifier could not receive your presentation. Please try again.'
+    case 'session_not_found':
+      return 'This presentation session has expired. Please scan the QR code again.'
+    case 'user_rejected':
+      return 'You declined to share your credentials.'
     case 'unauthorized':
       return 'Your wallet session has expired. Please register again and retry.'
     case 'internal_error':
