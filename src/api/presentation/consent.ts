@@ -8,8 +8,6 @@ import type {
 } from '../../types/presentation'
 import { validatePresentationConsentResponse } from './validation'
 
-export { PresentationError } from './errors'
-
 export function buildPresentationConsentRequest(
   accepted: false
 ): PresentationConsentRejectRequest

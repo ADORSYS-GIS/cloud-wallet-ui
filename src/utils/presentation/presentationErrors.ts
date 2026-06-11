@@ -72,8 +72,6 @@ export function presentationUserMessage(error: PresentationErrorShape): string {
       return 'The verifier could not receive your presentation. Please try again.'
     case 'session_not_found':
       return 'This presentation session has expired. Please scan the QR code again.'
-    case 'user_rejected':
-      return 'You declined to share your credentials.'
     case 'unauthorized':
       return 'Your wallet session has expired. Please register again and retry.'
     case 'internal_error':

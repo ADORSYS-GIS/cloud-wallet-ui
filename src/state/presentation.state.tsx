@@ -358,15 +358,9 @@ export function usePresentationState(): PresentationState {
 }
 
 export type {
-  CredentialSelection,
   DisclosedClaimMap,
   MatchingCredential,
   ParsedPresentationRequest,
-  PresentationConsentAcceptRequest,
-  PresentationConsentRejectRequest,
-  PresentationConsentRequest,
-  PresentationConsentResponse,
-  PresentationConsentStatus,
   PresentationError,
   PresentationErrorCode,
   PresentationResult,
