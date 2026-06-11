@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Footer } from '../../components/Footer'
 import { PresentationCredentialSelection } from '../../components/presentation/PresentationCredentialSelection'
 import { PresentationNoMatchingCredentials } from '../../components/presentation/PresentationNoMatchingCredentials'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
-import {
-  isPresentationMockVariant,
-  mockPresentationStartResponse,
-} from '../../dev/presentationMock'
 import { routes } from '../../constants/routes'
 import { usePresentationSession } from '../../hooks/presentation/usePresentationSession'
 import { usePresentationState } from '../../state/presentation.state'
@@ -17,42 +13,19 @@ import { flattenCredentialMatches } from '../../utils/presentation/matchingCrede
 /**
  * Proof Request — after a successful scan and POST /presentation/start.
  * Displays credential types returned by the backend for holder selection.
- *
- * Dev preview (no API): `/present?mock=presentation` or `/present?mock=presentation-empty`
  */
 export function PresentationRequestPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { reset } = usePresentationSession()
-  const {
-    setStartResponse,
-    setStatus,
-    status,
-    credential_matches,
-    setSelectedCredentials,
-  } = usePresentationState()
-  const mockSeededRef = useRef(false)
-
-  const mockVariant = import.meta.env.DEV ? searchParams.get('mock') : null
-  const isMockPreview = isPresentationMockVariant(mockVariant)
-
-  useEffect(() => {
-    if (!isMockPreview || mockSeededRef.current) {
-      return
-    }
-    mockSeededRef.current = true
-    setStartResponse(mockPresentationStartResponse(mockVariant))
-    setStatus('selecting')
-  }, [isMockPreview, mockVariant, setStartResponse, setStatus])
+  const { status, credential_matches, setSelectedCredentials } = usePresentationState()
 
   const isSelecting = status === 'selecting'
 
   useEffect(() => {
-    if (isMockPreview || isSelecting) {
-      return
+    if (!isSelecting) {
+      navigate(routes.scan, { replace: true })
     }
-    navigate(routes.scan, { replace: true })
-  }, [isSelecting, isMockPreview, navigate])
+  }, [isSelecting, navigate])
 
   const handleBack = () => {
     reset()
