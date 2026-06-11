@@ -16,6 +16,14 @@ describe('detectRequestType', () => {
     ).toBe('presentation')
   })
 
+  it('detects presentation requests by presentation_definition', () => {
+    expect(
+      detectRequestType(
+        'client_id=verifier&presentation_definition=%7B%22id%22%3A%22test%22%7D'
+      )
+    ).toBe('presentation')
+  })
+
   it('detects presentation requests by request JWT parameter', () => {
     expect(detectRequestType('client_id=verifier&request=eyJhbG.a.b')).toBe(
       'presentation'
