@@ -5,26 +5,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PresentationRequestPage } from '../PresentationRequestPage'
 import { routes } from '../../../constants/routes'
-import type { MatchingCredential } from '../../../types/presentation'
+import type { CredentialMatch } from '../../../types/presentation'
 
-const matchingCredential: MatchingCredential = {
-  credentialId: 'cred-1',
-  queryId: 'identity',
-  format: 'dc+sd-jwt',
-  display: {
-    name: 'DATEV Unternehmensdaten',
-    issuer_name: 'Keycloak demo Solutions Adorsys',
-    logo: null,
-  },
+const credentialMatch: CredentialMatch = {
+  query_id: 'pid_request',
+  required: true,
+  candidates: [
+    {
+      credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+      display: {
+        name: 'Identity Credential',
+        issuer_name: 'Keycloak-demo Solution Adorsys',
+        credential_type: 'eu.europa.ec.eudi.pid.1',
+        logo: null,
+      },
+      requested_claims: [],
+    },
+  ],
 }
 
 const mockNavigate = vi.fn()
 const mockReset = vi.fn()
 const mockSetSelectedCredentials = vi.fn()
-const mockSetStatus = vi.fn()
 
 let mockPresentationStatus = 'idle'
-let mockMatchingCredentials: MatchingCredential[] | undefined
+let mockCredentialMatches: CredentialMatch[] | undefined
 
 vi.mock('react-router-dom', async () => {
   const actual =
@@ -40,12 +45,15 @@ vi.mock('../../../hooks/presentation/usePresentationSession', () => ({
   }),
 }))
 
+vi.mock('../../../components/Footer', () => ({
+  Footer: () => <nav data-testid="footer">Footer</nav>,
+}))
+
 vi.mock('../../../state/presentation.state', () => ({
   usePresentationState: () => ({
     status: mockPresentationStatus,
-    matchingCredentials: mockMatchingCredentials,
+    credential_matches: mockCredentialMatches,
     setSelectedCredentials: mockSetSelectedCredentials,
-    setStatus: mockSetStatus,
   }),
 }))
 
@@ -86,9 +94,8 @@ describe('PresentationRequestPage', () => {
     mockNavigate.mockReset()
     mockReset.mockReset()
     mockSetSelectedCredentials.mockReset()
-    mockSetStatus.mockReset()
     mockPresentationStatus = 'idle'
-    mockMatchingCredentials = undefined
+    mockCredentialMatches = undefined
   })
 
   it('redirects to scan when opened without an active presentation session', () => {
@@ -97,21 +104,22 @@ describe('PresentationRequestPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
   })
 
-  it('shows matching credentials after the backend responds', () => {
+  it('shows credential types returned by the backend', () => {
     mockPresentationStatus = 'selecting'
-    mockMatchingCredentials = [matchingCredential]
+    mockCredentialMatches = [credentialMatch]
 
     renderPage()
 
-    expect(screen.getByText('Select a credential')).toBeTruthy()
+    expect(screen.getByText('Select a Credential')).toBeTruthy()
     expect(screen.getByText('to present to')).toBeTruthy()
-    expect(screen.getByText('DATEV Unternehmensdaten')).toBeTruthy()
-    expect(screen.getByText('Keycloak demo Solutions Adorsys')).toBeTruthy()
+    expect(screen.getByText('Identity Credential')).toBeTruthy()
+    expect(screen.getByText('Keycloak-demo Solution Adorsys')).toBeTruthy()
+    expect(screen.getByTestId('footer')).toBeTruthy()
   })
 
   it('shows empty state when no credentials match the request', () => {
     mockPresentationStatus = 'selecting'
-    mockMatchingCredentials = []
+    mockCredentialMatches = []
 
     renderPage()
 
@@ -122,7 +130,7 @@ describe('PresentationRequestPage', () => {
 
   it('resets and returns home when back is pressed', async () => {
     mockPresentationStatus = 'selecting'
-    mockMatchingCredentials = [matchingCredential]
+    mockCredentialMatches = [credentialMatch]
 
     renderPage()
     const user = userEvent.setup()

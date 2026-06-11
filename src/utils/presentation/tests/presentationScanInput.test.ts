@@ -9,32 +9,29 @@ const baseQuery =
   '&scope=openid'
 
 describe('parsePresentationScanInput', () => {
-  it('parses a raw query string from a QR code', () => {
+  it('returns the raw query string for POST /presentation/start', () => {
     const result = parsePresentationScanInput(baseQuery)
     expect(result).toEqual({
       ok: true,
-      authorization: expect.objectContaining({
-        client_id: 'https://verifier.example',
-        request_uri: 'https://verifier.example/request',
-      }),
+      request: baseQuery,
     })
   })
 
   it('parses openid4vp QR URIs', () => {
-    const result = parsePresentationScanInput(`openid4vp://?${baseQuery}`)
+    const input = `openid4vp://?${baseQuery}`
+    const result = parsePresentationScanInput(input)
     expect(result?.ok).toBe(true)
     if (result?.ok) {
-      expect(result.authorization.client_id).toBe('https://verifier.example')
+      expect(result.request).toBe(input)
     }
   })
 
   it('parses https QR URIs', () => {
-    const result = parsePresentationScanInput(
-      `https://wallet.example/present?${baseQuery}`
-    )
+    const input = `https://wallet.example/present?${baseQuery}`
+    const result = parsePresentationScanInput(input)
     expect(result?.ok).toBe(true)
     if (result?.ok) {
-      expect(result.authorization.request_uri).toBe('https://verifier.example/request')
+      expect(result.request).toBe(input)
     }
   })
 

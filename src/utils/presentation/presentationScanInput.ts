@@ -1,64 +1,56 @@
-import type {
-  PresentationAuthorizationRequest,
-  PresentationError,
-} from '../../types/presentation'
+import type { PresentationError } from '../../types/presentation'
 import { detectRequestType } from './detectRequestType'
 import { parsePresentationRequestParams } from './presentationRequest'
 
 export type ParsedPresentationScanInput =
-  | { ok: true; authorization: PresentationAuthorizationRequest }
+  | { ok: true; request: string }
   | { ok: false; error: PresentationError }
 
-function extractPresentationSearchParams(input: string): URLSearchParams | null {
-  const value = input.trim()
-  if (!value) {
+/**
+ * Validate a scanned OpenID4VP QR code and return the raw request string for
+ * POST /presentation/start. Returns null when the input is not recognizable
+ * as a presentation request.
+ */
+export function parsePresentationScanInput(
+  input: string
+): ParsedPresentationScanInput | null {
+  const request = input.trim()
+  if (!request) {
     return null
   }
 
+  if (detectRequestType(request) !== 'presentation') {
+    return null
+  }
+
+  let searchParams: URLSearchParams | null = null
   try {
-    const url = new URL(value)
+    const url = new URL(request)
     if (
       url.protocol === 'openid4vp:' ||
       url.protocol === 'https:' ||
       url.protocol === 'http:'
     ) {
-      return url.searchParams
+      searchParams = url.searchParams
     }
   } catch {
-    // Not a URL — fall through to raw query-string parsing.
+    if (request.includes('=')) {
+      try {
+        const query = request.startsWith('?') ? request.slice(1) : request
+        searchParams = new URLSearchParams(query)
+      } catch {
+        return null
+      }
+    }
   }
 
-  if (!value.includes('=')) {
-    return null
-  }
-
-  try {
-    const query = value.startsWith('?') ? value.slice(1) : value
-    return new URLSearchParams(query)
-  } catch {
-    return null
-  }
-}
-
-/**
- * Parse a scanned OpenID4VP QR code into authorization params for POST /presentation/start.
- * Returns null when the input is not recognizable as a presentation request.
- */
-export function parsePresentationScanInput(
-  input: string
-): ParsedPresentationScanInput | null {
-  if (detectRequestType(input) !== 'presentation') {
-    return null
-  }
-
-  const searchParams = extractPresentationSearchParams(input)
   if (!searchParams) {
     return null
   }
 
   const result = parsePresentationRequestParams(searchParams)
   if (result.ok) {
-    return { ok: true, authorization: result.authorization }
+    return { ok: true, request }
   }
 
   return { ok: false, error: result.error }

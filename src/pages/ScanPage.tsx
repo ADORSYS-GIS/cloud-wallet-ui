@@ -99,7 +99,10 @@ export function ScanPage() {
         if (presentationResult?.ok) {
           setScanStatus('processing')
           setFeedbackMessage('Presentation request detected. Contacting verifier…')
-          const result = await startPresentationRequest(presentationResult.authorization)
+          const result = await startPresentationRequest({
+            request: presentationResult.request,
+            origin: window.location.origin,
+          })
           if (result.ok) {
             navigate(routes.present)
           } else {

@@ -2,8 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { startPresentation } from '../../api/presentation/start'
 import { usePresentationState } from '../../state/presentation.state'
 import type {
-  PresentationAuthorizationRequest,
   PresentationError,
+  StartPresentationRequest,
 } from '../../types/presentation'
 import { toPresentationError } from '../../utils/presentation/presentationErrors.ts'
 
@@ -19,15 +19,13 @@ export type StartPresentationResult =
 
 export type UsePresentationSessionReturn = {
   sessionState: PresentationSessionState
-  /** Validate and submit an OpenID4VP authorization request to the wallet backend. */
-  startRequest: (
-    authorization: PresentationAuthorizationRequest
-  ) => Promise<StartPresentationResult>
+  /** Submit a raw OID4VP authorization request to the wallet backend. */
+  startRequest: (body: StartPresentationRequest) => Promise<StartPresentationResult>
   reset: () => void
 }
 
-function authorizationKey(authorization: PresentationAuthorizationRequest): string {
-  return JSON.stringify(authorization)
+function requestKey(body: StartPresentationRequest): string {
+  return JSON.stringify(body)
 }
 
 export function usePresentationSession(): UsePresentationSessionReturn {
@@ -35,32 +33,27 @@ export function usePresentationSession(): UsePresentationSessionReturn {
     status: 'idle',
   })
 
-  const { clear, setStatus, setRequest, setVerifier, setMatchingCredentials, setError } =
-    usePresentationState()
+  const { clear, setStatus, setStartResponse, setError } = usePresentationState()
   const inFlightKeyRef = useRef<string | null>(null)
 
   const startRequest = useCallback(
-    async (
-      authorization: PresentationAuthorizationRequest
-    ): Promise<StartPresentationResult> => {
-      const requestKey = authorizationKey(authorization)
-      if (inFlightKeyRef.current === requestKey) {
+    async (body: StartPresentationRequest): Promise<StartPresentationResult> => {
+      const key = requestKey(body)
+      if (inFlightKeyRef.current === key) {
         return {
           ok: false,
           error: { code: 'internal_error', message: 'Request already in progress.' },
         }
       }
 
-      inFlightKeyRef.current = requestKey
+      inFlightKeyRef.current = key
       setSessionState({ status: 'loading' })
       clear()
       setStatus('loading')
 
       try {
-        const response = await startPresentation(authorization)
-        setRequest(response.request)
-        setVerifier(response.verifier)
-        setMatchingCredentials(response.matching_credentials)
+        const response = await startPresentation(body)
+        setStartResponse(response)
         setStatus('selecting')
         setSessionState({ status: 'success' })
         return { ok: true }
@@ -73,7 +66,7 @@ export function usePresentationSession(): UsePresentationSessionReturn {
         inFlightKeyRef.current = null
       }
     },
-    [clear, setError, setMatchingCredentials, setRequest, setStatus, setVerifier]
+    [clear, setError, setStartResponse, setStatus]
   )
 
   const reset = useCallback(() => {
