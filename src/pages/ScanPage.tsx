@@ -4,6 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { PageContainer } from '../components/layout/PageContainer'
 import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
+import {
+  CameraAccessDialog,
+  type CameraAccessIssue,
+} from '../components/scanner/CameraAccessDialog'
 import { PresentationErrorCard } from '../components/presentation/PresentationErrorCard'
 import { credentialTypeDetailsPath, routes } from '../constants/routes'
 import { usePresentationSession } from '../hooks/presentation/usePresentationSession'
@@ -14,7 +18,6 @@ import { issuanceUserMessage } from '../utils/issuanceErrors'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
 import { detectRequestType } from '../utils/presentation/detectRequestType'
 import { parsePresentationScanInput } from '../utils/presentation/presentationScanInput'
-import { presentationUserMessage } from '../utils/presentation/presentationErrors'
 import illuWallet from '../assets/illu-wallet.png'
 import { E2E_SCAN_SAMPLE_OFFER } from '../e2e/scan-sample-offer'
 
@@ -42,6 +45,10 @@ export function ScanPage() {
   const [processingRequestType, setProcessingRequestType] = useState<
     'issuance' | 'presentation' | null
   >(null)
+  const [cameraAccessIssue, setCameraAccessIssue] = useState<{
+    kind: CameraAccessIssue
+    message?: string
+  } | null>(null)
 
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
   const {
@@ -127,28 +134,30 @@ export function ScanPage() {
         }
       }
 
-      const apiError: IssuanceApiError = {
-        httpStatus: 400,
-        error: 'invalid_credential_offer',
-        error_description: null,
-      }
-      const invalidQrMessage =
-        requestType === 'presentation'
-          ? presentationUserMessage({
-              httpStatus: 400,
-              code: 'invalid_request',
-              message:
-                'The scanned QR code does not contain a valid presentation request. Please try again.',
-              error_description: null,
-            })
-          : requestType === 'issuance'
+      if (requestType === 'presentation') {
+        setLocalPresentationError({
+          httpStatus: 400,
+          code: 'invalid_request',
+          message:
+            'The scanned QR code does not contain a valid presentation request. Please try again.',
+          error_description: null,
+        })
+      } else {
+        const apiError: IssuanceApiError = {
+          httpStatus: 400,
+          error: 'invalid_credential_offer',
+          error_description: null,
+        }
+        const invalidQrMessage =
+          requestType === 'issuance'
             ? issuanceUserMessage(apiError)
             : 'The scanned QR code is not a valid credential offer or presentation request. Please try again.'
 
-      setLocalIssuanceError({
-        apiError,
-        userMessage: invalidQrMessage,
-      })
+        setLocalIssuanceError({
+          apiError,
+          userMessage: invalidQrMessage,
+        })
+      }
       setScanStatus('done')
       scanInProgressRef.current = false
     },
@@ -164,13 +173,19 @@ export function ScanPage() {
       const selectedMode = mode ?? facingModeRef.current
       setIsScannerActive(true)
       resetOffer()
+      resetPresentation()
       setProcessingRequestType(null)
+      setCameraAccessIssue(null)
       setScanStatus('idle')
       setFeedbackMessage('Requesting camera permission…')
 
       if (!navigator?.mediaDevices?.getUserMedia) {
         setIsScannerActive(false)
         setScanStatus('idle')
+        setCameraAccessIssue({
+          kind: 'unavailable',
+          message: 'No camera device is available on this browser.',
+        })
         setFeedbackMessage('No camera device is available on this browser.')
         return
       }
@@ -178,6 +193,10 @@ export function ScanPage() {
       if (!videoRef.current) {
         setIsScannerActive(false)
         setScanStatus('idle')
+        setCameraAccessIssue({
+          kind: 'unavailable',
+          message: 'Video preview unavailable. Please reload and try again.',
+        })
         setFeedbackMessage('Video preview unavailable. Please reload and try again.')
         return
       }
@@ -200,15 +219,20 @@ export function ScanPage() {
         setIsScannerActive(false)
         setScanStatus('idle')
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          setCameraAccessIssue({ kind: 'denied' })
           setFeedbackMessage(
             'Camera permission denied. Please allow camera access and retry.'
           )
           return
         }
+        setCameraAccessIssue({
+          kind: 'unavailable',
+          message: 'Unable to start QR scanner. Check camera availability.',
+        })
         setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
       }
     },
-    [handleDecodedValue, resetOffer]
+    [handleDecodedValue, resetOffer, resetPresentation]
   )
 
   const errorReason = searchParams.get('error')
@@ -275,8 +299,20 @@ export function ScanPage() {
   const showProcessingOverlay =
     scanStatus === 'processing' || offerState.status === 'loading'
   const showErrorCard = showIssuanceErrorCard || showPresentationErrorCard
-  const showFullscreenStatus = showProcessingOverlay || showErrorCard
+  const showCameraAccessDialog = cameraAccessIssue !== null
+  const showFullscreenStatus =
+    showProcessingOverlay || showErrorCard || showCameraAccessDialog
   const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
+
+  const handleCameraRetry = () => {
+    setCameraAccessIssue(null)
+    void startScan()
+  }
+
+  const handleGoHome = () => {
+    stopScanner()
+    navigate(routes.home)
+  }
 
   const handleErrorRetry = () => {
     resetOffer()
@@ -284,6 +320,7 @@ export function ScanPage() {
     setLocalIssuanceError(null)
     setLocalPresentationError(null)
     setProcessingRequestType(null)
+    setCameraAccessIssue(null)
     void startScan()
   }
 
@@ -343,6 +380,15 @@ export function ScanPage() {
               retryLabel="Scan again"
             />
           </div>
+        )}
+
+        {showCameraAccessDialog && cameraAccessIssue && (
+          <CameraAccessDialog
+            issue={cameraAccessIssue.kind}
+            message={cameraAccessIssue.message}
+            onRetry={handleCameraRetry}
+            onGoHome={handleGoHome}
+          />
         )}
 
         {!showFullscreenStatus && (
