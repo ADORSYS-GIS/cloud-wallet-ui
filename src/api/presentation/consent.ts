@@ -1,5 +1,7 @@
 import { apiPost } from '../client'
 import type {
+  PresentationConsentAcceptRequest,
+  PresentationConsentRejectRequest,
   PresentationConsentRequest,
   PresentationConsentResponse,
   SelectedCredential,
@@ -8,9 +10,14 @@ import { validatePresentationConsentResponse } from './validation'
 
 export { PresentationError } from './errors'
 
-/**
- * Build the consent request body from UI selections (camelCase → API snake_case).
- */
+export function buildPresentationConsentRequest(
+  accepted: false
+): PresentationConsentRejectRequest
+export function buildPresentationConsentRequest(
+  accepted: true,
+  selectedCredentials: SelectedCredential[],
+  transactionDataAcknowledged?: boolean
+): PresentationConsentAcceptRequest
 export function buildPresentationConsentRequest(
   accepted: boolean,
   selectedCredentials: SelectedCredential[] = [],
@@ -20,7 +27,7 @@ export function buildPresentationConsentRequest(
     return { accepted: false }
   }
 
-  const body: PresentationConsentRequest = {
+  const body: PresentationConsentAcceptRequest = {
     accepted: true,
     selected_credentials: selectedCredentials.map((credential) => ({
       query_id: credential.queryId,

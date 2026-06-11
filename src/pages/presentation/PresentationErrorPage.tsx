@@ -9,9 +9,6 @@ const DEFAULT_ERROR = {
   message: 'Presentation submission failed.',
 }
 
-/**
- * Shown when consent submission fails or the user declines (issue #90 / #92).
- */
 export function PresentationErrorPage() {
   const navigate = useNavigate()
   const presentation = usePresentationState()
@@ -30,13 +27,11 @@ export function PresentationErrorPage() {
     navigate(routes.scan)
   }
 
-  const canRetry = presentation.error?.code !== 'user_rejected'
-
   return (
     <PresentationPageShell title="Proof Request" onBack={handleBack}>
       <PresentationErrorCard
         error={presentation.error ?? DEFAULT_ERROR}
-        onRetry={canRetry ? handleRetry : undefined}
+        onRetry={handleRetry}
         retryLabel="Scan QR code"
       />
     </PresentationPageShell>

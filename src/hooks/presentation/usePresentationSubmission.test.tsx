@@ -101,7 +101,7 @@ describe('usePresentationSubmission', () => {
     )
   })
 
-  it('routes to error page when user declines', async () => {
+  it('routes to rejection page when user declines', async () => {
     mockedSubmitPresentationConsent.mockResolvedValueOnce({
       status: 'rejected',
       redirect_uri: null,
@@ -123,8 +123,12 @@ describe('usePresentationSubmission', () => {
       })
     })
 
-    expect(result.current.presentation.status).toBe('error')
-    expect(result.current.presentation.error?.code).toBe('user_rejected')
+    expect(mockedSubmitPresentationConsent).toHaveBeenCalledWith('prs_test', {
+      accepted: false,
+    })
+    expect(result.current.presentation.status).toBe('rejected')
+    expect(result.current.presentation.error).toBeUndefined()
+    expect(result.current.presentation.submissionResult?.status).toBe('rejected')
   })
 
   it('maps API errors and sets presentation error state', async () => {

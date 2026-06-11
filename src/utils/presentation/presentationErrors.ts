@@ -1,6 +1,6 @@
 import { ApiError } from '../../api/client'
 import { ContractError } from '../../api/validation'
-import { PresentationError } from '../../api/presentation/start'
+import { PresentationError } from '../../api/presentation/errors'
 import type { PresentationError as PresentationErrorShape } from '../../types/presentation'
 
 export function toPresentationError(error: unknown): PresentationErrorShape {

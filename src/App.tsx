@@ -14,6 +14,7 @@ import { CredentialTypesPage } from './pages/CredentialTypesPage'
 import { IssuanceSuccessPage } from './pages/IssuanceSuccessPage'
 import { RegistrationPage } from './pages/RegistrationPage'
 import { PresentationErrorPage } from './pages/presentation/PresentationErrorPage'
+import { PresentationRejectedPage } from './pages/presentation/PresentationRejectedPage'
 import { PresentationRequestPage } from './pages/presentation/PresentationRequestPage'
 import { PresentationSuccessPage } from './pages/presentation/PresentationSuccessPage'
 import { getStoredTenantId } from './auth/tenant'
@@ -72,6 +73,14 @@ function App() {
                 element={
                   <RequireRegistration>
                     <PresentationSuccessPage />
+                  </RequireRegistration>
+                }
+              />
+              <Route
+                path={routes.presentationRejected}
+                element={
+                  <RequireRegistration>
+                    <PresentationRejectedPage />
                   </RequireRegistration>
                 }
               />

@@ -14,6 +14,7 @@ export type PresentationStatus =
   | 'consenting'
   | 'submitting'
   | 'success'
+  | 'rejected'
   | 'error'
 
 /** Verifier-facing metadata resolved from client_id and client_metadata. */
@@ -107,12 +108,21 @@ export type CredentialSelection = {
   credential_id: string
 }
 
-/** Body for POST /presentation/{session_id}/consent. */
-export type PresentationConsentRequest = {
-  accepted: boolean
-  selected_credentials?: CredentialSelection[]
+/** Accept branch of POST /presentation/{session_id}/consent (OpenAPI oneOf). */
+export type PresentationConsentAcceptRequest = {
+  accepted: true
+  selected_credentials: CredentialSelection[]
   transaction_data_acknowledged?: boolean
 }
+
+/** Reject branch of POST /presentation/{session_id}/consent (OpenAPI oneOf). */
+export type PresentationConsentRejectRequest = {
+  accepted: false
+}
+
+export type PresentationConsentRequest =
+  | PresentationConsentAcceptRequest
+  | PresentationConsentRejectRequest
 
 export type PresentationResult = {
   success: boolean

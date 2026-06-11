@@ -1,61 +1,104 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { useState } from 'react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { routes } from '../../../constants/routes'
+import {
+  PresentationProvider,
+  usePresentationState,
+} from '../../../state/presentation.state'
 import { PresentationSuccessPage } from '../PresentationSuccessPage'
 
-const mockClear = vi.fn()
-let mockPresentationStatus = 'idle'
+function HomeStub() {
+  return <div>Home dashboard</div>
+}
 
-vi.mock('../../../state/presentation.state', () => ({
-  usePresentationState: () => ({
-    status: mockPresentationStatus,
-    clear: mockClear,
-  }),
-}))
+function SeedSuccessState({ children }: { children: ReactNode }) {
+  const { status, setSubmissionResult } = usePresentationState()
+  const [seeded, setSeeded] = useState(false)
+
+  if (!seeded && status !== 'success') {
+    return (
+      <button
+        type="button"
+        data-testid="seed-success"
+        onClick={() => {
+          setSubmissionResult({
+            success: true,
+            redirect_uri: 'https://verifier.example/callback',
+          })
+          setSeeded(true)
+        }}
+      >
+        seed success
+      </button>
+    )
+  }
+
+  return children
+}
+
+function renderSuccessPage(options?: { seedSuccess?: boolean }) {
+  const { seedSuccess = true } = options ?? {}
+
+  const routesTree = (
+    <MemoryRouter initialEntries={[routes.presentationSuccess]}>
+      <Routes>
+        <Route path={routes.presentationSuccess} element={<PresentationSuccessPage />} />
+        <Route path={routes.home} element={<HomeStub />} />
+      </Routes>
+    </MemoryRouter>
+  )
+
+  const view = render(
+    <PresentationProvider>
+      {seedSuccess ? <SeedSuccessState>{routesTree}</SeedSuccessState> : routesTree}
+    </PresentationProvider>
+  )
+
+  if (seedSuccess) {
+    act(() => {
+      screen.getByTestId('seed-success').click()
+    })
+  }
+
+  return view
+}
 
 describe('PresentationSuccessPage', () => {
-  beforeEach(() => {
-    mockPresentationStatus = 'idle'
-    mockClear.mockReset()
+  afterEach(() => {
+    cleanup()
+    localStorage.clear()
   })
 
-  it('redirects to home when presentation is not successful', () => {
-    render(
-      <MemoryRouter initialEntries={[routes.presentationSuccess]}>
-        <Routes>
-          <Route
-            path={routes.presentationSuccess}
-            element={<PresentationSuccessPage />}
-          />
-          <Route path={routes.home} element={<div>Home</div>} />
-        </Routes>
-      </MemoryRouter>
-    )
+  it('renders success heading and primary action', () => {
+    renderSuccessPage()
 
-    expect(screen.getByText('Home')).toBeTruthy()
+    expect(
+      screen.getByRole('heading', { name: 'Information sent successfully' })
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Go back home' })).toBeTruthy()
   })
 
-  it('shows success message and clears state on go home', async () => {
-    mockPresentationStatus = 'success'
+  it('redirects to home when presentation flow is not in success state', () => {
+    renderSuccessPage({ seedSuccess: false })
+
+    expect(screen.getByText('Home dashboard')).toBeTruthy()
+    expect(
+      screen.queryByRole('heading', { name: 'Information sent successfully' })
+    ).toBeNull()
+  })
+
+  it('clears presentation state and navigates home from Go back home', async () => {
     const user = userEvent.setup()
+    renderSuccessPage()
 
-    render(
-      <MemoryRouter initialEntries={[routes.presentationSuccess]}>
-        <Routes>
-          <Route
-            path={routes.presentationSuccess}
-            element={<PresentationSuccessPage />}
-          />
-          <Route path={routes.home} element={<div>Home</div>} />
-        </Routes>
-      </MemoryRouter>
-    )
-
-    expect(screen.getByText('Information sent successfully')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Go back home' }))
-    expect(mockClear).toHaveBeenCalledTimes(1)
+
+    expect(screen.getByText('Home dashboard')).toBeTruthy()
+    expect(localStorage.getItem('cloud_wallet_presentation_flow')).toBeNull()
   })
 })

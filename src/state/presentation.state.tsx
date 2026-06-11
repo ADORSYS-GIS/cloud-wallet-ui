@@ -29,7 +29,7 @@ const DEFAULT_SUBMISSION_FAILED_ERROR: PresentationError = {
 }
 
 function isTerminalStatus(status: PresentationStatus): boolean {
-  return status === 'success' || status === 'error'
+  return status === 'success' || status === 'rejected' || status === 'error'
 }
 
 /** Only in-progress flow states are persisted (survives external redirects). */
@@ -48,6 +48,7 @@ function isPresentationStatus(value: unknown): value is PresentationStatus {
     value === 'consenting' ||
     value === 'submitting' ||
     value === 'success' ||
+    value === 'rejected' ||
     value === 'error'
   )
 }
@@ -231,8 +232,8 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
    */
   const setStatus = useCallback((status: PresentationStatus) => {
     setData((prev) => {
-      if (status === 'success') {
-        return { ...prev, status: 'success', error: undefined }
+      if (status === 'success' || status === 'rejected') {
+        return { ...prev, status, error: undefined }
       }
       return { ...prev, status }
     })
@@ -279,13 +280,21 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
 
   const setSubmissionResult = useCallback(
     (submissionResult: PresentationResult, error?: PresentationError) => {
+      const terminalStatus =
+        submissionResult.status === 'rejected'
+          ? 'rejected'
+          : submissionResult.success
+            ? 'success'
+            : 'error'
+
       setData((prev) => ({
         ...prev,
         submissionResult,
-        status: submissionResult.success ? 'success' : 'error',
-        error: submissionResult.success
-          ? undefined
-          : (error ?? prev.error ?? DEFAULT_SUBMISSION_FAILED_ERROR),
+        status: terminalStatus,
+        error:
+          terminalStatus === 'error'
+            ? (error ?? prev.error ?? DEFAULT_SUBMISSION_FAILED_ERROR)
+            : undefined,
       }))
     },
     []
@@ -301,7 +310,10 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const isFlowActive =
-    data.status !== 'idle' && data.status !== 'success' && data.status !== 'error'
+    data.status !== 'idle' &&
+    data.status !== 'success' &&
+    data.status !== 'rejected' &&
+    data.status !== 'error'
 
   const value = useMemo<PresentationState>(
     () => ({
@@ -350,6 +362,8 @@ export type {
   DisclosedClaimMap,
   MatchingCredential,
   ParsedPresentationRequest,
+  PresentationConsentAcceptRequest,
+  PresentationConsentRejectRequest,
   PresentationConsentRequest,
   PresentationConsentResponse,
   PresentationConsentStatus,

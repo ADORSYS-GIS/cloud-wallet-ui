@@ -67,23 +67,4 @@ describe('PresentationErrorPage', () => {
     expect(mockClear).toHaveBeenCalledTimes(1)
     expect(screen.getByText('Scan')).toBeTruthy()
   })
-
-  it('hides retry when user rejected presentation', () => {
-    mockPresentationStatus = 'error'
-    mockPresentationError = {
-      code: 'user_rejected',
-      message: 'You declined to share your credentials.',
-    }
-
-    render(
-      <MemoryRouter initialEntries={[routes.presentationError]}>
-        <Routes>
-          <Route path={routes.presentationError} element={<PresentationErrorPage />} />
-        </Routes>
-      </MemoryRouter>
-    )
-
-    expect(screen.getByText('You declined to share your credentials.')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Scan QR code' })).toBeNull()
-  })
 })
