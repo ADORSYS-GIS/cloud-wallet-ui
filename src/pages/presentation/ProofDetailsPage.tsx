@@ -1,56 +1,32 @@
 import { useMemo } from 'react'
-import { RequestedCredentialsSection } from '../../components/presentation/RequestedCredentialsSection'
-import { VerifierDetails } from '../../components/presentation/VerifierDetails'
-import { verifierDisplayName } from '../../utils/presentation/verifierDisplay'
-import type {
-  ParsedPresentationRequest,
-  VerifierMetadata,
-} from '../../types/presentation'
-import {
-  buildCredentialSetGroupDisplays,
-  buildRequestedCredentialDisplays,
-  detectSecurityWarnings,
-  humanizeScopeLabel,
-} from '../../utils/presentation/dcqlDisplay'
+import { RequestedClaimsSection } from '../../components/presentation/RequestedClaimsSection'
+import { flattenRequestedClaims } from '../../utils/presentation/flattenRequestedClaims'
+import type { CredentialMatch, VerifierDisplay } from '../../types/presentation'
 
 type ProofDetailsPageProps = {
-  request: ParsedPresentationRequest
-  verifier: VerifierMetadata
+  verifier: VerifierDisplay
+  credentialMatches: CredentialMatch[]
   onShare: () => void
   onDecline: () => void
   isSubmitting?: boolean
 }
 
 /**
- * Pre-consent screen showing verifier information and requested credentials/claims.
- * Layout mirrors Figma "Proof Details" (issue #86).
+ * Pre-consent Proof Details screen (issue #86).
+ * Figma happy path: claims list + Share / Decline.
+ * Data source: POST /presentation/start → credential_matches.
  */
 export function ProofDetailsPage({
-  request,
   verifier,
+  credentialMatches,
   onShare,
   onDecline,
   isSubmitting = false,
 }: ProofDetailsPageProps) {
-  const verifierName = verifierDisplayName(verifier)
-
-  const credentials = useMemo(
-    () =>
-      request.dcql_query ? buildRequestedCredentialDisplays(request.dcql_query) : [],
-    [request.dcql_query]
+  const claims = useMemo(
+    () => flattenRequestedClaims(credentialMatches),
+    [credentialMatches]
   )
-
-  const credentialSetGroups = useMemo(
-    () => (request.dcql_query ? buildCredentialSetGroupDisplays(request.dcql_query) : []),
-    [request.dcql_query]
-  )
-
-  const securityWarnings = useMemo(
-    () => (request.dcql_query ? detectSecurityWarnings(request.dcql_query) : []),
-    [request.dcql_query]
-  )
-
-  const scopeLabel = request.scope ? humanizeScopeLabel(request.scope) : undefined
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[#e9ecef]">
@@ -64,18 +40,10 @@ export function ProofDetailsPage({
 
         <div className="mt-6 space-y-4">
           <p className="text-[15px] font-semibold leading-snug text-slate-900">
-            <span className="text-slate-900">{verifierName}</span> is requesting the
-            following credentials:
+            <span>{verifier.name}</span> is requesting the following credentials:
           </p>
 
-          <RequestedCredentialsSection
-            credentials={credentials}
-            credentialSetGroups={credentialSetGroups}
-            securityWarnings={securityWarnings}
-            scopeLabel={scopeLabel}
-          />
-
-          <VerifierDetails verifier={verifier} />
+          <RequestedClaimsSection claims={claims} />
         </div>
       </section>
 
@@ -86,7 +54,7 @@ export function ProofDetailsPage({
           disabled={isSubmitting}
           className="h-10 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Share
+          {isSubmitting ? 'Sharing…' : 'Share'}
         </button>
         <button
           type="button"

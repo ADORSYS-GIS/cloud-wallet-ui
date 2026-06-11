@@ -6,35 +6,36 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PresentationRequestPage } from '../PresentationRequestPage'
 import { routes } from '../../../constants/routes'
 import type { PresentationSessionState } from '../../../hooks/presentation/usePresentationSession'
+import type { PresentationConsentState } from '../../../hooks/presentation/usePresentationConsent'
 
 const mockNavigate = vi.fn()
 const mockStartRequest = vi.fn()
 const mockReset = vi.fn()
+const mockSubmitShare = vi.fn()
+const mockSubmitDecline = vi.fn()
 
 let mockSessionState: PresentationSessionState = { status: 'idle' }
+let mockConsentState: PresentationConsentState = { status: 'idle' }
 let mockPresentationStatus = 'idle'
-const mockSetStatus = vi.fn()
 
-const mockPresentationRequest = {
-  client_id: 'https://verifier.example',
-  nonce: 'nonce-123',
-  response_type: 'vp_token',
-  response_mode: 'direct_post',
-  dcql_query: {
-    credentials: [
+const mockVerifier = {
+  name: 'Verifier App',
+  verified: true,
+}
+
+const mockCredentialMatches = [
+  {
+    query_id: 'username_credential',
+    required: true,
+    candidates: [
       {
-        id: 'identity',
-        format: 'dc+sd-jwt',
-        claims: [{ path: ['username'], values: ['francis'] }],
+        credential_id: 'cred-username-1',
+        display: { name: 'Username Credential', credential_type: 'dc+sd-jwt' },
+        requested_claims: [{ path: ['username'], display_name: 'Username' }],
       },
     ],
   },
-}
-
-const mockVerifier = {
-  client_id: 'https://verifier.example',
-  name: 'Verifier App',
-}
+]
 
 vi.mock('react-router-dom', async () => {
   const actual =
@@ -50,11 +51,28 @@ vi.mock('../../../hooks/presentation/usePresentationSession', () => ({
   }),
 }))
 
+vi.mock('../../../hooks/presentation/usePresentationConsent', () => ({
+  usePresentationConsent: () => ({
+    consentState: mockConsentState,
+    submitShare: mockSubmitShare,
+    submitDecline: mockSubmitDecline,
+  }),
+}))
+
 vi.mock('../../../state/presentation.state', () => ({
   usePresentationState: () => ({
     status: mockPresentationStatus,
-    request: mockPresentationStatus === 'selecting' ? mockPresentationRequest : undefined,
     verifier: mockPresentationStatus === 'selecting' ? mockVerifier : undefined,
+    credentialMatches:
+      mockPresentationStatus === 'selecting' ? mockCredentialMatches : undefined,
+    purpose:
+      mockPresentationStatus === 'selecting'
+        ? 'Sign in to your account securely.'
+        : undefined,
+    consentResponse:
+      mockPresentationStatus === 'success'
+        ? { status: 'completed', redirect_uri: null, verifier_response: null }
+        : undefined,
     error:
       mockPresentationStatus === 'error'
         ? {
@@ -62,7 +80,6 @@ vi.mock('../../../state/presentation.state', () => ({
             message: 'Presentation request failed.',
           }
         : undefined,
-    setStatus: mockSetStatus,
   }),
 }))
 
@@ -110,8 +127,10 @@ describe('PresentationRequestPage', () => {
     mockNavigate.mockReset()
     mockStartRequest.mockReset()
     mockReset.mockReset()
-    mockSetStatus.mockReset()
+    mockSubmitShare.mockReset()
+    mockSubmitDecline.mockResolvedValue(undefined)
     mockSessionState = { status: 'idle' }
+    mockConsentState = { status: 'idle' }
     mockPresentationStatus = 'idle'
   })
 
@@ -186,23 +205,24 @@ describe('PresentationRequestPage', () => {
     expect(screen.getByRole('button', { name: 'Decline' })).toBeTruthy()
   })
 
-  it('continues the flow when share is pressed', async () => {
+  it('submits consent when share is pressed', async () => {
     mockSessionState = { status: 'success' }
     mockPresentationStatus = 'selecting'
     renderPage()
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Share' }))
-    expect(mockSetStatus).toHaveBeenCalledWith('reviewing')
+    expect(mockSubmitShare).toHaveBeenCalledTimes(1)
   })
 
-  it('declines and returns home', async () => {
+  it('submits decline and returns home', async () => {
     mockSessionState = { status: 'success' }
     mockPresentationStatus = 'selecting'
     renderPage()
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Decline' }))
+    expect(mockSubmitDecline).toHaveBeenCalled()
     expect(mockReset).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith(routes.home)
   })

@@ -8,15 +8,14 @@ import {
   useState,
 } from 'react'
 import type {
-  DisclosedClaimMap,
-  MatchingCredential,
-  ParsedPresentationRequest,
+  CredentialMatch,
+  CredentialSelection,
   PersistedPresentationState,
+  PresentationConsentResponse,
   PresentationError,
-  PresentationResult,
   PresentationStatus,
-  SelectedCredential,
-  VerifierMetadata,
+  StartPresentationResponse,
+  VerifierDisplay,
 } from '../types/presentation'
 
 const STORAGE_KEY = 'cloud_wallet_presentation_flow'
@@ -32,7 +31,6 @@ function isTerminalStatus(status: PresentationStatus): boolean {
   return status === 'success' || status === 'error'
 }
 
-/** Only in-progress flow states are persisted (survives external redirects). */
 function isPersistableStatus(status: PresentationStatus): boolean {
   return status !== 'idle' && !isTerminalStatus(status)
 }
@@ -56,48 +54,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function isVerifierMetadata(value: unknown): value is VerifierMetadata {
-  return isRecord(value) && typeof value.client_id === 'string'
-}
-
-function isDcqlQuery(value: unknown): value is ParsedPresentationRequest['dcql_query'] {
-  return (
-    isRecord(value) && Array.isArray(value.credentials) && value.credentials.length > 0
-  )
-}
-
-function isParsedPresentationRequest(value: unknown): value is ParsedPresentationRequest {
-  if (!isRecord(value)) return false
-  const hasScope = typeof value.scope === 'string'
-  const hasDcql = isDcqlQuery(value.dcql_query)
-  return (
-    typeof value.client_id === 'string' &&
-    typeof value.nonce === 'string' &&
-    typeof value.response_type === 'string' &&
-    typeof value.response_mode === 'string' &&
-    (hasScope || hasDcql) &&
-    !(hasScope && hasDcql)
-  )
-}
-
-function isMatchingCredential(value: unknown): value is MatchingCredential {
+function isVerifierDisplay(value: unknown): value is VerifierDisplay {
   return (
     isRecord(value) &&
-    typeof value.credentialId === 'string' &&
-    typeof value.queryId === 'string' &&
-    typeof value.format === 'string'
+    typeof value.name === 'string' &&
+    typeof value.verified === 'boolean'
   )
 }
 
-function isSelectedCredential(value: unknown): value is SelectedCredential {
-  return isMatchingCredential(value)
+function isCredentialMatch(value: unknown): value is CredentialMatch {
+  return (
+    isRecord(value) &&
+    typeof value.query_id === 'string' &&
+    typeof value.required === 'boolean' &&
+    Array.isArray(value.candidates)
+  )
 }
 
-function isDisclosedClaimMap(value: unknown): value is DisclosedClaimMap {
-  if (!isRecord(value)) return false
-  return Object.values(value).every(
-    (claims) =>
-      Array.isArray(claims) && claims.every((claim) => typeof claim === 'string')
+function isCredentialSelection(value: unknown): value is CredentialSelection {
+  return (
+    isRecord(value) &&
+    typeof value.query_id === 'string' &&
+    typeof value.credential_id === 'string'
   )
 }
 
@@ -110,27 +88,19 @@ function isPresentationError(value: unknown): value is PresentationError {
 function validatePersistedFields(
   record: Record<string, unknown>
 ): PersistedPresentationState | null {
-  if (record.verifier !== undefined && !isVerifierMetadata(record.verifier)) return null
-  if (record.request !== undefined && !isParsedPresentationRequest(record.request))
-    return null
+  if (record.verifier !== undefined && !isVerifierDisplay(record.verifier)) return null
   if (record.error !== undefined && !isPresentationError(record.error)) return null
   if (
-    record.matchingCredentials !== undefined &&
-    (!Array.isArray(record.matchingCredentials) ||
-      !record.matchingCredentials.every(isMatchingCredential))
+    record.credentialMatches !== undefined &&
+    (!Array.isArray(record.credentialMatches) ||
+      !record.credentialMatches.every(isCredentialMatch))
   ) {
     return null
   }
   if (
     record.selectedCredentials !== undefined &&
     (!Array.isArray(record.selectedCredentials) ||
-      !record.selectedCredentials.every(isSelectedCredential))
-  ) {
-    return null
-  }
-  if (
-    record.disclosedClaims !== undefined &&
-    !isDisclosedClaimMap(record.disclosedClaims)
+      !record.selectedCredentials.every(isCredentialSelection))
   ) {
     return null
   }
@@ -188,27 +158,20 @@ function removeFromStorage(): void {
 }
 
 export type PresentationState = PersistedPresentationState & {
-  /** True while the flow is in progress (not idle, success, or error). */
   isFlowActive: boolean
   setStatus: (status: PresentationStatus) => void
-  setRequest: (request: ParsedPresentationRequest) => void
-  setVerifier: (verifier: VerifierMetadata) => void
-  setMatchingCredentials: (credentials: MatchingCredential[]) => void
-  setSelectedCredentials: (credentials: SelectedCredential[]) => void
-  setDisclosedClaims: (claims: DisclosedClaimMap) => void
-  /**
-   * Sets submission outcome and terminal status. On failure, uses `error` when provided,
-   * otherwise keeps an existing error or falls back to `submission_failed`.
-   */
-  setSubmissionResult: (result: PresentationResult, error?: PresentationError) => void
+  setSession: (response: StartPresentationResponse, authorizationClientId: string) => void
+  setSelectedCredentials: (credentials: CredentialSelection[]) => void
+  setConsentResponse: (
+    response: PresentationConsentResponse,
+    error?: PresentationError
+  ) => void
   setError: (error: PresentationError) => void
-  /** Reset all presentation state and remove persisted data. */
   clear: () => void
 }
 
 const PresentationContext = createContext<PresentationState | null>(null)
 
-/** In-progress flow state is persisted; terminal success/error stays in memory until `clear()`. */
 export function PresentationProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<PersistedPresentationState>(loadFromStorage)
 
@@ -225,10 +188,6 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
     removeFromStorage()
   }, [])
 
-  /**
-   * Updates lifecycle status only. Does not reset request, credentials, or disclosure fields.
-   * Call `clear()` when starting a new presentation flow or after the user leaves a result screen.
-   */
   const setStatus = useCallback((status: PresentationStatus) => {
     setData((prev) => {
       if (status === 'success') {
@@ -238,54 +197,44 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
     })
   }, [])
 
-  const setRequest = useCallback((request: ParsedPresentationRequest) => {
-    setData((prev) => ({
-      ...prev,
-      request,
-      matchingCredentials: undefined,
-      selectedCredentials: undefined,
-      disclosedClaims: undefined,
-      submissionResult: undefined,
-      error: undefined,
-    }))
-  }, [])
-
-  const setVerifier = useCallback((verifier: VerifierMetadata) => {
-    setData((prev) => ({ ...prev, verifier }))
-  }, [])
-
-  const setMatchingCredentials = useCallback(
-    (matchingCredentials: MatchingCredential[]) => {
-      setData((prev) => ({
-        ...prev,
-        matchingCredentials,
+  const setSession = useCallback(
+    (response: StartPresentationResponse, authorizationClientId: string) => {
+      setData({
+        status: 'selecting',
+        sessionId: response.session_id,
+        expiresAt: response.expires_at,
+        flow: response.flow,
+        purpose: response.purpose ?? null,
+        verifier: response.verifier,
+        authorizationClientId,
+        credentialMatches: response.credential_matches,
+        credentialSetOptions: response.credential_set_options ?? null,
+        transactionData: response.transaction_data ?? null,
         selectedCredentials: undefined,
-        disclosedClaims: undefined,
-      }))
+        consentResponse: undefined,
+        error: undefined,
+      })
     },
     []
   )
 
   const setSelectedCredentials = useCallback(
-    (selectedCredentials: SelectedCredential[]) => {
+    (selectedCredentials: CredentialSelection[]) => {
       setData((prev) => ({ ...prev, selectedCredentials }))
     },
     []
   )
 
-  const setDisclosedClaims = useCallback((disclosedClaims: DisclosedClaimMap) => {
-    setData((prev) => ({ ...prev, disclosedClaims }))
-  }, [])
-
-  const setSubmissionResult = useCallback(
-    (submissionResult: PresentationResult, error?: PresentationError) => {
+  const setConsentResponse = useCallback(
+    (consentResponse: PresentationConsentResponse, error?: PresentationError) => {
       setData((prev) => ({
         ...prev,
-        submissionResult,
-        status: submissionResult.success ? 'success' : 'error',
-        error: submissionResult.success
-          ? undefined
-          : (error ?? prev.error ?? DEFAULT_SUBMISSION_FAILED_ERROR),
+        consentResponse,
+        status: consentResponse.status === 'completed' ? 'success' : 'error',
+        error:
+          consentResponse.status === 'completed'
+            ? undefined
+            : (error ?? prev.error ?? DEFAULT_SUBMISSION_FAILED_ERROR),
       }))
     },
     []
@@ -296,7 +245,7 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
       ...prev,
       error,
       status: 'error',
-      submissionResult: undefined,
+      consentResponse: undefined,
     }))
   }, [])
 
@@ -308,12 +257,9 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
       ...data,
       isFlowActive,
       setStatus,
-      setRequest,
-      setVerifier,
-      setMatchingCredentials,
+      setSession,
       setSelectedCredentials,
-      setDisclosedClaims,
-      setSubmissionResult,
+      setConsentResponse,
       setError,
       clear,
     }),
@@ -321,14 +267,11 @@ export function PresentationProvider({ children }: { children: React.ReactNode }
       clear,
       data,
       isFlowActive,
-      setDisclosedClaims,
+      setConsentResponse,
       setError,
-      setMatchingCredentials,
-      setRequest,
       setSelectedCredentials,
+      setSession,
       setStatus,
-      setSubmissionResult,
-      setVerifier,
     ]
   )
 
@@ -346,13 +289,13 @@ export function usePresentationState(): PresentationState {
 }
 
 export type {
-  DisclosedClaimMap,
-  MatchingCredential,
-  ParsedPresentationRequest,
+  CredentialMatch,
+  CredentialSelection,
+  PresentationConsentResponse,
   PresentationError,
   PresentationErrorCode,
-  PresentationResult,
+  PresentationFlow,
   PresentationStatus,
-  SelectedCredential,
-  VerifierMetadata,
+  StartPresentationResponse,
+  VerifierDisplay,
 } from '../types/presentation'

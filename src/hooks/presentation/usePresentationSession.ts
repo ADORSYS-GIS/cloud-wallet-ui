@@ -15,7 +15,6 @@ export type PresentationSessionState =
 
 export type UsePresentationSessionReturn = {
   sessionState: PresentationSessionState
-  /** Validate and submit an OpenID4VP authorization request to the wallet backend. */
   startRequest: (authorization: PresentationAuthorizationRequest) => Promise<void>
   reset: () => void
 }
@@ -38,11 +37,9 @@ export function usePresentationSession(): UsePresentationSessionReturn {
       presentation.setStatus('loading')
 
       try {
-        const response = await startPresentation(authorization)
-        presentation.setRequest(response.request)
-        presentation.setVerifier(response.verifier)
-        presentation.setMatchingCredentials(response.matching_credentials)
-        presentation.setStatus('selecting')
+        const origin = typeof window !== 'undefined' ? window.location.origin : undefined
+        const response = await startPresentation(authorization, origin)
+        presentation.setSession(response, authorization.client_id)
         setSessionState({ status: 'success' })
       } catch (error: unknown) {
         const apiError = toPresentationError(error)

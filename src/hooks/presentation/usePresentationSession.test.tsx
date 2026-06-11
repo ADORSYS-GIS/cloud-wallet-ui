@@ -28,26 +28,35 @@ const authorization = {
   scope: 'openid',
 }
 
-describe('usePresentationSession', () => {
-  it('stores parsed presentation data on success', async () => {
-    mockedStartPresentation.mockResolvedValueOnce({
-      request: {
-        client_id: authorization.client_id,
-        nonce: authorization.nonce ?? 'nonce-123',
-        response_type: 'vp_token',
-        response_mode: 'direct_post',
-        scope: authorization.scope,
-      },
-      verifier: { client_id: authorization.client_id, name: 'Keycloak-demo' },
-      matching_credentials: [
+const startResponse = {
+  session_id: 'prs_test_session',
+  expires_at: '2026-04-08T14:35:00Z',
+  flow: 'cross_device' as const,
+  verifier: {
+    name: 'Keycloak-demo',
+    verified: true,
+    verification_method: 'x509' as const,
+  },
+  purpose: 'Age verification.',
+  credential_matches: [
+    {
+      query_id: 'identity',
+      required: true,
+      candidates: [
         {
-          credentialId: 'cred-1',
-          queryId: 'identity',
-          format: 'dc+sd-jwt',
-          displayName: 'Identity Credential',
+          credential_id: 'cred-1',
+          display: { name: 'Identity Credential' },
+          requested_claims: [{ path: ['username'], display_name: 'Username' }],
         },
       ],
-    })
+    },
+  ],
+  requires_consent: true,
+}
+
+describe('usePresentationSession', () => {
+  it('stores OpenAPI session data on success', async () => {
+    mockedStartPresentation.mockResolvedValueOnce(startResponse)
 
     const { result } = renderHook(() => usePresentationSession(), { wrapper })
 
@@ -63,7 +72,7 @@ describe('usePresentationSession', () => {
   it('surfaces contract validation errors', async () => {
     const { ContractError } = await import('../../api/validation')
     mockedStartPresentation.mockRejectedValueOnce(
-      new ContractError('StartPresentationResponse', 'verifier', null)
+      new ContractError('StartPresentationResponse', 'session_id', null)
     )
 
     const { result } = renderHook(() => usePresentationSession(), { wrapper })

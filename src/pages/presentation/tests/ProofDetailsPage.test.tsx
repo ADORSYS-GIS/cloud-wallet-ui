@@ -3,47 +3,44 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ProofDetailsPage } from '../ProofDetailsPage'
-import type {
-  ParsedPresentationRequest,
-  VerifierMetadata,
-} from '../../../types/presentation'
+import type { CredentialMatch, VerifierDisplay } from '../../../types/presentation'
 
-const request: ParsedPresentationRequest = {
-  client_id: 'https://verifier.example',
-  nonce: 'nonce-123',
-  response_type: 'vp_token',
-  response_mode: 'direct_post',
-  dcql_query: {
-    credentials: [
+const verifier: VerifierDisplay = {
+  name: 'Verifier App',
+  logo_uri: 'https://verifier.example/logo.png',
+  policy_uri: 'https://verifier.example/privacy',
+  verified: true,
+  verification_method: 'x509',
+}
+
+const credentialMatches: CredentialMatch[] = [
+  {
+    query_id: 'username_credential',
+    required: true,
+    candidates: [
       {
-        id: 'identity',
-        format: 'dc+sd-jwt',
-        meta: {
-          vct_values: ['https://credentials.example.com/identity_credential'],
+        credential_id: 'cred-username-1',
+        display: {
+          name: 'Username Credential',
+          issuer_name: 'Example Issuer',
+          credential_type: 'dc+sd-jwt',
         },
-        claims: [{ path: ['username'], values: ['francis'] }],
+        requested_claims: [
+          { path: ['username'], display_name: 'Username', value_preview: 'francis' },
+        ],
       },
     ],
   },
-}
-
-const verifier: VerifierMetadata = {
-  client_id: 'https://verifier.example',
-  name: 'Verifier App',
-  logo_uri: 'https://verifier.example/logo.png',
-  client_metadata: {
-    purpose: 'Verify your identity for login.',
-  },
-}
+]
 
 describe('ProofDetailsPage', () => {
   afterEach(() => cleanup())
 
-  it('renders Figma headings and verifier request details', () => {
+  it('renders Figma headings and requested claims', () => {
     render(
       <ProofDetailsPage
-        request={request}
         verifier={verifier}
+        credentialMatches={credentialMatches}
         onShare={vi.fn()}
         onDecline={vi.fn()}
       />
@@ -52,10 +49,9 @@ describe('ProofDetailsPage', () => {
     expect(screen.getByText('Select a Claim')).toBeTruthy()
     expect(screen.getByText('to present to')).toBeTruthy()
     expect(screen.getByText('is requesting the following credentials:')).toBeTruthy()
-    expect(screen.getAllByText('Verifier App').length).toBeGreaterThan(0)
+    expect(screen.getByText('Verifier App')).toBeTruthy()
     expect(screen.getByText('Username')).toBeTruthy()
     expect(screen.getByText('francis')).toBeTruthy()
-    expect(screen.getByText('Verifier information')).toBeTruthy()
   })
 
   it('calls share and decline handlers', async () => {
@@ -65,8 +61,8 @@ describe('ProofDetailsPage', () => {
 
     render(
       <ProofDetailsPage
-        request={request}
         verifier={verifier}
+        credentialMatches={credentialMatches}
         onShare={onShare}
         onDecline={onDecline}
       />
@@ -79,21 +75,24 @@ describe('ProofDetailsPage', () => {
     expect(onDecline).toHaveBeenCalledTimes(1)
   })
 
-  it('renders scope-based requests', () => {
+  it('disables actions and shows loading label while submitting', () => {
     render(
       <ProofDetailsPage
-        request={{
-          ...request,
-          dcql_query: undefined,
-          scope: 'com.example.IDCardCredential_presentation',
-        }}
         verifier={verifier}
+        credentialMatches={credentialMatches}
         onShare={vi.fn()}
         onDecline={vi.fn()}
+        isSubmitting
       />
     )
 
-    expect(screen.getByText('Requested scope')).toBeTruthy()
-    expect(screen.getByText('Com Example IDCard Credential Presentation')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sharing…' })).toHaveProperty(
+      'disabled',
+      true
+    )
+    expect(screen.getByRole('button', { name: 'Decline' })).toHaveProperty(
+      'disabled',
+      true
+    )
   })
 })

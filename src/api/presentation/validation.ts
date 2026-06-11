@@ -1,22 +1,29 @@
 import type {
-  DcqlQuery,
-  MatchingCredential,
-  ParsedPresentationRequest,
+  CredentialCandidate,
+  CredentialMatch,
+  CredentialSummaryDisplay,
+  PresentationConsentResponse,
+  RequestedClaim,
   StartPresentationResponse,
-  VerifierMetadata,
+  TransactionDataDisplay,
+  VerifierDisplay,
+  VerifierVerificationMethod,
 } from '../../types/presentation'
 import { ContractError } from '../validation'
 
-const SUPPORTED_RESPONSE_TYPES = new Set(['vp_token', 'vp_token id_token'])
-const SUPPORTED_RESPONSE_MODES = new Set([
-  'direct_post',
-  'direct_post.jwt',
-  'fragment',
-  'query',
+const VERIFICATION_METHODS = new Set<VerifierVerificationMethod>([
+  'verifier_attestation',
+  'x509',
+  'did_resolution',
 ])
 
 function requireString(ctx: string, field: string, value: unknown): string {
   if (typeof value !== 'string') throw new ContractError(ctx, field, value)
+  return value
+}
+
+function requireBoolean(ctx: string, field: string, value: unknown): boolean {
+  if (typeof value !== 'boolean') throw new ContractError(ctx, field, value)
   return value
 }
 
@@ -35,129 +42,186 @@ function requireArray(ctx: string, field: string, value: unknown): unknown[] {
   return value
 }
 
-function validateVerifierMetadata(raw: unknown): VerifierMetadata {
+function optionalString(ctx: string, field: string, value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined
+  return requireString(ctx, field, value)
+}
+
+function optionalNullableString(
+  ctx: string,
+  field: string,
+  value: unknown
+): string | null | undefined {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  return requireString(ctx, field, value)
+}
+
+function validateClaimsPath(
+  ctx: string,
+  field: string,
+  value: unknown
+): RequestedClaim['path'] {
+  const path = requireArray(ctx, field, value)
+  return path as RequestedClaim['path']
+}
+
+function validateCredentialSummaryDisplay(
+  raw: unknown,
+  ctx: string
+): CredentialSummaryDisplay {
+  const obj = requireObject(ctx, 'display', raw)
+  const name = requireString(ctx, 'display.name', obj.name)
+
+  const display: CredentialSummaryDisplay = { name }
+
+  const description = optionalString(ctx, 'display.description', obj.description)
+  if (description) display.description = description
+
+  const issuer_name = optionalString(ctx, 'display.issuer_name', obj.issuer_name)
+  if (issuer_name) display.issuer_name = issuer_name
+
+  const credential_type = optionalString(
+    ctx,
+    'display.credential_type',
+    obj.credential_type
+  )
+  if (credential_type) display.credential_type = credential_type
+
+  const background_color = optionalString(
+    ctx,
+    'display.background_color',
+    obj.background_color
+  )
+  if (background_color) display.background_color = background_color
+
+  const text_color = optionalString(ctx, 'display.text_color', obj.text_color)
+  if (text_color) display.text_color = text_color
+
+  if (obj.logo !== undefined && obj.logo !== null) {
+    const logoObj = requireObject(ctx, 'display.logo', obj.logo)
+    display.logo = {
+      uri: requireString(ctx, 'display.logo.uri', logoObj.uri),
+      ...(logoObj.alt_text !== undefined
+        ? { alt_text: requireString(ctx, 'display.logo.alt_text', logoObj.alt_text) }
+        : {}),
+    }
+  } else if (obj.logo === null) {
+    display.logo = null
+  }
+
+  return display
+}
+
+function validateRequestedClaim(raw: unknown, index: number): RequestedClaim {
+  const ctx = `requested_claims[${index}]`
+  const obj = requireObject(ctx, 'requested_claims[]', raw)
+  const path = validateClaimsPath(ctx, 'path', obj.path)
+
+  const display_name = optionalNullableString(ctx, 'display_name', obj.display_name)
+  const value_required =
+    obj.value_required === undefined
+      ? undefined
+      : requireBoolean(ctx, 'value_required', obj.value_required)
+  const value_preview = optionalNullableString(ctx, 'value_preview', obj.value_preview)
+
+  return {
+    path,
+    ...(display_name !== undefined ? { display_name } : {}),
+    ...(value_required !== undefined ? { value_required } : {}),
+    ...(value_preview !== undefined ? { value_preview } : {}),
+  }
+}
+
+function validateCredentialCandidate(raw: unknown, index: number): CredentialCandidate {
+  const ctx = `candidates[${index}]`
+  const obj = requireObject(ctx, 'candidates[]', raw)
+  const credential_id = requireString(ctx, 'credential_id', obj.credential_id)
+  const display = validateCredentialSummaryDisplay(obj.display, ctx)
+  const rawClaims = requireArray(ctx, 'requested_claims', obj.requested_claims)
+  const requested_claims = rawClaims.map((claim, claimIndex) =>
+    validateRequestedClaim(claim, claimIndex)
+  )
+
+  return { credential_id, display, requested_claims }
+}
+
+function validateCredentialMatch(raw: unknown, index: number): CredentialMatch {
+  const ctx = `credential_matches[${index}]`
+  const obj = requireObject(ctx, 'credential_matches[]', raw)
+  const query_id = requireString(ctx, 'query_id', obj.query_id)
+  const required = requireBoolean(ctx, 'required', obj.required)
+  const rawCandidates = requireArray(ctx, 'candidates', obj.candidates)
+  const candidates = rawCandidates.map((candidate, candidateIndex) =>
+    validateCredentialCandidate(candidate, candidateIndex)
+  )
+
+  return { query_id, required, candidates }
+}
+
+function validateVerifierDisplay(raw: unknown): VerifierDisplay {
   const ctx = 'StartPresentationResponse.verifier'
   const obj = requireObject(ctx, 'verifier', raw)
-  const client_id = requireString(ctx, 'client_id', obj.client_id)
+  const name = requireString(ctx, 'name', obj.name)
+  const verified = requireBoolean(ctx, 'verified', obj.verified)
 
-  const name = obj.name === undefined ? undefined : requireString(ctx, 'name', obj.name)
-  const logo_uri =
-    obj.logo_uri === undefined ? undefined : requireString(ctx, 'logo_uri', obj.logo_uri)
+  const logo_uri = optionalNullableString(ctx, 'logo_uri', obj.logo_uri)
+  const policy_uri = optionalNullableString(ctx, 'policy_uri', obj.policy_uri)
+
+  let verification_method: VerifierVerificationMethod | null | undefined
+  if (obj.verification_method === null) {
+    verification_method = null
+  } else if (obj.verification_method !== undefined) {
+    const method = requireString(ctx, 'verification_method', obj.verification_method)
+    if (!VERIFICATION_METHODS.has(method as VerifierVerificationMethod)) {
+      throw new ContractError(ctx, 'verification_method', method)
+    }
+    verification_method = method as VerifierVerificationMethod
+  }
 
   return {
-    client_id,
-    ...(name !== undefined ? { name } : {}),
+    name,
+    verified,
     ...(logo_uri !== undefined ? { logo_uri } : {}),
-    ...(obj.client_metadata !== undefined
-      ? { client_metadata: obj.client_metadata as Record<string, unknown> }
-      : {}),
+    ...(policy_uri !== undefined ? { policy_uri } : {}),
+    ...(verification_method !== undefined ? { verification_method } : {}),
   }
 }
 
-function validateMatchingCredential(raw: unknown, index: number): MatchingCredential {
-  const ctx = `StartPresentationResponse.matching_credentials[${index}]`
-  const obj = requireObject(ctx, 'matching_credentials[]', raw)
+function validateTransactionData(raw: unknown, index: number): TransactionDataDisplay {
+  const ctx = `transaction_data[${index}]`
+  const obj = requireObject(ctx, 'transaction_data[]', raw)
+  const type = requireString(ctx, 'type', obj.type)
+  const credential_ids = requireArray(ctx, 'credential_ids', obj.credential_ids).map(
+    (id, idIndex) => requireString(ctx, `credential_ids[${idIndex}]`, id)
+  )
+  const display_data = requireObject(ctx, 'display_data', obj.display_data)
 
-  const credentialId = requireString(ctx, 'credentialId', obj.credentialId)
-  const queryId = requireString(ctx, 'queryId', obj.queryId)
-  const format = requireString(ctx, 'format', obj.format)
-  const displayName =
-    obj.displayName === undefined
-      ? undefined
-      : requireString(ctx, 'displayName', obj.displayName)
-
-  return {
-    credentialId,
-    queryId,
-    format,
-    ...(displayName !== undefined ? { displayName } : {}),
-  }
+  return { type, credential_ids, display_data }
 }
 
-function validateDcqlQuery(raw: unknown): DcqlQuery {
-  const ctx = 'StartPresentationResponse.request.dcql_query'
-  const obj = requireObject(ctx, 'dcql_query', raw)
-  const credentials = requireArray(ctx, 'credentials', obj.credentials)
-  if (credentials.length === 0) {
-    throw new ContractError(ctx, 'credentials', credentials)
-  }
-  return obj as DcqlQuery
+function validateCredentialSetOptions(raw: unknown): string[][] | null | undefined {
+  if (raw === undefined) return undefined
+  if (raw === null) return null
+
+  const options = requireArray('StartPresentationResponse', 'credential_set_options', raw)
+  return options.map((option, index) =>
+    requireArray(
+      'StartPresentationResponse',
+      `credential_set_options[${index}]`,
+      option
+    ).map((id, idIndex) =>
+      requireString(
+        'StartPresentationResponse',
+        `credential_set_options[${index}][${idIndex}]`,
+        id
+      )
+    )
+  )
 }
 
 /**
- * Validate the resolved OID4VP Authorization Request (§5.2 required fields).
- */
-function validateParsedPresentationRequest(raw: unknown): ParsedPresentationRequest {
-  const ctx = 'StartPresentationResponse.request'
-  const obj = requireObject(ctx, 'request', raw)
-
-  const client_id = requireString(ctx, 'client_id', obj.client_id)
-  const nonce = requireString(ctx, 'nonce', obj.nonce)
-  const response_type = requireString(ctx, 'response_type', obj.response_type)
-  const response_mode = requireString(ctx, 'response_mode', obj.response_mode)
-
-  if (!SUPPORTED_RESPONSE_TYPES.has(response_type)) {
-    throw new ContractError(ctx, 'response_type', response_type)
-  }
-  if (!SUPPORTED_RESPONSE_MODES.has(response_mode)) {
-    throw new ContractError(ctx, 'response_mode', response_mode)
-  }
-
-  const scope =
-    obj.scope === undefined ? undefined : requireString(ctx, 'scope', obj.scope)
-  const dcql_query =
-    obj.dcql_query === undefined ? undefined : validateDcqlQuery(obj.dcql_query)
-
-  if (!scope && !dcql_query) {
-    throw new ContractError(ctx, 'dcql_query', obj.dcql_query ?? obj.scope)
-  }
-  if (scope && dcql_query) {
-    throw new ContractError(ctx, 'scope', scope)
-  }
-
-  const state =
-    obj.state === undefined ? undefined : requireString(ctx, 'state', obj.state)
-  const request_uri =
-    obj.request_uri === undefined
-      ? undefined
-      : requireString(ctx, 'request_uri', obj.request_uri)
-  const request_uri_method =
-    obj.request_uri_method === undefined
-      ? undefined
-      : requireString(ctx, 'request_uri_method', obj.request_uri_method)
-
-  const request: ParsedPresentationRequest = {
-    client_id,
-    nonce,
-    response_type,
-    response_mode,
-    ...(scope !== undefined ? { scope } : {}),
-    ...(dcql_query !== undefined ? { dcql_query } : {}),
-    ...(state !== undefined ? { state } : {}),
-    ...(request_uri !== undefined ? { request_uri } : {}),
-    ...(request_uri_method !== undefined ? { request_uri_method } : {}),
-  }
-
-  if (obj.presentation_definition !== undefined) {
-    request.presentation_definition = requireObject(
-      ctx,
-      'presentation_definition',
-      obj.presentation_definition
-    )
-  }
-  if (obj.presentation_definition_uri !== undefined) {
-    request.presentation_definition_uri = requireString(
-      ctx,
-      'presentation_definition_uri',
-      obj.presentation_definition_uri
-    )
-  }
-
-  return request
-}
-
-/**
- * Validate POST /presentation/start response against the wallet API contract.
+ * Validate POST /presentation/start response against the OpenAPI contract.
  */
 export function validateStartPresentationResponse(
   raw: unknown
@@ -165,17 +229,85 @@ export function validateStartPresentationResponse(
   const ctx = 'StartPresentationResponse'
   const obj = requireObject(ctx, 'response', raw)
 
-  const request = validateParsedPresentationRequest(obj.request)
-  const verifier = validateVerifierMetadata(obj.verifier)
-  const rawCredentials = requireArray(
-    ctx,
-    'matching_credentials',
-    obj.matching_credentials
+  const session_id = requireString(ctx, 'session_id', obj.session_id)
+  const expires_at = requireString(ctx, 'expires_at', obj.expires_at)
+  const flow = requireString(ctx, 'flow', obj.flow)
+  if (flow !== 'cross_device' && flow !== 'same_device') {
+    throw new ContractError(ctx, 'flow', flow)
+  }
+
+  const verifier = validateVerifierDisplay(obj.verifier)
+  const purpose = optionalNullableString(ctx, 'purpose', obj.purpose)
+  const requires_consent = requireBoolean(ctx, 'requires_consent', obj.requires_consent)
+
+  const rawMatches = requireArray(ctx, 'credential_matches', obj.credential_matches)
+  const credential_matches = rawMatches.map((match, index) =>
+    validateCredentialMatch(match, index)
   )
 
-  const matching_credentials = rawCredentials.map((entry, index) =>
-    validateMatchingCredential(entry, index)
-  )
+  const credential_set_options = validateCredentialSetOptions(obj.credential_set_options)
 
-  return { request, verifier, matching_credentials }
+  let transaction_data: TransactionDataDisplay[] | null | undefined
+  if (obj.transaction_data === null) {
+    transaction_data = null
+  } else if (obj.transaction_data !== undefined) {
+    const entries = requireArray(ctx, 'transaction_data', obj.transaction_data)
+    transaction_data = entries.map((entry, index) =>
+      validateTransactionData(entry, index)
+    )
+  }
+
+  return {
+    session_id,
+    expires_at,
+    flow,
+    verifier,
+    credential_matches,
+    requires_consent,
+    ...(purpose !== undefined ? { purpose } : {}),
+    ...(credential_set_options !== undefined ? { credential_set_options } : {}),
+    ...(transaction_data !== undefined ? { transaction_data } : {}),
+  }
+}
+
+/**
+ * Validate POST /presentation/{session_id}/consent response.
+ */
+export function validatePresentationConsentResponse(
+  raw: unknown
+): PresentationConsentResponse {
+  const ctx = 'PresentationConsentResponse'
+  const obj = requireObject(ctx, 'response', raw)
+
+  const status = requireString(ctx, 'status', obj.status)
+  if (status !== 'completed' && status !== 'rejected') {
+    throw new ContractError(ctx, 'status', status)
+  }
+
+  const redirect_uri =
+    obj.redirect_uri === null
+      ? null
+      : obj.redirect_uri === undefined
+        ? null
+        : requireString(ctx, 'redirect_uri', obj.redirect_uri)
+
+  let verifier_response: PresentationConsentResponse['verifier_response'] = null
+  if (obj.verifier_response === null || obj.verifier_response === undefined) {
+    verifier_response = null
+  } else {
+    const responseObj = requireObject(ctx, 'verifier_response', obj.verifier_response)
+    verifier_response = {
+      ...(responseObj.redirect_uri !== undefined
+        ? {
+            redirect_uri: requireString(
+              ctx,
+              'verifier_response.redirect_uri',
+              responseObj.redirect_uri
+            ),
+          }
+        : {}),
+    }
+  }
+
+  return { status, redirect_uri, verifier_response }
 }
