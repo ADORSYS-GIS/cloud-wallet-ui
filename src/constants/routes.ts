@@ -3,6 +3,7 @@ export const routes = {
   home: '/',
   scan: '/scan',
   present: '/present',
+  presentationProofDetails: '/present/details',
   presentationSuccess: '/present/success',
   presentationRejected: '/present/rejected',
   presentationError: '/present/error',
