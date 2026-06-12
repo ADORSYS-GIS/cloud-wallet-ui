@@ -1,6 +1,5 @@
-import { useEffect, useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { PresentationErrorCard } from '../../components/presentation/PresentationErrorCard'
+import { useEffect, useMemo, useRef } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { PresentationLoadingState } from '../../components/presentation/PresentationLoadingState'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
 import { routes } from '../../constants/routes'
@@ -10,9 +9,11 @@ import { parsePresentationRequestParams } from '../../utils/presentation/present
 
 export function PresentationRequestPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { sessionState, startRequest, reset } = usePresentationSession()
   const presentation = usePresentationState()
+  const redirectedToErrorRef = useRef(false)
 
   const parsedParams = useMemo(
     () => parsePresentationRequestParams(searchParams),
@@ -33,37 +34,42 @@ export function PresentationRequestPage() {
     void startRequest(parsedParams.authorization)
   }, [parsedParams, presentation.status, sessionState.status, startRequest])
 
+  useEffect(() => {
+    if (redirectedToErrorRef.current) {
+      return
+    }
+
+    if (!parsedParams.ok) {
+      redirectedToErrorRef.current = true
+      presentation.setError(parsedParams.error)
+      navigate(routes.presentationError, {
+        replace: true,
+        state: { retryPath: routes.scan },
+      })
+      return
+    }
+
+    if (sessionState.status === 'error') {
+      redirectedToErrorRef.current = true
+      navigate(routes.presentationError, {
+        replace: true,
+        state: {
+          retryPath: `${routes.present}${location.search}`,
+        },
+      })
+    }
+  }, [parsedParams, sessionState, presentation, navigate, location.search])
+
   const handleBack = () => {
     reset()
     navigate(routes.home)
   }
 
-  const handleRetry = () => {
-    if (!parsedParams.ok) {
-      navigate(routes.scan)
-      return
-    }
-    reset()
-    void startRequest(parsedParams.authorization)
-  }
-
   return (
     <PresentationPageShell title="Proof Request" onBack={handleBack}>
       <section className="flex flex-1 flex-col">
-        {!parsedParams.ok && (
-          <PresentationErrorCard
-            error={parsedParams.error}
-            onRetry={() => navigate(routes.scan)}
-            retryLabel="Scan QR code"
-          />
-        )}
-
         {parsedParams.ok && sessionState.status === 'loading' && (
           <PresentationLoadingState />
-        )}
-
-        {parsedParams.ok && sessionState.status === 'error' && (
-          <PresentationErrorCard error={sessionState.error} onRetry={handleRetry} />
         )}
       </section>
     </PresentationPageShell>

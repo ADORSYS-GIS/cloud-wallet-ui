@@ -10,6 +10,7 @@ import type { PresentationSessionState } from '../../../hooks/presentation/usePr
 const mockNavigate = vi.fn()
 const mockStartRequest = vi.fn()
 const mockReset = vi.fn()
+const mockSetError = vi.fn()
 
 let mockSessionState: PresentationSessionState = { status: 'idle' }
 let mockPresentationStatus = 'idle'
@@ -31,6 +32,7 @@ vi.mock('../../../hooks/presentation/usePresentationSession', () => ({
 vi.mock('../../../state/presentation.state', () => ({
   usePresentationState: () => ({
     status: mockPresentationStatus,
+    setError: mockSetError,
   }),
 }))
 
@@ -78,14 +80,22 @@ describe('PresentationRequestPage', () => {
     mockNavigate.mockReset()
     mockStartRequest.mockReset()
     mockReset.mockReset()
+    mockSetError.mockReset()
     mockSessionState = { status: 'idle' }
     mockPresentationStatus = 'idle'
   })
 
-  it('shows validation error when query params are missing', () => {
+  it('redirects to the error page when query params are missing', async () => {
     renderPage('')
-    expect(screen.getByText(/Missing required parameter: client_id/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Scan QR code' })).toBeTruthy()
+    await waitFor(() => {
+      expect(mockSetError).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'invalid_request' })
+      )
+      expect(mockNavigate).toHaveBeenCalledWith(routes.presentationError, {
+        replace: true,
+        state: { retryPath: routes.scan },
+      })
+    })
     expect(mockStartRequest).not.toHaveBeenCalled()
   })
 
@@ -102,7 +112,7 @@ describe('PresentationRequestPage', () => {
     expect(screen.getByText('Processing proof request…')).toBeTruthy()
   })
 
-  it('shows API error with retry action', async () => {
+  it('redirects to the error page when the API start fails', async () => {
     mockSessionState = {
       status: 'error',
       error: {
@@ -113,15 +123,14 @@ describe('PresentationRequestPage', () => {
     }
     renderPage()
 
-    expect(
-      screen.getByText(
-        'This presentation request is invalid or has expired. Please ask the verifier for a new QR code.'
-      )
-    ).toBeTruthy()
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Try again' }))
-    expect(mockReset).toHaveBeenCalled()
-    expect(mockStartRequest).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith(routes.presentationError, {
+        replace: true,
+        state: {
+          retryPath: `${routes.present}${validSearch}`,
+        },
+      })
+    })
   })
 
   it('does not start a duplicate request when the flow is already in progress', async () => {
