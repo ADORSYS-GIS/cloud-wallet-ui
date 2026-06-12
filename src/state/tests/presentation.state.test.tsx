@@ -12,7 +12,7 @@ const mockStartPresentationResponse: StartPresentationResponse = {
     name: 'Keycloak demo Solutions Adorsys',
     logo_uri: 'https://verifier.example/logo.png',
     verified: true,
-    verification_method: 'x509',
+    verification_method: 'x509_san_dns',
   },
   purpose: 'Age verification for access to restricted content.',
   credential_matches: [

@@ -27,6 +27,7 @@ const credentialMatch: CredentialMatch = {
 const mockNavigate = vi.fn()
 const mockReset = vi.fn()
 const mockSetSelectedCredentials = vi.fn()
+const mockSetStatus = vi.fn()
 
 let mockPresentationStatus = 'idle'
 let mockCredentialMatches: CredentialMatch[] | undefined
@@ -56,6 +57,7 @@ vi.mock('../../../state/presentation.state', () => ({
     credential_matches: mockCredentialMatches,
     selected_credentials: mockSelectedCredentials,
     setSelectedCredentials: mockSetSelectedCredentials,
+    setStatus: mockSetStatus,
   }),
 }))
 
@@ -96,6 +98,7 @@ describe('PresentationRequestPage', () => {
     mockNavigate.mockReset()
     mockReset.mockReset()
     mockSetSelectedCredentials.mockReset()
+    mockSetStatus.mockReset()
     mockPresentationStatus = 'idle'
     mockCredentialMatches = undefined
     mockSelectedCredentials = undefined
@@ -131,7 +134,18 @@ describe('PresentationRequestPage', () => {
     ).toBeTruthy()
   })
 
-  it('stores the selection and hands off to proof details when a credential is clicked', async () => {
+  it('resets and returns home when back is pressed', async () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = [credentialMatch]
+
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(mockReset).toHaveBeenCalled()
+    expect(mockNavigate).toHaveBeenCalledWith(routes.home)
+  })
+
+  it('stores selection and navigates to proof details when a credential is chosen', async () => {
     mockPresentationStatus = 'selecting'
     mockCredentialMatches = [credentialMatch]
 
@@ -145,17 +159,7 @@ describe('PresentationRequestPage', () => {
         credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
       },
     ])
-    expect(mockNavigate).not.toHaveBeenCalled()
-  })
-
-  it('resets and returns home when back is pressed', async () => {
-    mockPresentationStatus = 'selecting'
-    mockCredentialMatches = [credentialMatch]
-
-    renderPage()
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Back' }))
-    expect(mockReset).toHaveBeenCalled()
-    expect(mockNavigate).toHaveBeenCalledWith(routes.home)
+    expect(mockSetStatus).toHaveBeenCalledWith('reviewing')
+    expect(mockNavigate).toHaveBeenCalledWith(routes.presentationProofDetails)
   })
 })

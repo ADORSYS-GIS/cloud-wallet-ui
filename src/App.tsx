@@ -13,6 +13,7 @@ import { CredentialsCacheProvider } from './state/credentialsCache.state'
 import { CredentialTypesPage } from './pages/CredentialTypesPage'
 import { IssuanceSuccessPage } from './pages/IssuanceSuccessPage'
 import { RegistrationPage } from './pages/RegistrationPage'
+import { PresentationProofDetailsPage } from './pages/presentation/PresentationProofDetailsPage'
 import { PresentationRequestPage } from './pages/presentation/PresentationRequestPage'
 import { PresentationSuccessPage } from './pages/presentation/PresentationSuccessPage'
 import { getStoredTenantId } from './auth/tenant'
@@ -63,6 +64,14 @@ function App() {
                 element={
                   <RequireRegistration>
                     <PresentationRequestPage />
+                  </RequireRegistration>
+                }
+              />
+              <Route
+                path={routes.presentationProofDetails}
+                element={
+                  <RequireRegistration>
+                    <PresentationProofDetailsPage />
                   </RequireRegistration>
                 }
               />

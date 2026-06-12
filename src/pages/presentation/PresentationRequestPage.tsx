@@ -17,8 +17,13 @@ import { flattenCredentialMatches } from '../../utils/presentation/matchingCrede
 export function PresentationRequestPage() {
   const navigate = useNavigate()
   const { reset } = usePresentationSession()
-  const { status, credential_matches, selected_credentials, setSelectedCredentials } =
-    usePresentationState()
+  const {
+    status,
+    credential_matches,
+    selected_credentials,
+    setSelectedCredentials,
+    setStatus,
+  } = usePresentationState()
 
   const isSelecting = status === 'selecting'
   const hasSelection = (selected_credentials?.length ?? 0) > 0
@@ -37,6 +42,8 @@ export function PresentationRequestPage() {
 
   const handleCredentialSelect = (selected: CredentialSelection) => {
     setSelectedCredentials([selected])
+    setStatus('reviewing')
+    navigate(routes.presentationProofDetails)
   }
 
   const selectableCredentials = useMemo(
