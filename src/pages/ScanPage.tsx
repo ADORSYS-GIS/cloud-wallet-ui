@@ -4,6 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { PageContainer } from '../components/layout/PageContainer'
 import { IssuanceErrorCard } from '../components/issuance/IssuanceErrorCard'
+import {
+  CameraAccessDialog,
+  type CameraAccessIssue,
+} from '../components/scanner/CameraAccessDialog'
 import { PresentationErrorCard } from '../components/presentation/PresentationErrorCard'
 import { credentialTypeDetailsPath, routes } from '../constants/routes'
 import { usePresentationSession } from '../hooks/presentation/usePresentationSession'
@@ -14,7 +18,6 @@ import { issuanceUserMessage } from '../utils/issuanceErrors'
 import { parseCredentialOfferInput } from '../utils/credentialOffer'
 import { detectRequestType } from '../utils/presentation/detectRequestType'
 import { parsePresentationScanInput } from '../utils/presentation/presentationScanInput'
-import { presentationUserMessage } from '../utils/presentation/presentationErrors'
 import illuWallet from '../assets/illu-wallet.png'
 import { E2E_SCAN_SAMPLE_OFFER } from '../e2e/scan-sample-offer'
 
@@ -39,6 +42,13 @@ export function ScanPage() {
   } | null>(null)
   const [localPresentationError, setLocalPresentationError] =
     useState<PresentationError | null>(null)
+  const [processingRequestType, setProcessingRequestType] = useState<
+    'issuance' | 'presentation' | null
+  >(null)
+  const [cameraAccessIssue, setCameraAccessIssue] = useState<{
+    kind: CameraAccessIssue
+    message?: string
+  } | null>(null)
 
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
   const {
@@ -79,6 +89,7 @@ export function ScanPage() {
       stopScanner()
       setLocalIssuanceError(null)
       setLocalPresentationError(null)
+      setProcessingRequestType(null)
 
       const requestType = detectRequestType(value)
 
@@ -86,6 +97,7 @@ export function ScanPage() {
         const parsedOffer = parseCredentialOfferInput(value)
         if (parsedOffer) {
           setScanStatus('processing')
+          setProcessingRequestType('issuance')
           setFeedbackMessage('Credential offer detected. Contacting issuer…')
           await submitOffer(parsedOffer.normalizedUri)
           setScanStatus('done')
@@ -98,8 +110,12 @@ export function ScanPage() {
         const presentationResult = parsePresentationScanInput(value)
         if (presentationResult?.ok) {
           setScanStatus('processing')
+          setProcessingRequestType('presentation')
           setFeedbackMessage('Presentation request detected. Contacting verifier…')
-          const result = await startPresentationRequest(presentationResult.authorization)
+          const result = await startPresentationRequest({
+            request: presentationResult.request,
+            origin: window.location.origin,
+          })
           if (result.ok) {
             navigate(routes.present)
           } else {
@@ -118,28 +134,30 @@ export function ScanPage() {
         }
       }
 
-      const apiError: IssuanceApiError = {
-        httpStatus: 400,
-        error: 'invalid_credential_offer',
-        error_description: null,
-      }
-      const invalidQrMessage =
-        requestType === 'presentation'
-          ? presentationUserMessage({
-              httpStatus: 400,
-              code: 'invalid_request',
-              message:
-                'The scanned QR code does not contain a valid presentation request. Please try again.',
-              error_description: null,
-            })
-          : requestType === 'issuance'
+      if (requestType === 'presentation') {
+        setLocalPresentationError({
+          httpStatus: 400,
+          code: 'invalid_request',
+          message:
+            'The scanned QR code does not contain a valid presentation request. Please try again.',
+          error_description: null,
+        })
+      } else {
+        const apiError: IssuanceApiError = {
+          httpStatus: 400,
+          error: 'invalid_credential_offer',
+          error_description: null,
+        }
+        const invalidQrMessage =
+          requestType === 'issuance'
             ? issuanceUserMessage(apiError)
             : 'The scanned QR code is not a valid credential offer or presentation request. Please try again.'
 
-      setLocalIssuanceError({
-        apiError,
-        userMessage: invalidQrMessage,
-      })
+        setLocalIssuanceError({
+          apiError,
+          userMessage: invalidQrMessage,
+        })
+      }
       setScanStatus('done')
       scanInProgressRef.current = false
     },
@@ -155,12 +173,19 @@ export function ScanPage() {
       const selectedMode = mode ?? facingModeRef.current
       setIsScannerActive(true)
       resetOffer()
+      resetPresentation()
+      setProcessingRequestType(null)
+      setCameraAccessIssue(null)
       setScanStatus('idle')
       setFeedbackMessage('Requesting camera permission…')
 
       if (!navigator?.mediaDevices?.getUserMedia) {
         setIsScannerActive(false)
         setScanStatus('idle')
+        setCameraAccessIssue({
+          kind: 'unavailable',
+          message: 'No camera device is available on this browser.',
+        })
         setFeedbackMessage('No camera device is available on this browser.')
         return
       }
@@ -168,6 +193,10 @@ export function ScanPage() {
       if (!videoRef.current) {
         setIsScannerActive(false)
         setScanStatus('idle')
+        setCameraAccessIssue({
+          kind: 'unavailable',
+          message: 'Video preview unavailable. Please reload and try again.',
+        })
         setFeedbackMessage('Video preview unavailable. Please reload and try again.')
         return
       }
@@ -190,15 +219,20 @@ export function ScanPage() {
         setIsScannerActive(false)
         setScanStatus('idle')
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          setCameraAccessIssue({ kind: 'denied' })
           setFeedbackMessage(
             'Camera permission denied. Please allow camera access and retry.'
           )
           return
         }
+        setCameraAccessIssue({
+          kind: 'unavailable',
+          message: 'Unable to start QR scanner. Check camera availability.',
+        })
         setFeedbackMessage('Unable to start QR scanner. Check camera availability.')
       }
     },
-    [handleDecodedValue, resetOffer]
+    [handleDecodedValue, resetOffer, resetPresentation]
   )
 
   const errorReason = searchParams.get('error')
@@ -257,23 +291,45 @@ export function ScanPage() {
     scanStatus === 'done' &&
     (offerState.status === 'error' || localIssuanceError !== null)
   const showPresentationErrorCard =
-    scanStatus === 'done' && localPresentationError !== null
-  const showPresentationLoading =
-    scanStatus === 'processing' && presentationSession.status === 'loading'
+    scanStatus === 'done' &&
+    (localPresentationError !== null || presentationSession.status === 'error')
+  const presentationError =
+    localPresentationError ??
+    (presentationSession.status === 'error' ? presentationSession.error : null)
+  const showProcessingOverlay =
+    scanStatus === 'processing' || offerState.status === 'loading'
   const showErrorCard = showIssuanceErrorCard || showPresentationErrorCard
+  const showCameraAccessDialog = cameraAccessIssue !== null
   const showFullscreenStatus =
-    offerState.status === 'loading' || showPresentationLoading || showErrorCard
-  const showSpinner =
-    (scanStatus === 'processing' && presentationSession.status !== 'loading') ||
-    offerState.status === 'loading'
+    showProcessingOverlay || showErrorCard || showCameraAccessDialog
+  const showSpinner = scanStatus === 'processing' || offerState.status === 'loading'
+
+  const handleCameraRetry = () => {
+    setCameraAccessIssue(null)
+    void startScan()
+  }
+
+  const handleGoHome = () => {
+    stopScanner()
+    navigate(routes.home)
+  }
 
   const handleErrorRetry = () => {
     resetOffer()
     resetPresentation()
     setLocalIssuanceError(null)
     setLocalPresentationError(null)
+    setProcessingRequestType(null)
+    setCameraAccessIssue(null)
     void startScan()
   }
+
+  const processingStatusMessage =
+    processingRequestType === 'presentation'
+      ? 'Processing proof request…'
+      : processingRequestType === 'issuance'
+        ? 'Just a moment while we make a secure connection...'
+        : null
 
   const statusBarText = isInitializing
     ? '◉ Initializing scanner…'
@@ -282,27 +338,27 @@ export function ScanPage() {
   return (
     <PageContainer>
       <div className="mx-auto flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#E9ECEF]">
-        {showFullscreenStatus &&
-          (offerState.status === 'loading' || showPresentationLoading) && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
-              <div className="flex flex-col items-center px-6 text-center">
-                <div className="relative mb-16 h-52 w-52">
-                  <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
-                  <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
-                  <img
-                    src={illuWallet}
-                    alt=""
-                    className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
-                  />
-                </div>
-                <div className="text-base text-slate-700">
-                  {showPresentationLoading
-                    ? 'Processing proof request…'
-                    : 'Just a moment while we make a secure connection...'}
-                </div>
+        {showProcessingOverlay && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+            <div className="flex flex-col items-center px-6 text-center">
+              <div className="relative mb-16 h-52 w-52">
+                <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
+                <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+                <img
+                  src={illuWallet}
+                  alt=""
+                  className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="text-base text-slate-700">{feedbackMessage}</div>
+                {processingStatusMessage && (
+                  <div className="text-sm text-slate-500">{processingStatusMessage}</div>
+                )}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
         {showIssuanceErrorCard && (
           <IssuanceErrorCard
@@ -316,14 +372,23 @@ export function ScanPage() {
           />
         )}
 
-        {showPresentationErrorCard && localPresentationError && (
+        {showPresentationErrorCard && presentationError && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
             <PresentationErrorCard
-              error={localPresentationError}
+              error={presentationError}
               onRetry={handleErrorRetry}
               retryLabel="Scan again"
             />
           </div>
+        )}
+
+        {showCameraAccessDialog && cameraAccessIssue && (
+          <CameraAccessDialog
+            issue={cameraAccessIssue.kind}
+            message={cameraAccessIssue.message}
+            onRetry={handleCameraRetry}
+            onGoHome={handleGoHome}
+          />
         )}
 
         {!showFullscreenStatus && (
@@ -363,7 +428,9 @@ export function ScanPage() {
           {showSpinner && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/30">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
-              <p className="text-sm font-medium text-white">Contacting issuer…</p>
+              <p className="text-sm font-medium text-white">
+                {processingStatusMessage ?? feedbackMessage}
+              </p>
             </div>
           )}
 

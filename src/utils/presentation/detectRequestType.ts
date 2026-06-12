@@ -11,6 +11,7 @@ export function detectRequestType(qrContent: string): ScanRequestType {
 
   if (
     content.includes('request_uri') ||
+    content.includes('presentation_definition') ||
     content.includes('request=') ||
     content.includes('dcql_query') ||
     (content.includes('client_id') && content.includes('response_type'))

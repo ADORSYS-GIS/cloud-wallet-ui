@@ -1,5 +1,4 @@
-import type { CredentialListItemDisplay } from '../../types/credential'
-import type { MatchingCredential } from '../../types/presentation'
+import type { CredentialCandidate, CredentialMatch } from '../../types/presentation'
 
 export type ResolvedMatchingCredentialDisplay = {
   name: string
@@ -11,19 +10,36 @@ export type ResolvedMatchingCredentialDisplay = {
   textColor?: string
 }
 
-/** Resolve card display fields from backend matching-credential metadata. */
+export type SelectableCredential = CredentialCandidate & {
+  query_id: string
+  required: boolean
+}
+
+/** Flatten credential_matches into UI-selectable rows. */
+export function flattenCredentialMatches(
+  matches: CredentialMatch[]
+): SelectableCredential[] {
+  return matches.flatMap((match) =>
+    match.candidates.map((candidate) => ({
+      ...candidate,
+      query_id: match.query_id,
+      required: match.required,
+    }))
+  )
+}
+
+/** Resolve card display fields from a credential candidate. */
 export function resolveMatchingCredentialDisplay(
-  credential: MatchingCredential
+  credential: Pick<CredentialCandidate, 'credential_id' | 'display'>
 ): ResolvedMatchingCredentialDisplay {
-  const display: CredentialListItemDisplay | undefined = credential.display
+  const { display } = credential
 
   return {
-    name: display?.name ?? credential.displayName ?? credential.credentialId,
-    issuerName: display?.issuer_name ?? 'Unknown Issuer',
-    logoUri: display?.logo?.uri ?? null,
-    description: display?.description,
-    backgroundColor: display?.background_color,
-    backgroundImage: display?.background_image?.uri,
-    textColor: display?.text_color,
+    name: display.name,
+    issuerName: display.issuer_name,
+    logoUri: display.logo?.uri ?? null,
+    description: display.description,
+    backgroundColor: display.background_color,
+    textColor: display.text_color,
   }
 }

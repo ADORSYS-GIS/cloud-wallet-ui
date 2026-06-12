@@ -1,70 +1,68 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Footer } from '../../components/Footer'
 import { PresentationCredentialSelection } from '../../components/presentation/PresentationCredentialSelection'
 import { PresentationNoMatchingCredentials } from '../../components/presentation/PresentationNoMatchingCredentials'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
 import { routes } from '../../constants/routes'
 import { usePresentationSession } from '../../hooks/presentation/usePresentationSession'
 import { usePresentationState } from '../../state/presentation.state'
-import type { SelectedCredential } from '../../types/presentation'
+import type { CredentialSelection } from '../../types/presentation'
+import { flattenCredentialMatches } from '../../utils/presentation/matchingCredentialDisplay'
 
 /**
- * Proof Request screen — reached only after a successful scan and
- * POST /presentation/start on ScanPage.
+ * Proof Request — after a successful scan and POST /presentation/start.
+ * Displays credential types returned by the backend for holder selection.
  */
 export function PresentationRequestPage() {
   const navigate = useNavigate()
   const { reset } = usePresentationSession()
-  const presentation = usePresentationState()
+  const { status, credential_matches, setSelectedCredentials } = usePresentationState()
 
-  const isActiveFlow =
-    presentation.status === 'selecting' || presentation.status === 'reviewing'
+  const isSelecting = status === 'selecting'
 
   useEffect(() => {
-    if (!isActiveFlow) {
+    if (!isSelecting) {
       navigate(routes.scan, { replace: true })
     }
-  }, [isActiveFlow, navigate])
+  }, [isSelecting, navigate])
 
   const handleBack = () => {
     reset()
     navigate(routes.home)
   }
 
-  const handleCredentialSelect = (selected: SelectedCredential) => {
-    presentation.setSelectedCredentials([selected])
-    presentation.setStatus('reviewing')
+  const handleCredentialSelect = (selected: CredentialSelection) => {
+    setSelectedCredentials([selected])
   }
 
-  if (!isActiveFlow) {
+  const selectableCredentials = useMemo(
+    () => flattenCredentialMatches(credential_matches ?? []),
+    [credential_matches]
+  )
+
+  if (!isSelecting) {
     return null
   }
 
-  const matchingCredentials = presentation.matchingCredentials ?? []
-
   return (
     <PresentationPageShell title="Proof Request" onBack={handleBack}>
-      <section className="flex flex-1 flex-col">
-        {presentation.status === 'selecting' && matchingCredentials.length === 0 && (
+      <section className="flex flex-1 flex-col bg-[#e9ecef]">
+        {selectableCredentials.length === 0 ? (
           <PresentationNoMatchingCredentials onBack={handleBack} />
-        )}
-
-        {presentation.status === 'selecting' && matchingCredentials.length > 0 && (
+        ) : (
           <PresentationCredentialSelection
-            matchingCredentials={matchingCredentials}
+            credentials={selectableCredentials}
             onSelect={handleCredentialSelect}
           />
         )}
-
-        {presentation.status === 'reviewing' && (
-          <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-            <p className="max-w-md text-base text-slate-700">
-              Credential selected. Review and consent steps will continue here once the
-              presentation flow is wired up.
-            </p>
-          </div>
-        )}
       </section>
+
+      <Footer
+        activeTab="home"
+        onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
+        scanDisabled={false}
+      />
     </PresentationPageShell>
   )
 }

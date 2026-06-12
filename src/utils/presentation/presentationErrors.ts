@@ -56,10 +56,13 @@ export function presentationUserMessage(error: PresentationErrorShape): string {
   switch (error.code) {
     case 'invalid_request':
       return error.message
-    case 'invalid_presentation_request':
+    case 'invalid_dcql_query':
+      return 'The credential request in this proof is invalid. Please ask the verifier for a new QR code.'
+    case 'invalid_client':
+      return 'The verifier identity could not be validated. Please ask the verifier for a new QR code.'
+    case 'request_uri_fetch_failed':
+    case 'request_object_invalid':
       return 'This presentation request is invalid or has expired. Please ask the verifier for a new QR code.'
-    case 'verifier_metadata_fetch_failed':
-      return "We couldn't load information about the verifier. Please try again."
     case 'no_matching_credentials':
       return "You don't have a credential that satisfies this proof request."
     case 'unauthorized':

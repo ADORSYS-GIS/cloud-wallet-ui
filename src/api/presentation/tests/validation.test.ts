@@ -2,116 +2,102 @@ import { describe, expect, it } from 'vitest'
 import { ContractError } from '../../validation'
 import { validateStartPresentationResponse } from '../validation'
 
-const validRequest = {
-  client_id: 'https://verifier.example',
-  nonce: 'nonce-123',
-  response_type: 'vp_token',
-  response_mode: 'direct_post',
-  dcql_query: {
-    credentials: [{ id: 'identity', format: 'dc+sd-jwt' }],
-  },
-}
-
 const validResponse = {
-  request: validRequest,
+  session_id: 'prs_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni',
+  expires_at: '2026-04-08T14:35:00Z',
+  flow: 'cross_device',
   verifier: {
-    client_id: 'https://verifier.example',
     name: 'Keycloak-demo',
     logo_uri: 'https://verifier.example/logo.png',
+    verified: true,
+    verification_method: 'x509',
   },
-  matching_credentials: [
+  purpose: 'Age verification',
+  credential_matches: [
     {
-      credentialId: 'cred-1',
-      queryId: 'identity',
-      format: 'dc+sd-jwt',
-      display: {
-        name: 'Identity Credential',
-        issuer_name: 'Keycloak-demo Solution Adorsys',
-        logo: {
-          uri: 'https://issuer.example/logo.png',
-          alt_text: 'Issuer logo',
+      query_id: 'pid_request',
+      required: true,
+      candidates: [
+        {
+          credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+          display: {
+            name: 'Identity Credential',
+            issuer_name: 'Keycloak-demo Solution Adorsys',
+            credential_type: 'eu.europa.ec.eudi.pid.1',
+            logo: {
+              uri: 'https://issuer.example/logo.png',
+              alt_text: 'Issuer logo',
+            },
+          },
+          requested_claims: [{ path: ['given_name'], display_name: 'Given name' }],
         },
-      },
+      ],
     },
   ],
+  requires_consent: true,
 }
 
 describe('validateStartPresentationResponse', () => {
   it('accepts a valid response', () => {
     const result = validateStartPresentationResponse(validResponse)
-    expect(result.request.nonce).toBe('nonce-123')
+    expect(result.session_id).toBe('prs_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni')
     expect(result.verifier.name).toBe('Keycloak-demo')
-    expect(result.matching_credentials).toHaveLength(1)
-    expect(result.matching_credentials[0].display?.name).toBe('Identity Credential')
-    expect(result.matching_credentials[0].display?.issuer_name).toBe(
+    expect(result.credential_matches).toHaveLength(1)
+    expect(result.credential_matches[0].candidates[0].display.name).toBe(
+      'Identity Credential'
+    )
+    expect(result.credential_matches[0].candidates[0].display.issuer_name).toBe(
       'Keycloak-demo Solution Adorsys'
     )
   })
 
-  it('accepts scope instead of dcql_query', () => {
+  it('accepts an empty credential_matches array', () => {
     const result = validateStartPresentationResponse({
       ...validResponse,
-      request: {
-        client_id: validRequest.client_id,
-        nonce: validRequest.nonce,
-        response_type: validRequest.response_type,
-        response_mode: validRequest.response_mode,
-        scope: 'openid',
-      },
+      credential_matches: [],
     })
-    expect(result.request.scope).toBe('openid')
+    expect(result.credential_matches).toEqual([])
   })
 
-  it('accepts an empty matching_credentials array', () => {
-    const result = validateStartPresentationResponse({
-      ...validResponse,
-      matching_credentials: [],
-    })
-    expect(result.matching_credentials).toEqual([])
-  })
-
-  it('throws ContractError when request.nonce is missing', () => {
+  it('throws ContractError when session_id is missing', () => {
     expect(() =>
       validateStartPresentationResponse({
         ...validResponse,
-        request: {
-          client_id: validRequest.client_id,
-          response_type: validRequest.response_type,
-          response_mode: validRequest.response_mode,
-          dcql_query: validRequest.dcql_query,
-        },
+        session_id: undefined,
       })
     ).toThrow(ContractError)
   })
 
-  it('throws ContractError when request has neither scope nor dcql_query', () => {
+  it('throws ContractError when verifier.name is missing', () => {
     expect(() =>
       validateStartPresentationResponse({
         ...validResponse,
-        request: {
-          client_id: validRequest.client_id,
-          nonce: validRequest.nonce,
-          response_type: validRequest.response_type,
-          response_mode: validRequest.response_mode,
-        },
+        verifier: { verified: true },
       })
     ).toThrow(ContractError)
   })
 
-  it('throws ContractError when verifier.client_id is missing', () => {
+  it('throws ContractError when candidate credential_id is not a UUID', () => {
     expect(() =>
       validateStartPresentationResponse({
         ...validResponse,
-        verifier: { name: 'Verifier' },
-      })
-    ).toThrow(ContractError)
-  })
-
-  it('throws ContractError when matching credential is missing credentialId', () => {
-    expect(() =>
-      validateStartPresentationResponse({
-        ...validResponse,
-        matching_credentials: [{ queryId: 'identity', format: 'dc+sd-jwt' }],
+        credential_matches: [
+          {
+            query_id: 'pid_request',
+            required: true,
+            candidates: [
+              {
+                credential_id: 'cred-1',
+                display: {
+                  name: 'Identity Credential',
+                  issuer_name: 'Issuer',
+                  credential_type: 'eu.europa.ec.eudi.pid.1',
+                },
+                requested_claims: [],
+              },
+            ],
+          },
+        ],
       })
     ).toThrow(ContractError)
   })
