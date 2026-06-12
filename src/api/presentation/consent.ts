@@ -27,10 +27,7 @@ export function buildPresentationConsentRequest(
 
   const body: PresentationConsentAcceptRequest = {
     accepted: true,
-    selected_credentials: selectedCredentials.map((credential) => ({
-      query_id: credential.queryId,
-      credential_id: credential.credentialId,
-    })),
+    selected_credentials: selectedCredentials,
   }
 
   if (transactionDataAcknowledged !== undefined) {

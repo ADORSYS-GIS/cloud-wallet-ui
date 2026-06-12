@@ -9,20 +9,53 @@ const baseQuery =
   '&scope=openid'
 
 describe('parsePresentationScanInput', () => {
-  it('parses a raw query string from a QR code', () => {
+  it('returns the raw query string for POST /presentation/start', () => {
     const result = parsePresentationScanInput(baseQuery)
-    expect(result).toBe(`/present?${baseQuery}`)
+    expect(result).toEqual({
+      ok: true,
+      request: baseQuery,
+    })
   })
 
-  it('returns null for deep-link style URIs', () => {
-    expect(parsePresentationScanInput(`openid4vp://?${baseQuery}`)).toBeNull()
-    expect(
-      parsePresentationScanInput(`https://wallet.example/present?${baseQuery}`)
-    ).toBeNull()
+  it('parses openid4vp QR URIs', () => {
+    const input = `openid4vp://?${baseQuery}`
+    const result = parsePresentationScanInput(input)
+    expect(result?.ok).toBe(true)
+    if (result?.ok) {
+      expect(result.request).toBe(input)
+    }
+  })
+
+  it('parses https QR URIs', () => {
+    const input = `https://wallet.example/present?${baseQuery}`
+    const result = parsePresentationScanInput(input)
+    expect(result?.ok).toBe(true)
+    if (result?.ok) {
+      expect(result.request).toBe(input)
+    }
+  })
+
+  it('returns a validation error for malformed presentation requests', () => {
+    const result = parsePresentationScanInput('client_id=verifier&response_type=vp_token')
+    expect(result).toEqual({
+      ok: false,
+      error: expect.objectContaining({
+        code: 'invalid_request',
+        message: expect.stringContaining('request_uri'),
+      }),
+    })
   })
 
   it('returns null for unrecognized input', () => {
     expect(parsePresentationScanInput('not-a-presentation-qr')).toBeNull()
     expect(parsePresentationScanInput('client_id=only-client')).toBeNull()
+  })
+
+  it('returns null for issuance QR codes', () => {
+    expect(
+      parsePresentationScanInput(
+        'openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example%2Foffer'
+      )
+    ).toBeNull()
   })
 })

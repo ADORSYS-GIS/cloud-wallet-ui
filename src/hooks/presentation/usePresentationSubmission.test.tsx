@@ -61,9 +61,7 @@ describe('usePresentationSubmission', () => {
       await result.current.submission.submitConsent({
         sessionId: 'prs_test',
         accepted: true,
-        selectedCredentials: [
-          { credentialId: 'cred-1', queryId: 'pid_request', format: 'dc+sd-jwt' },
-        ],
+        selectedCredentials: [{ query_id: 'pid_request', credential_id: 'cred-1' }],
         transactionDataAcknowledged: true,
       })
     })
@@ -90,9 +88,7 @@ describe('usePresentationSubmission', () => {
       await result.current.submitConsent({
         sessionId: 'prs_test',
         accepted: true,
-        selectedCredentials: [
-          { credentialId: 'cred-1', queryId: 'pid_request', format: 'dc+sd-jwt' },
-        ],
+        selectedCredentials: [{ query_id: 'pid_request', credential_id: 'cred-1' }],
       })
     })
 
@@ -151,9 +147,7 @@ describe('usePresentationSubmission', () => {
       await result.current.submission.submitConsent({
         sessionId: 'prs_test',
         accepted: true,
-        selectedCredentials: [
-          { credentialId: 'cred-1', queryId: 'pid_request', format: 'dc+sd-jwt' },
-        ],
+        selectedCredentials: [{ query_id: 'pid_request', credential_id: 'cred-1' }],
       })
     })
 
@@ -184,9 +178,7 @@ describe('usePresentationSubmission', () => {
       submitPromise = result.current.submitConsent({
         sessionId: 'prs_test',
         accepted: true,
-        selectedCredentials: [
-          { credentialId: 'cred-1', queryId: 'pid_request', format: 'dc+sd-jwt' },
-        ],
+        selectedCredentials: [{ query_id: 'pid_request', credential_id: 'cred-1' }],
       })
     })
 

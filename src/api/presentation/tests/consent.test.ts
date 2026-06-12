@@ -12,9 +12,8 @@ describe('buildPresentationConsentRequest', () => {
         true,
         [
           {
-            credentialId: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
-            queryId: 'pid_request',
-            format: 'dc+sd-jwt',
+            query_id: 'pid_request',
+            credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
           },
         ],
         true
@@ -33,7 +32,7 @@ describe('buildPresentationConsentRequest', () => {
 
   it('omits transaction_data_acknowledged when not provided', () => {
     const body = buildPresentationConsentRequest(true, [
-      { credentialId: 'cred-1', queryId: 'identity', format: 'dc+sd-jwt' },
+      { query_id: 'identity', credential_id: 'cred-1' },
     ])
     expect(body.transaction_data_acknowledged).toBeUndefined()
   })
