@@ -1,10 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PresentationErrorCard } from '../../components/presentation/PresentationErrorCard'
-import { PresentationLoadingState } from '../../components/presentation/PresentationLoadingState'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
 import { routes } from '../../constants/routes'
-import { usePresentationConsent } from '../../hooks/presentation/usePresentationConsent'
 import { usePresentationSession } from '../../hooks/presentation/usePresentationSession'
 import { usePresentationState } from '../../state/presentation.state'
 import type { CredentialMatch } from '../../types/presentation'
@@ -30,34 +27,20 @@ function filterMatchesForSelection(
 }
 
 /**
- * Proof Details route — pre-consent review after credential selection (#86).
+ * Proof Details route — shows requested claims after credential selection (#86).
  */
 export function PresentationProofDetailsPage() {
   const navigate = useNavigate()
   const { reset } = usePresentationSession()
-  const { consentState, submitShare, submitDecline } = usePresentationConsent()
   const presentation = usePresentationState()
 
   const isReviewing = presentation.status === 'reviewing'
-  const isSubmitting =
-    consentState.status === 'submitting' || presentation.status === 'submitting'
 
   useEffect(() => {
-    if (!isReviewing && presentation.status !== 'submitting') {
+    if (!isReviewing) {
       navigate(routes.scan, { replace: true })
     }
-  }, [isReviewing, navigate, presentation.status])
-
-  useEffect(() => {
-    if (
-      presentation.status !== 'success' ||
-      presentation.submissionResult?.redirect_uri
-    ) {
-      return
-    }
-
-    navigate(routes.presentationSuccess, { replace: true })
-  }, [navigate, presentation.status, presentation.submissionResult?.redirect_uri])
+  }, [isReviewing, navigate])
 
   const displayMatches = useMemo(() => {
     const matches = presentation.credential_matches ?? []
@@ -79,54 +62,22 @@ export function PresentationProofDetailsPage() {
   }
 
   const handleDecline = () => {
-    void submitDecline().then(() => {
-      reset()
-      navigate(routes.home)
-    })
+    reset()
+    navigate(routes.home)
   }
 
-  const handleShare = () => {
-    void submitShare()
-  }
-
-  if (!isReviewing && !isSubmitting) {
+  if (!isReviewing || !presentation.verifier || displayMatches.length === 0) {
     return null
   }
 
-  const showError =
-    consentState.status === 'error' ||
-    (presentation.status === 'error' && consentState.status !== 'submitting')
-
   return (
     <PresentationPageShell title="Proof Details" onBack={handleBack}>
-      {isSubmitting && <PresentationLoadingState message="Submitting your response…" />}
-
-      {showError && !isSubmitting && (
-        <PresentationErrorCard
-          error={
-            consentState.status === 'error'
-              ? consentState.error
-              : (presentation.error ?? {
-                  code: 'internal_error',
-                  message: 'Presentation request failed.',
-                })
-          }
-          onRetry={handleShare}
-        />
-      )}
-
-      {!isSubmitting &&
-        !showError &&
-        presentation.verifier &&
-        displayMatches.length > 0 && (
-          <ProofDetailsPage
-            verifier={presentation.verifier}
-            credentialMatches={displayMatches}
-            onShare={handleShare}
-            onDecline={handleDecline}
-            isSubmitting={isSubmitting}
-          />
-        )}
+      <ProofDetailsPage
+        verifier={presentation.verifier}
+        credentialMatches={displayMatches}
+        onShare={() => {}}
+        onDecline={handleDecline}
+      />
     </PresentationPageShell>
   )
 }

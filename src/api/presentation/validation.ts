@@ -3,7 +3,6 @@ import type {
   CredentialCandidate,
   CredentialMatch,
   CredentialSummaryDisplay,
-  PresentationConsentResponse,
   RequestedClaim,
   StartPresentationResponse,
   TransactionDataDisplay,
@@ -270,46 +269,4 @@ export function validateStartPresentationResponse(
   }
 
   return response
-}
-
-/**
- * Validate POST /presentation/{session_id}/consent response.
- */
-export function validatePresentationConsentResponse(
-  raw: unknown
-): PresentationConsentResponse {
-  const ctx = 'PresentationConsentResponse'
-  const obj = requireObject(ctx, 'response', raw)
-
-  const status = requireString(ctx, 'status', obj.status)
-  if (status !== 'completed' && status !== 'rejected') {
-    throw new ContractError(ctx, 'status', status)
-  }
-
-  const redirect_uri =
-    obj.redirect_uri === null
-      ? null
-      : obj.redirect_uri === undefined
-        ? null
-        : requireString(ctx, 'redirect_uri', obj.redirect_uri)
-
-  let verifier_response: PresentationConsentResponse['verifier_response'] = null
-  if (obj.verifier_response === null || obj.verifier_response === undefined) {
-    verifier_response = null
-  } else {
-    const responseObj = requireObject(ctx, 'verifier_response', obj.verifier_response)
-    verifier_response = {
-      ...(responseObj.redirect_uri !== undefined
-        ? {
-            redirect_uri: requireString(
-              ctx,
-              'verifier_response.redirect_uri',
-              responseObj.redirect_uri
-            ),
-          }
-        : {}),
-    }
-  }
-
-  return { status, redirect_uri, verifier_response }
 }

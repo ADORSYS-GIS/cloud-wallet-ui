@@ -103,21 +103,6 @@ export type SelectedCredential = CredentialSelection
 /** Maps wallet credential ID → selected claim ids/paths for selective disclosure. */
 export type DisclosedClaimMap = Record<string, string[]>
 
-/** Body for POST /presentation/{session_id}/consent. */
-export type PresentationConsentRequest = {
-  accepted: boolean
-  selected_credentials?: CredentialSelection[]
-  transaction_data_acknowledged?: boolean
-}
-
-export type PresentationConsentStatus = 'completed' | 'rejected'
-
-export type PresentationConsentResponse = {
-  status: PresentationConsentStatus
-  redirect_uri: string | null
-  verifier_response: { redirect_uri?: string } | null
-}
-
 export type PresentationResult = {
   success: boolean
   redirect_uri?: string

@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ContractError } from '../../validation'
-import {
-  validatePresentationConsentResponse,
-  validateStartPresentationResponse,
-} from '../validation'
+import { validateStartPresentationResponse } from '../validation'
 
 const validResponse = {
   session_id: 'prs_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni',
@@ -139,27 +136,5 @@ describe('validateStartPresentationResponse', () => {
 
   it('throws ContractError when response is null', () => {
     expect(() => validateStartPresentationResponse(null)).toThrow(ContractError)
-  })
-})
-
-describe('validatePresentationConsentResponse', () => {
-  it('accepts a completed response', () => {
-    const result = validatePresentationConsentResponse({
-      status: 'completed',
-      redirect_uri: null,
-      verifier_response: {
-        redirect_uri: 'https://verifier.example.eu/success',
-      },
-    })
-    expect(result.status).toBe('completed')
-  })
-
-  it('accepts a rejected response', () => {
-    const result = validatePresentationConsentResponse({
-      status: 'rejected',
-      redirect_uri: null,
-      verifier_response: null,
-    })
-    expect(result.status).toBe('rejected')
   })
 })

@@ -18,7 +18,6 @@ function claimValuePreview(claim: RequestedClaim): string | undefined {
 
 /**
  * Flatten credential_matches into Figma-style claim cards for Proof Details.
- * Uses the first candidate per match (auto-selection path).
  */
 export function flattenRequestedClaims(
   credentialMatches: CredentialMatch[]

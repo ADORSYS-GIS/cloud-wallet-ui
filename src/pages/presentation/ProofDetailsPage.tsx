@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { RequestedClaimsSection } from '../../components/presentation/RequestedClaimsSection'
+import { RequestedClaimCard } from '../../components/presentation/RequestedClaimCard'
 import { flattenRequestedClaims } from '../../utils/presentation/flattenRequestedClaims'
 import type { CredentialMatch, VerifierDisplay } from '../../types/presentation'
 
@@ -43,7 +43,17 @@ export function ProofDetailsPage({
             <span>{verifier.name}</span> is requesting the following credentials:
           </p>
 
-          <RequestedClaimsSection claims={claims} />
+          {claims.length > 0 && (
+            <div className="space-y-2">
+              {claims.map((claim) => (
+                <RequestedClaimCard
+                  key={claim.id}
+                  label={claim.label}
+                  valuePreview={claim.valuePreview}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
