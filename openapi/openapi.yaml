@@ -819,7 +819,7 @@ paths:
                       logo_uri: 'https://verifier.example.eu/assets/logo.svg'
                       policy_uri: 'https://verifier.example.eu/privacy'
                       verified: true
-                      verification_method: 'x509'
+                      verification_method: 'x509_san_dns'
                     purpose: 'Age verification for access to restricted content.'
                     credential_matches:
                       - query_id: 'pid_request'
@@ -857,7 +857,7 @@ paths:
                       logo_uri: 'https://bank.example.eu/logo.svg'
                       policy_uri: 'https://bank.example.eu/privacy'
                       verified: true
-                      verification_method: 'did_resolution'
+                      verification_method: 'decentralized_identifier'
                     purpose: 'Authorise a payment of EUR 250.00 to ACME Corp.'
                     credential_matches:
                       - query_id: 'lpid_request'
@@ -907,6 +907,10 @@ paths:
                   value:
                     error: no_matching_credentials
                     error_description: No stored credential matches any credential query.
+                vp_formats_not_supported:
+                  value:
+                    error: vp_formats_not_supported
+                    error_description: None of the requested credential formats or types are supported.
                 invalid_client:
                   value:
                     error: invalid_client
@@ -1891,8 +1895,7 @@ components:
         verifier:
           $ref: '#/components/schemas/VerifierDisplay'
         purpose:
-          type: string
-          nullable: true
+          type: ['string', 'null']
           description: |
             The `purpose` string from the DCQL query or Verifier metadata.
             Display this to the user to explain why the presentation is requested.
@@ -1905,8 +1908,7 @@ components:
           items:
             $ref: '#/components/schemas/CredentialMatch'
         credential_set_options:
-          type: array
-          nullable: true
+          type: ['array', 'null']
           description: |
             Present when the DCQL query contains `credential_sets` with multiple
             options (OID4VP §6.2). Each entry is an array of `credential_query_id`
@@ -1919,8 +1921,7 @@ components:
             - ['pid_request', 'lpid_request']
             - ['pid_request_only']
         transaction_data:
-          type: array
-          nullable: true
+          type: ['array', 'null']
           description: |
             Transaction data entries (OID4VP §8.4) requiring explicit user
             acknowledgment before consent.
@@ -1946,16 +1947,14 @@ components:
             or `client_id`.
           example: 'Example Relying Party'
         logo_uri:
-          type: string
+          type: ['string', 'null']
           format: uri
-          nullable: true
           description: |
             Verifier logo URI from `client_metadata.logo_uri`.
           example: 'https://verifier.example.eu/assets/logo.svg'
         policy_uri:
-          type: string
+          type: ['string', 'null']
           format: uri
-          nullable: true
           description: |
             Link to the Verifier's privacy policy. Display this as a tappable
             link in the consent UI.
@@ -1968,16 +1967,24 @@ components:
             unverified — the frontend SHOULD show a warning.
           example: true
         verification_method:
-          type: string
-          nullable: true
+          oneOf:
+            - type: string
+              enum:
+                - pre-registered
+                - decentralized_identifier
+                - redirect_uri
+                - verifier_attestation
+                - x509_san_dns
+                - x509_san_uri
+                - x509_hash
+                - openid_federation
+            - type: 'null'
           description: |
-            How verification was performed: `"verifier_attestation"`,
-            `"x509"`, `"did_resolution"`, or `null` if unverified.
-          enum:
-            - verifier_attestation
-            - x509
-            - did_resolution
-          example: 'x509'
+            How verification was performed per OID4VP §5.9.3 client identifier
+            schemes: `pre-registered`, `decentralized_identifier`, `redirect_uri`,
+            `verifier_attestation`, `x509_san_dns`, `x509_san_uri`, `x509_hash`,
+            `openid_federation`, or `null` if unverified.
+          example: 'x509_san_dns'
 
     CredentialMatch:
       type: object
@@ -2038,15 +2045,16 @@ components:
           description: |
             The claims path pointer as a JSON array (OID4VP §7),
             e.g. `["family_name"]` or `["address", "street_address"]`.
+          minItems: 1
           items:
             oneOf:
               - type: string
               - type: integer
+                minimum: 0
               - type: 'null'
           example: ['family_name']
         display_name:
-          type: string
-          nullable: true
+          type: ['string', 'null']
           description: |
             Human-readable claim name resolved from the issuer's
             `credential_configurations_supported` display metadata, if available.
@@ -2095,22 +2103,28 @@ components:
     # Presentation - Consent
     # -----------------------------------------------------------------------
     PresentationConsentRequest:
+      oneOf:
+        - $ref: '#/components/schemas/PresentationConsentAcceptRequest'
+        - $ref: '#/components/schemas/PresentationConsentRejectRequest'
+
+    PresentationConsentAcceptRequest:
       type: object
+      additionalProperties: false
       required:
         - accepted
+        - selected_credentials
       properties:
         accepted:
           type: boolean
+          const: true
           description: |
             `true` = user accepted and authorised the presentation.
-            `false` = user rejected; the backend sends `access_denied` to the
-            Verifier and returns `status: "rejected"`.
-          example: true
         selected_credentials:
           type: array
           description: |
             One entry per `credential_query_id`. Required when `accepted` is
-            `true`. Absent or empty when `accepted` is `false`.
+            `true`. Must contain at least one selection.
+          minItems: 1
           items:
             $ref: '#/components/schemas/CredentialSelection'
         transaction_data_acknowledged:
@@ -2120,6 +2134,19 @@ components:
             response. If `false` or missing the request is rejected with
             `400 transaction_data_not_acknowledged`.
           example: true
+
+    PresentationConsentRejectRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - accepted
+      properties:
+        accepted:
+          type: boolean
+          const: false
+          description: |
+            `false` = user rejected; the backend sends `access_denied` to the
+            Verifier and returns `status: "rejected"`.
 
     CredentialSelection:
       type: object
@@ -2160,9 +2187,10 @@ components:
             `"rejected"` — user declined (`accepted: false`).
           example: 'completed'
         redirect_uri:
-          type: string
-          format: uri
-          nullable: true
+          oneOf:
+            - type: string
+              format: uri
+            - type: 'null'
           description: |
             **Same-device `completed` only.** The URI the frontend must navigate
             to in order to return the user to the Verifier. Derived from the
@@ -2171,15 +2199,30 @@ components:
             and all `rejected` responses.
           example: 'https://verifier.example.eu/callback#vp_token=...&state=xyz'
         verifier_response:
-          type: object
-          nullable: true
+          oneOf:
+            - $ref: '#/components/schemas/DirectPostResponse'
+            - type: 'null'
           description: |
             The parsed JSON body returned by the Verifier's `response_uri`
             endpoint on a successful `direct_post` (OID4VP §8.2), if any.
             May contain a `redirect_uri` from the Verifier. `null` for
             fragment-mode and rejected flows.
-          example:
-            redirect_uri: 'https://verifier.example.eu/success?session=abc'
+
+    DirectPostResponse:
+      type: object
+      description: |
+        Response from the Verifier's `response_uri` endpoint after a successful
+        `direct_post` (OID4VP §8.2). The Wallet must ignore any unrecognized
+        parameters.
+      properties:
+        redirect_uri:
+          type: string
+          format: uri
+          description: |
+            Optional URI the Verifier wants the Wallet to redirect the user to
+            after successful presentation.
+          example: 'https://verifier.example.eu/success?session=abc'
+      additionalProperties: true
 
 # ---------------------------------------------------------------------------
 # Tags
