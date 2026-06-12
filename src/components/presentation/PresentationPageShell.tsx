@@ -1,29 +1,21 @@
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Footer } from '../Footer'
 import { PageContainer } from '../layout/PageContainer'
-import { routes } from '../../constants/routes'
 
 type PresentationPageShellProps = {
   title: string
   onBack: () => void
   children: ReactNode
-  /** Figma proof-details screens omit the bottom tab bar. */
-  showFooter?: boolean
 }
 
 /**
- * Shared layout for presentation flow screens — matches issuance credential
- * pages (gradient bar header + bottom nav), without the global PWA Header.
+ * Shared layout for presentation flow screens — gradient bar header only,
+ * without the global PWA Header or bottom navigation.
  */
 export function PresentationPageShell({
   title,
   onBack,
   children,
-  showFooter = true,
 }: PresentationPageShellProps) {
-  const navigate = useNavigate()
-
   return (
     <PageContainer fullWidth>
       <div className="flex min-h-screen w-full flex-col overflow-hidden rounded-none bg-[#e9ecef] font-serif">
@@ -43,14 +35,6 @@ export function PresentationPageShell({
         </div>
 
         {children}
-
-        {showFooter && (
-          <Footer
-            activeTab="creds"
-            onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
-            scanDisabled={false}
-          />
-        )}
       </div>
     </PageContainer>
   )

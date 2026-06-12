@@ -27,8 +27,8 @@ export function usePresentationConsent(): UsePresentationConsentReturn {
   const presentation = usePresentationState()
 
   const submitShare = useCallback(async () => {
-    const sessionId = presentation.sessionId
-    const credentialMatches = presentation.credentialMatches
+    const sessionId = presentation.session_id
+    const credentialMatches = presentation.credential_matches
 
     if (!sessionId || !credentialMatches?.length) {
       presentation.setError({
@@ -39,7 +39,7 @@ export function usePresentationConsent(): UsePresentationConsentReturn {
     }
 
     const selectedCredentials =
-      presentation.selectedCredentials ?? autoSelectCredentials(credentialMatches)
+      presentation.selected_credentials ?? autoSelectCredentials(credentialMatches)
 
     if (selectedCredentials.length === 0) {
       presentation.setError({
@@ -57,12 +57,15 @@ export function usePresentationConsent(): UsePresentationConsentReturn {
       const response = await submitPresentationConsent(sessionId, {
         accepted: true,
         selected_credentials: selectedCredentials,
-        ...(presentation.transactionData?.length
+        ...(presentation.transaction_data?.length
           ? { transaction_data_acknowledged: true }
           : {}),
       })
 
-      presentation.setConsentResponse(response)
+      presentation.setSubmissionResult({
+        success: true,
+        redirect_uri: response.redirect_uri ?? undefined,
+      })
       setConsentState({ status: 'success', response })
 
       if (response.status === 'completed' && response.redirect_uri) {
@@ -76,7 +79,7 @@ export function usePresentationConsent(): UsePresentationConsentReturn {
   }, [presentation])
 
   const submitDecline = useCallback(async () => {
-    const sessionId = presentation.sessionId
+    const sessionId = presentation.session_id
 
     setConsentState({ status: 'submitting' })
     presentation.setStatus('submitting')
@@ -89,10 +92,13 @@ export function usePresentationConsent(): UsePresentationConsentReturn {
 
     try {
       const response = await submitPresentationConsent(sessionId, { accepted: false })
-      presentation.setConsentResponse(response, {
-        code: 'user_rejected',
-        message: 'You declined to share your credentials.',
-      })
+      presentation.setSubmissionResult(
+        { success: false },
+        {
+          code: 'user_rejected',
+          message: 'You declined to share your credentials.',
+        }
+      )
       setConsentState({ status: 'success', response })
     } catch {
       presentation.clear()

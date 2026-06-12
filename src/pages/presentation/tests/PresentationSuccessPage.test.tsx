@@ -26,11 +26,7 @@ function SeedSuccessState({ children }: { children: ReactNode }) {
         type="button"
         data-testid="seed-success"
         onClick={() => {
-          presentation.setConsentResponse({
-            status: 'completed',
-            redirect_uri: null,
-            verifier_response: null,
-          })
+          presentation.setSubmissionResult({ success: true })
           setSeeded(true)
         }}
       >

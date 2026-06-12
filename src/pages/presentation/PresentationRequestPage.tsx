@@ -1,147 +1,71 @@
 import { useEffect, useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { PresentationErrorCard } from '../../components/presentation/PresentationErrorCard'
-import { PresentationLoadingState } from '../../components/presentation/PresentationLoadingState'
+import { useNavigate } from 'react-router-dom'
+import { Footer } from '../../components/Footer'
+import { PresentationCredentialSelection } from '../../components/presentation/PresentationCredentialSelection'
+import { PresentationNoMatchingCredentials } from '../../components/presentation/PresentationNoMatchingCredentials'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
 import { routes } from '../../constants/routes'
-import { usePresentationConsent } from '../../hooks/presentation/usePresentationConsent'
 import { usePresentationSession } from '../../hooks/presentation/usePresentationSession'
 import { usePresentationState } from '../../state/presentation.state'
-import { parsePresentationRequestParams } from '../../utils/presentation/presentationRequest'
-import { ProofDetailsPage } from './ProofDetailsPage'
+import type { CredentialSelection } from '../../types/presentation'
+import { flattenCredentialMatches } from '../../utils/presentation/matchingCredentialDisplay'
 
+/**
+ * Proof Request — after a successful scan and POST /presentation/start.
+ * Displays credential types returned by the backend for holder selection.
+ */
 export function PresentationRequestPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const { sessionState, startRequest, reset } = usePresentationSession()
-  const { consentState, submitShare, submitDecline } = usePresentationConsent()
-  const presentation = usePresentationState()
+  const { reset } = usePresentationSession()
+  const { status, credential_matches, setSelectedCredentials, setStatus } =
+    usePresentationState()
 
-  const parsedParams = useMemo(
-    () => parsePresentationRequestParams(searchParams),
-    [searchParams]
-  )
+  const isSelecting = status === 'selecting'
 
   useEffect(() => {
-    if (!parsedParams.ok) {
-      return
+    if (!isSelecting) {
+      navigate(routes.scan, { replace: true })
     }
-
-    const flowAlreadyStarted =
-      presentation.status !== 'idle' && presentation.status !== 'error'
-    if (flowAlreadyStarted || sessionState.status === 'loading') {
-      return
-    }
-
-    void startRequest(parsedParams.authorization)
-  }, [parsedParams, presentation.status, sessionState.status, startRequest])
-
-  useEffect(() => {
-    if (
-      !parsedParams.ok ||
-      presentation.status !== 'success' ||
-      presentation.consentResponse?.status !== 'completed' ||
-      presentation.consentResponse.redirect_uri
-    ) {
-      return
-    }
-
-    navigate(routes.presentationSuccess, { replace: true })
-  }, [navigate, parsedParams.ok, presentation.consentResponse, presentation.status])
+  }, [isSelecting, navigate])
 
   const handleBack = () => {
     reset()
     navigate(routes.home)
   }
 
-  const handleRetry = () => {
-    if (!parsedParams.ok) {
-      navigate(routes.scan)
-      return
-    }
-    reset()
-    void startRequest(parsedParams.authorization)
+  const handleCredentialSelect = (selected: CredentialSelection) => {
+    setSelectedCredentials([selected])
+    setStatus('reviewing')
+    navigate(routes.presentationProofDetails)
   }
 
-  const handleDecline = () => {
-    void submitDecline().then(() => {
-      reset()
-      navigate(routes.home)
-    })
+  const selectableCredentials = useMemo(
+    () => flattenCredentialMatches(credential_matches ?? []),
+    [credential_matches]
+  )
+
+  if (!isSelecting) {
+    return null
   }
-
-  const handleShare = () => {
-    void submitShare()
-  }
-
-  const isSubmitting =
-    consentState.status === 'submitting' || presentation.status === 'submitting'
-
-  const showProofDetails =
-    parsedParams.ok &&
-    presentation.status === 'selecting' &&
-    presentation.verifier &&
-    presentation.credentialMatches
-
-  const showLoading =
-    parsedParams.ok &&
-    (sessionState.status === 'loading' || presentation.status === 'loading')
-
-  const showSubmitting = parsedParams.ok && isSubmitting
-
-  const showError =
-    parsedParams.ok &&
-    (sessionState.status === 'error' ||
-      presentation.status === 'error' ||
-      consentState.status === 'error')
 
   return (
-    <PresentationPageShell
-      title={showProofDetails || showSubmitting ? 'Proof Details' : 'Proof Request'}
-      onBack={handleBack}
-      showFooter={!showProofDetails && !showSubmitting}
-    >
-      <section className="flex min-h-0 flex-1 flex-col">
-        {!parsedParams.ok && (
-          <PresentationErrorCard
-            error={parsedParams.error}
-            onRetry={() => navigate(routes.scan)}
-            retryLabel="Scan QR code"
-          />
-        )}
-
-        {showLoading && <PresentationLoadingState />}
-
-        {showSubmitting && (
-          <PresentationLoadingState message="Submitting your response…" />
-        )}
-
-        {showError && !showSubmitting && (
-          <PresentationErrorCard
-            error={
-              sessionState.status === 'error'
-                ? sessionState.error
-                : consentState.status === 'error'
-                  ? consentState.error
-                  : (presentation.error ?? {
-                      code: 'internal_error',
-                      message: 'Presentation request failed.',
-                    })
-            }
-            onRetry={handleRetry}
-          />
-        )}
-
-        {showProofDetails && presentation.verifier && presentation.credentialMatches && (
-          <ProofDetailsPage
-            verifier={presentation.verifier}
-            credentialMatches={presentation.credentialMatches}
-            onShare={handleShare}
-            onDecline={handleDecline}
-            isSubmitting={isSubmitting}
+    <PresentationPageShell title="Proof Request" onBack={handleBack}>
+      <section className="flex flex-1 flex-col bg-[#e9ecef]">
+        {selectableCredentials.length === 0 ? (
+          <PresentationNoMatchingCredentials onBack={handleBack} />
+        ) : (
+          <PresentationCredentialSelection
+            credentials={selectableCredentials}
+            onSelect={handleCredentialSelect}
           />
         )}
       </section>
+
+      <Footer
+        activeTab="home"
+        onScanClick={() => navigate(`${routes.scan}?fresh=true`)}
+        scanDisabled={false}
+      />
     </PresentationPageShell>
   )
 }

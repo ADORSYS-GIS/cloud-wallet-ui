@@ -35,6 +35,16 @@ describe('parsePresentationRequestParams', () => {
     }
   })
 
+  it('normalizes request_uri_method casing to uppercase GET or POST', () => {
+    const params = new URLSearchParams(validParams)
+    params.set('request_uri_method', 'post')
+    const result = parsePresentationRequestParams(params)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.authorization.request_uri_method).toBe('POST')
+    }
+  })
+
   it('accepts a direct JWT request parameter', () => {
     const params = new URLSearchParams({
       client_id: 'verifier-client',

@@ -1,4 +1,4 @@
-import type { CredentialListItemDisplay } from './credential'
+import type { BackgroundImage, Logo } from './credential'
 
 /**
  * Lifecycle status for the OpenID4VP presentation flow.
@@ -28,7 +28,7 @@ export type VerifierVerificationMethod =
   | 'x509_hash'
   | 'openid_federation'
 
-/** Verifier display block from POST /presentation/start (OpenAPI VerifierDisplay). */
+/** Verifier display metadata from POST /presentation/start. */
 export type VerifierDisplay = {
   name: string
   logo_uri?: string | null
@@ -37,16 +37,23 @@ export type VerifierDisplay = {
   verification_method?: VerifierVerificationMethod | null
 }
 
-export type ClaimsPathPointer = (string | number | null)[]
-
-/** Requested claim from credential_matches[].candidates[].requested_claims. */
 export type RequestedClaim = {
-  path: ClaimsPathPointer
+  path: (string | number | null)[]
   display_name?: string | null
   value_required?: boolean
 }
 
-export type CredentialSummaryDisplay = CredentialListItemDisplay
+/** Display metadata for a credential candidate (OpenAPI CredentialSummaryDisplay). */
+export type CredentialSummaryDisplay = {
+  name: string
+  issuer_name: string
+  credential_type: string
+  description?: string
+  background_color?: string
+  background_image?: BackgroundImage
+  text_color?: string
+  logo?: Logo | null
+}
 
 export type CredentialCandidate = {
   credential_id: string
@@ -66,18 +73,13 @@ export type TransactionDataDisplay = {
   display_data: Record<string, unknown>
 }
 
-export type CredentialSelection = {
-  query_id: string
-  credential_id: string
-}
-
-/** Body for POST /presentation/start (OpenAPI StartPresentationRequest). */
+/** Body for POST /presentation/start. */
 export type StartPresentationRequest = {
   request: string
   origin?: string
 }
 
-/** Response from POST /presentation/start (OpenAPI StartPresentationResponse). */
+/** Response from POST /presentation/start. */
 export type StartPresentationResponse = {
   session_id: string
   expires_at: string
@@ -89,6 +91,17 @@ export type StartPresentationResponse = {
   transaction_data?: TransactionDataDisplay[] | null
   requires_consent: boolean
 }
+
+/** Credential chosen by the holder for POST /presentation/{session_id}/consent. */
+export type CredentialSelection = {
+  query_id: string
+  credential_id: string
+}
+
+export type SelectedCredential = CredentialSelection
+
+/** Maps wallet credential ID → selected claim ids/paths for selective disclosure. */
+export type DisclosedClaimMap = Record<string, string[]>
 
 /** Body for POST /presentation/{session_id}/consent. */
 export type PresentationConsentRequest = {
@@ -105,20 +118,26 @@ export type PresentationConsentResponse = {
   verifier_response: { redirect_uri?: string } | null
 }
 
+export type PresentationResult = {
+  success: boolean
+  redirect_uri?: string
+  state?: string
+}
+
 export type PresentationErrorCode =
   | 'invalid_request'
   | 'invalid_presentation_request'
   | 'invalid_dcql_query'
   | 'no_matching_credentials'
   | 'invalid_client'
+  | 'request_uri_fetch_failed'
+  | 'request_object_invalid'
   | 'session_not_found'
   | 'invalid_session_state'
   | 'invalid_credential_selection'
   | 'transaction_data_not_acknowledged'
   | 'presentation_build_failed'
   | 'verifier_submission_failed'
-  | 'request_uri_fetch_failed'
-  | 'request_object_invalid'
   | 'user_rejected'
   | 'submission_failed'
   | 'unauthorized'
@@ -133,8 +152,8 @@ export type PresentationError = {
 }
 
 /**
- * Parsed OpenID4VP authorization parameters from a scanned QR or deep link.
- * Serialized into `StartPresentationRequest.request` before calling the backend.
+ * Parsed OID4VP authorization request parameters from a scanned QR code.
+ * Used for client-side validation only — the backend receives the raw `request` string.
  */
 export type PresentationAuthorizationRequest = {
   client_id: string
@@ -154,17 +173,17 @@ export type PresentationAuthorizationRequest = {
 /** Serializable presentation flow data persisted to localStorage. */
 export type PersistedPresentationState = {
   status: PresentationStatus
-  sessionId?: string
-  expiresAt?: string
+  session_id?: string
+  expires_at?: string
   flow?: PresentationFlow
-  purpose?: string | null
   verifier?: VerifierDisplay
-  /** client_id from the scanned authorization request (for unverified verifier display). */
-  authorizationClientId?: string
-  credentialMatches?: CredentialMatch[]
-  credentialSetOptions?: string[][] | null
-  transactionData?: TransactionDataDisplay[] | null
-  selectedCredentials?: CredentialSelection[]
-  consentResponse?: PresentationConsentResponse
+  purpose?: string | null
+  credential_matches?: CredentialMatch[]
+  credential_set_options?: string[][] | null
+  transaction_data?: TransactionDataDisplay[] | null
+  requires_consent?: boolean
+  selected_credentials?: CredentialSelection[]
+  disclosedClaims?: DisclosedClaimMap
+  submissionResult?: PresentationResult
   error?: PresentationError
 }

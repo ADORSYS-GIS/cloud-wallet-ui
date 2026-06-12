@@ -8,8 +8,12 @@ const matches: CredentialMatch[] = [
     required: true,
     candidates: [
       {
-        credential_id: 'cred-1',
-        display: { name: 'EU Personal ID' },
+        credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+        display: {
+          name: 'EU Personal ID',
+          issuer_name: 'Example Issuer',
+          credential_type: 'dc+sd-jwt',
+        },
         requested_claims: [{ path: ['family_name'] }],
       },
     ],
@@ -19,7 +23,10 @@ const matches: CredentialMatch[] = [
 describe('autoSelectCredentials', () => {
   it('selects the first candidate for each match', () => {
     expect(autoSelectCredentials(matches)).toEqual([
-      { query_id: 'pid_request', credential_id: 'cred-1' },
+      {
+        query_id: 'pid_request',
+        credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+      },
     ])
   })
 })
