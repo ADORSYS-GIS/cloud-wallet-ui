@@ -25,6 +25,7 @@ describe('resolveMatchingCredentialDisplay', () => {
       logoUri: 'https://issuer.example/logo.png',
       description: undefined,
       backgroundColor: undefined,
+      backgroundImage: undefined,
       textColor: undefined,
     })
   })

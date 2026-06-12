@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PresentationRequestPage } from '../PresentationRequestPage'
 import { routes } from '../../../constants/routes'
-import type { CredentialMatch } from '../../../types/presentation'
+import type { CredentialMatch, CredentialSelection } from '../../../types/presentation'
 
 const credentialMatch: CredentialMatch = {
   query_id: 'pid_request',
@@ -30,6 +30,7 @@ const mockSetSelectedCredentials = vi.fn()
 
 let mockPresentationStatus = 'idle'
 let mockCredentialMatches: CredentialMatch[] | undefined
+let mockSelectedCredentials: CredentialSelection[] | undefined
 
 vi.mock('react-router-dom', async () => {
   const actual =
@@ -53,6 +54,7 @@ vi.mock('../../../state/presentation.state', () => ({
   usePresentationState: () => ({
     status: mockPresentationStatus,
     credential_matches: mockCredentialMatches,
+    selected_credentials: mockSelectedCredentials,
     setSelectedCredentials: mockSetSelectedCredentials,
   }),
 }))
@@ -96,6 +98,7 @@ describe('PresentationRequestPage', () => {
     mockSetSelectedCredentials.mockReset()
     mockPresentationStatus = 'idle'
     mockCredentialMatches = undefined
+    mockSelectedCredentials = undefined
   })
 
   it('redirects to scan when opened without an active presentation session', () => {
@@ -126,6 +129,23 @@ describe('PresentationRequestPage', () => {
     expect(
       screen.getByText(/don't have a credential that satisfies this proof request/i)
     ).toBeTruthy()
+  })
+
+  it('stores the selection and hands off to proof details when a credential is clicked', async () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = [credentialMatch]
+
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Identity Credential/i }))
+
+    expect(mockSetSelectedCredentials).toHaveBeenCalledWith([
+      {
+        query_id: 'pid_request',
+        credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+      },
+    ])
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 
   it('resets and returns home when back is pressed', async () => {
