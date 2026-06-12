@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PresentationError } from '../../../types/presentation'
 import {
-  presentationErrorActions,
   presentationErrorContent,
   resolvePresentationErrorVariant,
 } from '../presentationErrorVariant'
@@ -96,29 +95,5 @@ describe('presentationErrorContent', () => {
       error_description: 'selected_credentials missing when accepted is true.',
     })
     expect(content.guidance).toBe('selected_credentials missing when accepted is true.')
-  })
-})
-
-describe('presentationErrorActions', () => {
-  it('enables retry for network and proof generation failures', () => {
-    expect(presentationErrorActions('network')).toEqual({
-      canRetry: true,
-      canStartOver: true,
-    })
-    expect(presentationErrorActions('proof_generation')).toEqual({
-      canRetry: true,
-      canStartOver: true,
-    })
-  })
-
-  it('disables retry for terminal verifier outcomes', () => {
-    expect(presentationErrorActions('rejected')).toEqual({
-      canRetry: false,
-      canStartOver: false,
-    })
-    expect(presentationErrorActions('unsupported_credential')).toEqual({
-      canRetry: false,
-      canStartOver: false,
-    })
   })
 })

@@ -9,11 +9,6 @@ export type PresentationErrorContent = {
   guidance?: string
 }
 
-export type PresentationErrorActions = {
-  canRetry: boolean
-  canStartOver: boolean
-}
-
 const NETWORK_HTTP_STATUSES = new Set([0, 408, 502, 503, 504])
 
 const NETWORK_ERROR_CODES = new Set([
@@ -148,25 +143,6 @@ export function presentationErrorContent(
             ? 'Your wallet session may have expired. Return to the wallet and try again.'
             : 'Return to your wallet and try again later.'),
       }
-  }
-}
-
-export function presentationErrorActions(
-  variant: PresentationErrorVariant
-): PresentationErrorActions {
-  switch (variant) {
-    case 'network':
-    case 'proof_generation':
-      return { canRetry: true, canStartOver: true }
-    case 'expired':
-    case 'invalid_request':
-      return { canRetry: false, canStartOver: true }
-    case 'rejected':
-    case 'unsupported_credential':
-      return { canRetry: false, canStartOver: false }
-    case 'generic':
-    default:
-      return { canRetry: false, canStartOver: true }
   }
 }
 
