@@ -12,9 +12,14 @@ import type {
 import { ContractError } from '../validation'
 
 const VERIFICATION_METHODS = new Set<VerifierVerificationMethod>([
+  'pre-registered',
+  'decentralized_identifier',
+  'redirect_uri',
   'verifier_attestation',
-  'x509',
-  'did_resolution',
+  'x509_san_dns',
+  'x509_san_uri',
+  'x509_hash',
+  'openid_federation',
 ])
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

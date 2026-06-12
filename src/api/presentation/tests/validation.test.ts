@@ -10,7 +10,7 @@ const validResponse = {
     name: 'Keycloak-demo',
     logo_uri: 'https://verifier.example/logo.png',
     verified: true,
-    verification_method: 'x509',
+    verification_method: 'x509_san_dns',
   },
   purpose: 'Age verification',
   credential_matches: [
@@ -73,6 +73,38 @@ describe('validateStartPresentationResponse', () => {
       validateStartPresentationResponse({
         ...validResponse,
         verifier: { verified: true },
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('throws ContractError when flow is invalid', () => {
+    expect(() =>
+      validateStartPresentationResponse({
+        ...validResponse,
+        flow: 'invalid',
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('accepts OpenAPI verification_method values', () => {
+    const result = validateStartPresentationResponse({
+      ...validResponse,
+      verifier: {
+        ...validResponse.verifier,
+        verification_method: 'decentralized_identifier',
+      },
+    })
+    expect(result.verifier.verification_method).toBe('decentralized_identifier')
+  })
+
+  it('throws ContractError for unknown verification_method', () => {
+    expect(() =>
+      validateStartPresentationResponse({
+        ...validResponse,
+        verifier: {
+          ...validResponse.verifier,
+          verification_method: 'x509',
+        },
       })
     ).toThrow(ContractError)
   })
