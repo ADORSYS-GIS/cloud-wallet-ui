@@ -145,11 +145,6 @@ export type PresentationErrorVariant =
   | 'proof_generation'
   | 'generic'
 
-/** Optional navigation state when routing to the presentation error page. */
-export type PresentationErrorNavigationState = {
-  retryPath?: string
-}
-
 export type PresentationError = {
   httpStatus?: number
   code: PresentationErrorCode

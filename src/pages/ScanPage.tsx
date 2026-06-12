@@ -56,10 +56,7 @@ export function ScanPage() {
   const goToPresentationError = useCallback(
     (error: PresentationError) => {
       setPresentationError(error)
-      navigate(routes.presentationError, {
-        replace: true,
-        state: { retryPath: routes.scan },
-      })
+      navigate(routes.presentationError, { replace: true })
     },
     [navigate, setPresentationError]
   )
