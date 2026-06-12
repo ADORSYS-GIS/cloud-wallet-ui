@@ -27,6 +27,7 @@ const credentialMatch: CredentialMatch = {
 const mockNavigate = vi.fn()
 const mockReset = vi.fn()
 const mockSetSelectedCredentials = vi.fn()
+const mockSetStatus = vi.fn()
 
 let mockPresentationStatus = 'idle'
 let mockCredentialMatches: CredentialMatch[] | undefined
@@ -54,6 +55,7 @@ vi.mock('../../../state/presentation.state', () => ({
     status: mockPresentationStatus,
     credential_matches: mockCredentialMatches,
     setSelectedCredentials: mockSetSelectedCredentials,
+    setStatus: mockSetStatus,
   }),
 }))
 
@@ -94,6 +96,7 @@ describe('PresentationRequestPage', () => {
     mockNavigate.mockReset()
     mockReset.mockReset()
     mockSetSelectedCredentials.mockReset()
+    mockSetStatus.mockReset()
     mockPresentationStatus = 'idle'
     mockCredentialMatches = undefined
   })
@@ -137,5 +140,23 @@ describe('PresentationRequestPage', () => {
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(mockReset).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith(routes.home)
+  })
+
+  it('stores selection and navigates to proof details when a credential is chosen', async () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = [credentialMatch]
+
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Identity Credential/i }))
+
+    expect(mockSetSelectedCredentials).toHaveBeenCalledWith([
+      {
+        query_id: 'pid_request',
+        credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+      },
+    ])
+    expect(mockSetStatus).toHaveBeenCalledWith('reviewing')
+    expect(mockNavigate).toHaveBeenCalledWith(routes.presentationProofDetails)
   })
 })

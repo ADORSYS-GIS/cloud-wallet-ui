@@ -4,6 +4,7 @@ export const routes = {
   scan: '/scan',
   present: '/present',
   presentationError: '/present/error',
+  presentationProofDetails: '/present/details',
   presentationSuccess: '/present/success',
   credentialTypes: '/credential-types',
   credentialTypeDetails: '/credential-types/:optionId',

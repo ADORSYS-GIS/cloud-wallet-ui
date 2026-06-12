@@ -19,9 +19,14 @@ export type PresentationStatus =
 export type PresentationFlow = 'cross_device' | 'same_device'
 
 export type VerifierVerificationMethod =
+  | 'pre-registered'
+  | 'decentralized_identifier'
+  | 'redirect_uri'
   | 'verifier_attestation'
-  | 'x509'
-  | 'did_resolution'
+  | 'x509_san_dns'
+  | 'x509_san_uri'
+  | 'x509_hash'
+  | 'openid_federation'
 
 /** Verifier display metadata from POST /presentation/start. */
 export type VerifierDisplay = {
@@ -107,6 +112,7 @@ export type PresentationResult = {
 /** OpenAPI-aligned error codes for presentation endpoints. */
 export type PresentationErrorCode =
   | 'invalid_request'
+  | 'invalid_presentation_request'
   | 'invalid_dcql_query'
   | 'no_matching_credentials'
   | 'vp_formats_not_supported'
@@ -118,7 +124,6 @@ export type PresentationErrorCode =
   | 'session_not_found'
   | 'presentation_build_failed'
   | 'verifier_submission_failed'
-  | 'invalid_presentation_request'
   | 'invalid_session_state'
   | 'verifier_metadata_fetch_failed'
   | 'user_rejected'
