@@ -1,7 +1,40 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { StartPresentationResponse } from '../../types/presentation'
 import { PresentationProvider, usePresentationState } from '../presentation.state'
+
+const mockStartPresentationResponse: StartPresentationResponse = {
+  session_id: 'prs_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni',
+  expires_at: '2026-04-08T14:35:00Z',
+  flow: 'cross_device',
+  verifier: {
+    name: 'Keycloak demo Solutions Adorsys',
+    logo_uri: 'https://verifier.example/logo.png',
+    verified: true,
+    verification_method: 'x509',
+  },
+  purpose: 'Age verification for access to restricted content.',
+  credential_matches: [
+    {
+      query_id: 'pid_request',
+      required: true,
+      candidates: [
+        {
+          credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+          display: {
+            name: 'DATEV Unternehmensdaten',
+            issuer_name: 'Keycloak demo Solutions Adorsys',
+            credential_type: 'eu.europa.ec.eudi.pid.1',
+            logo: null,
+          },
+          requested_claims: [],
+        },
+      ],
+    },
+  ],
+  requires_consent: true,
+}
 
 const STORAGE_KEY = 'cloud_wallet_presentation_flow'
 
@@ -10,13 +43,13 @@ function PresentationProbe() {
   return (
     <div>
       <span data-testid="status">{state.status}</span>
-      <span data-testid="client-id">{state.verifier?.client_id ?? ''}</span>
+      <span data-testid="verifier-name">{state.verifier?.name ?? ''}</span>
       <span data-testid="flow-active">{String(state.isFlowActive)}</span>
       <button
         type="button"
         onClick={() => {
           state.setStatus('selecting')
-          state.setVerifier({ client_id: 'redirect_uri:https://verifier.example/cb' })
+          state.setStartResponse(mockStartPresentationResponse)
         }}
       >
         start
@@ -53,12 +86,12 @@ function SetterProbe() {
   return (
     <div>
       <span data-testid="status">{state.status}</span>
-      <span data-testid="client-id">{state.request?.client_id ?? ''}</span>
+      <span data-testid="session-id">{state.session_id ?? ''}</span>
       <span data-testid="match-count">
-        {String(state.matchingCredentials?.length ?? 0)}
+        {String(state.credential_matches?.length ?? 0)}
       </span>
       <span data-testid="selected-count">
-        {String(state.selectedCredentials?.length ?? 0)}
+        {String(state.selected_credentials?.length ?? 0)}
       </span>
       <span data-testid="disclosure-keys">
         {Object.keys(state.disclosedClaims ?? {}).join(',')}
@@ -66,27 +99,22 @@ function SetterProbe() {
       <button
         type="button"
         onClick={() =>
-          state.setRequest({
-            client_id: 'verifier-client',
-            nonce: 'nonce-123',
-            response_type: 'vp_token',
-            response_mode: 'direct_post',
-            scope: 'openid',
+          state.setStartResponse({
+            ...mockStartPresentationResponse,
+            session_id: 'prs_test_session_001',
           })
         }
       >
-        set-request
+        set-session
       </button>
       <button
         type="button"
         onClick={() =>
-          state.setMatchingCredentials([
-            {
-              credentialId: 'cred-1',
-              queryId: 'query-1',
-              format: 'dc+sd-jwt',
-            },
-          ])
+          state.setStartResponse({
+            ...mockStartPresentationResponse,
+            session_id: 'prs_test_session_002',
+            credential_matches: mockStartPresentationResponse.credential_matches,
+          })
         }
       >
         set-matches
@@ -110,34 +138,53 @@ function SetterProbe() {
       <button
         type="button"
         onClick={() => {
-          state.setMatchingCredentials([
-            { credentialId: 'cred-1', queryId: 'query-1', format: 'dc+sd-jwt' },
-          ])
+          state.setStartResponse(mockStartPresentationResponse)
           state.setSelectedCredentials([
-            { credentialId: 'cred-1', queryId: 'query-1', format: 'dc+sd-jwt' },
+            {
+              query_id: 'pid_request',
+              credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+            },
           ])
           state.setDisclosedClaims({ 'cred-1': ['given_name'] })
-          state.setRequest({
-            client_id: 'new-request',
-            nonce: 'nonce-456',
-            response_type: 'vp_token',
-            response_mode: 'direct_post',
-            scope: 'openid',
+          state.setStartResponse({
+            ...mockStartPresentationResponse,
+            session_id: 'prs_new_session',
           })
         }}
       >
-        new-request
+        new-session
       </button>
       <button
         type="button"
         onClick={() => {
           state.setSelectedCredentials([
-            { credentialId: 'cred-1', queryId: 'query-1', format: 'dc+sd-jwt' },
+            {
+              query_id: 'pid_request',
+              credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+            },
           ])
           state.setDisclosedClaims({ 'cred-1': ['given_name'] })
-          state.setMatchingCredentials([
-            { credentialId: 'cred-2', queryId: 'query-2', format: 'dc+sd-jwt' },
-          ])
+          state.setStartResponse({
+            ...mockStartPresentationResponse,
+            session_id: 'prs_refreshed_session',
+            credential_matches: [
+              {
+                query_id: 'lpid_request',
+                required: true,
+                candidates: [
+                  {
+                    credential_id: 'a1b2c3d4-5678-90ab-cdef-123456789abc',
+                    display: {
+                      name: 'LPID',
+                      issuer_name: 'Registry',
+                      credential_type: 'eu.europa.ec.eudi.lpid.1',
+                    },
+                    requested_claims: [],
+                  },
+                ],
+              },
+            ],
+          })
         }}
       >
         refresh-matches
@@ -198,8 +245,8 @@ describe('usePresentationState', () => {
     })
 
     expect(screen.getByTestId('status').textContent).toBe('selecting')
-    expect(screen.getByTestId('client-id').textContent).toBe(
-      'redirect_uri:https://verifier.example/cb'
+    expect(screen.getByTestId('verifier-name').textContent).toBe(
+      'Keycloak demo Solutions Adorsys'
     )
     expect(localStorage.getItem(STORAGE_KEY)).toContain('selecting')
 
@@ -212,8 +259,8 @@ describe('usePresentationState', () => {
     )
 
     expect(screen.getByTestId('status').textContent).toBe('selecting')
-    expect(screen.getByTestId('client-id').textContent).toBe(
-      'redirect_uri:https://verifier.example/cb'
+    expect(screen.getByTestId('verifier-name').textContent).toBe(
+      'Keycloak demo Solutions Adorsys'
     )
     expect(screen.getByTestId('flow-active').textContent).toBe('true')
   })
@@ -295,7 +342,7 @@ describe('usePresentationState', () => {
       JSON.stringify({
         status: 'success',
         submissionResult: { success: true },
-        verifier: { client_id: 'stale-verifier' },
+        verifier: { name: 'stale-verifier', verified: true },
       })
     )
 
@@ -306,7 +353,7 @@ describe('usePresentationState', () => {
     )
 
     expect(screen.getByTestId('status').textContent).toBe('idle')
-    expect(screen.getByTestId('client-id').textContent).toBe('')
+    expect(screen.getByTestId('verifier-name').textContent).toBe('')
   })
 
   it('rejects persisted state with invalid verifier shape on mount', () => {
@@ -314,7 +361,7 @@ describe('usePresentationState', () => {
       STORAGE_KEY,
       JSON.stringify({
         status: 'selecting',
-        verifier: { client_id: 12345 },
+        verifier: { name: 12345, verified: true },
       })
     )
 
@@ -327,7 +374,7 @@ describe('usePresentationState', () => {
     expect(screen.getByTestId('status').textContent).toBe('idle')
   })
 
-  it('stores parsed request via setRequest', async () => {
+  it('stores session data via setStartResponse', async () => {
     render(
       <PresentationProvider>
         <SetterProbe />
@@ -335,13 +382,13 @@ describe('usePresentationState', () => {
     )
 
     await act(async () => {
-      screen.getByRole('button', { name: 'set-request' }).click()
+      screen.getByRole('button', { name: 'set-session' }).click()
     })
 
-    expect(screen.getByTestId('client-id').textContent).toBe('verifier-client')
+    expect(screen.getByTestId('session-id').textContent).toBe('prs_test_session_001')
   })
 
-  it('stores matching credentials via setMatchingCredentials', async () => {
+  it('stores credential matches via setStartResponse', async () => {
     render(
       <PresentationProvider>
         <SetterProbe />
@@ -399,7 +446,7 @@ describe('usePresentationState', () => {
     expect(screen.getByTestId('error-code').textContent).toBe('submission_failed')
   })
 
-  it('setRequest clears credentials and results from a previous flow', async () => {
+  it('setStartResponse clears credentials and results from a previous flow', async () => {
     render(
       <PresentationProvider>
         <SetterProbe />
@@ -407,16 +454,15 @@ describe('usePresentationState', () => {
     )
 
     await act(async () => {
-      screen.getByRole('button', { name: 'new-request' }).click()
+      screen.getByRole('button', { name: 'new-session' }).click()
     })
 
-    expect(screen.getByTestId('client-id').textContent).toBe('new-request')
-    expect(screen.getByTestId('match-count').textContent).toBe('0')
+    expect(screen.getByTestId('session-id').textContent).toBe('prs_new_session')
     expect(screen.getByTestId('selected-count').textContent).toBe('0')
     expect(screen.getByTestId('disclosure-keys').textContent).toBe('')
   })
 
-  it('setMatchingCredentials clears prior selection and disclosures', async () => {
+  it('setStartResponse clears prior selection and disclosures', async () => {
     render(
       <PresentationProvider>
         <SetterProbe />

@@ -51,10 +51,14 @@ function isJwtStructure(value: string): boolean {
   return parts.length === 3 && parts.every((part) => part.length > 0)
 }
 
-function isRequestUriMethod(
+function normalizeRequestUriMethod(
   value: string
-): value is NonNullable<PresentationAuthorizationRequest['request_uri_method']> {
-  return value === 'GET' || value === 'POST'
+): NonNullable<PresentationAuthorizationRequest['request_uri_method']> | null {
+  const normalized = value.toUpperCase()
+  if (normalized === 'GET' || normalized === 'POST') {
+    return normalized
+  }
+  return null
 }
 
 function isValidClientId(value: string): boolean {
@@ -120,10 +124,11 @@ export function parsePresentationRequestParams(
   const requestUriMethodRaw = pickOptionalParam(searchParams, 'request_uri_method')
   let request_uri_method: PresentationAuthorizationRequest['request_uri_method']
   if (requestUriMethodRaw) {
-    if (!isRequestUriMethod(requestUriMethodRaw)) {
+    const normalized = normalizeRequestUriMethod(requestUriMethodRaw)
+    if (!normalized) {
       return invalidRequest('Unsupported request_uri_method. Expected GET or POST.')
     }
-    request_uri_method = requestUriMethodRaw
+    request_uri_method = normalized
   }
   if (request_uri_method && !request_uri) {
     return invalidRequest('request_uri_method is only valid with request_uri.')
