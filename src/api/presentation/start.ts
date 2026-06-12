@@ -12,17 +12,17 @@ export { PresentationError } from './errors'
  *
  * Spec: POST /presentation/start
  * Request:  StartPresentationRequest
- * Response: StartPresentationResponse
+ * Response: StartPresentationResponse (201)
  *
- * The response is validated against the API contract before being returned.
+ * The response is validated against the OpenAPI contract before being returned.
  * A `ContractError` is thrown if the backend response does not conform.
  */
 export async function startPresentation(
-  authorization: StartPresentationRequest
+  body: StartPresentationRequest
 ): Promise<StartPresentationResponse> {
   const raw = await apiPost<unknown, StartPresentationRequest>(
     '/presentation/start',
-    authorization
+    body
   )
   return validateStartPresentationResponse(raw)
 }
