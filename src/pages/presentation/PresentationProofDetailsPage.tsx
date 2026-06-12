@@ -57,6 +57,7 @@ export function PresentationProofDetailsPage() {
   }, [presentation.credential_matches, presentation.selected_credentials])
 
   const handleBack = () => {
+    presentation.setSelectedCredentials([])
     presentation.setStatus('selecting')
     navigate(routes.present)
   }

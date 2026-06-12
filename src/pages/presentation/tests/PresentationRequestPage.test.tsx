@@ -110,6 +110,14 @@ describe('PresentationRequestPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
   })
 
+  it('does not redirect to scan while transitioning to proof details', () => {
+    mockPresentationStatus = 'reviewing'
+
+    renderPage()
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(routes.scan, { replace: true })
+  })
+
   it('shows credential types returned by the backend', () => {
     mockPresentationStatus = 'selecting'
     mockCredentialMatches = [credentialMatch]
@@ -161,5 +169,18 @@ describe('PresentationRequestPage', () => {
     ])
     expect(mockSetStatus).toHaveBeenCalledWith('reviewing')
     expect(mockNavigate).toHaveBeenCalledWith(routes.presentationProofDetails)
+  })
+
+  it('shows the picker again after returning from proof details', () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = [credentialMatch]
+    mockSelectedCredentials = [
+      { query_id: 'pid_request', credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde' },
+    ]
+
+    renderPage()
+
+    expect(screen.getByText('Select a Credential')).toBeTruthy()
+    expect(screen.getByText('Identity Credential')).toBeTruthy()
   })
 })

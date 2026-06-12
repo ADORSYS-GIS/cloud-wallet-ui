@@ -12,28 +12,21 @@ import { flattenCredentialMatches } from '../../utils/presentation/matchingCrede
 
 /**
  * Proof Request — credential picker after POST /presentation/start.
- * Saves the holder's choice; Proof Details renders on the same route.
+ * Saves the holder's choice in presentation state and navigates to Proof Details.
  */
 export function PresentationRequestPage() {
   const navigate = useNavigate()
   const { reset } = usePresentationSession()
-  const {
-    status,
-    credential_matches,
-    selected_credentials,
-    setSelectedCredentials,
-    setStatus,
-  } = usePresentationState()
+  const { status, credential_matches, setSelectedCredentials, setStatus } =
+    usePresentationState()
 
   const isSelecting = status === 'selecting'
-  const hasSelection = (selected_credentials?.length ?? 0) > 0
-  const showCredentialPicker = isSelecting && !hasSelection
 
   useEffect(() => {
-    if (!isSelecting) {
+    if (status === 'idle' || status === 'loading' || status === 'error') {
       navigate(routes.scan, { replace: true })
     }
-  }, [isSelecting, navigate])
+  }, [status, navigate])
 
   const handleBack = () => {
     reset()
@@ -51,7 +44,7 @@ export function PresentationRequestPage() {
     [credential_matches]
   )
 
-  if (!showCredentialPicker) {
+  if (!isSelecting) {
     return null
   }
 
