@@ -5,7 +5,6 @@ export const routes = {
   present: '/present',
   presentationProofDetails: '/present/details',
   presentationSuccess: '/present/success',
-  presentationRejected: '/present/rejected',
   presentationError: '/present/error',
   credentialTypes: '/credential-types',
   credentialTypeDetails: '/credential-types/:optionId',

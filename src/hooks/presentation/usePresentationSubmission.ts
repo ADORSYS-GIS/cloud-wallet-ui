@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   buildPresentationConsentRequest,
@@ -7,6 +7,7 @@ import {
 import { routes } from '../../constants/routes'
 import { usePresentationState } from '../../state/presentation.state'
 import type { PresentationResult, SelectedCredential } from '../../types/presentation'
+import { consentSubmissionRetryPath } from '../../utils/presentation/consentErrorRetry'
 import { toPresentationError } from '../../utils/presentation/presentationErrors'
 
 export type PresentationSubmissionParams = {
@@ -17,8 +18,8 @@ export type PresentationSubmissionParams = {
 }
 
 export type UsePresentationSubmissionReturn = {
-  /** True while POST /presentation/{session_id}/consent is in flight. */
   isSubmitting: boolean
+  isSharing: boolean
   submitConsent: (params: PresentationSubmissionParams) => Promise<void>
 }
 
@@ -41,13 +42,14 @@ function toPresentationResult(
  * - Sets `submitting` status and shows loading while the backend builds/submits the VP Token.
  * - Same-device `completed` + `redirect_uri`: navigates the browser back to the Verifier.
  * - Cross-device `completed`: updates state and routes to the success screen.
- * - `rejected`: valid user outcome — routes to the rejection screen (not an error).
- * - API errors: updates state and routes to the error screen.
+ * - Decline (`accepted: false`): returns to home immediately; consent POST runs in background.
+ * - Share `rejected` / API errors: routes to the error screen (#92).
  */
 export function usePresentationSubmission(): UsePresentationSubmissionReturn {
   const navigate = useNavigate()
   const presentation = usePresentationState()
   const inFlightRef = useRef(false)
+  const [isSharing, setIsSharing] = useState(false)
 
   const isSubmitting = presentation.status === 'submitting'
 
@@ -63,16 +65,30 @@ export function usePresentationSubmission(): UsePresentationSubmissionReturn {
       }
 
       inFlightRef.current = true
+
+      if (!accepted) {
+        navigate(routes.home, { replace: true })
+        presentation.clear()
+        inFlightRef.current = false
+
+        void submitPresentationConsent(
+          sessionId,
+          buildPresentationConsentRequest(false)
+        ).catch((error: unknown) => {
+          console.error('[PresentationConsent] Decline submission failed:', error)
+        })
+        return
+      }
+
+      setIsSharing(true)
       presentation.setStatus('submitting')
 
       try {
-        const body = accepted
-          ? buildPresentationConsentRequest(
-              true,
-              selectedCredentials,
-              transactionDataAcknowledged
-            )
-          : buildPresentationConsentRequest(false)
+        const body = buildPresentationConsentRequest(
+          true,
+          selectedCredentials,
+          transactionDataAcknowledged
+        )
         const response = await submitPresentationConsent(sessionId, body)
 
         if (response.status === 'completed') {
@@ -99,17 +115,22 @@ export function usePresentationSubmission(): UsePresentationSubmissionReturn {
             response.verifier_response
           )
         )
-        navigate(routes.presentationRejected)
+        navigate(routes.presentationError, { replace: true })
       } catch (error: unknown) {
         const apiError = toPresentationError(error)
         presentation.setError(apiError)
-        navigate(routes.presentationError)
+        const retryPath = consentSubmissionRetryPath(apiError.code)
+        navigate(routes.presentationError, {
+          replace: true,
+          state: retryPath ? { retryPath } : undefined,
+        })
       } finally {
         inFlightRef.current = false
+        setIsSharing(false)
       }
     },
     [navigate, presentation]
   )
 
-  return { isSubmitting, submitConsent }
+  return { isSubmitting, isSharing, submitConsent }
 }

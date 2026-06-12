@@ -168,6 +168,11 @@ export type PresentationError = {
   error_description?: string | null
 }
 
+/** Optional navigation state when routing to the presentation error page */
+export type PresentationErrorNavigationState = {
+  retryPath?: string
+}
+
 /**
  * Parsed OID4VP authorization request parameters from a scanned QR code.
  * Used for client-side validation only — the backend receives the raw `request` string.

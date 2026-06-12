@@ -72,24 +72,37 @@ describe('ProofDetailsPage', () => {
     expect(onDecline).toHaveBeenCalledTimes(1)
   })
 
-  it('disables actions and shows loading label while submitting', () => {
+  it('disables Share and Decline only while share submission is in flight', () => {
     render(
       <ProofDetailsPage
         verifier={verifier}
         credentialMatches={credentialMatches}
         onShare={vi.fn()}
         onDecline={vi.fn()}
-        isSubmitting
+        isShareSubmitting
       />
     )
 
-    expect(screen.getByRole('button', { name: 'Sharing…' })).toHaveProperty(
-      'disabled',
-      true
-    )
+    expect(screen.getByRole('button', { name: 'Share' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Decline' })).toHaveProperty(
       'disabled',
       true
+    )
+  })
+
+  it('keeps Decline enabled when not sharing', () => {
+    render(
+      <ProofDetailsPage
+        verifier={verifier}
+        credentialMatches={credentialMatches}
+        onShare={vi.fn()}
+        onDecline={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: 'Decline' })).toHaveProperty(
+      'disabled',
+      false
     )
   })
 })
