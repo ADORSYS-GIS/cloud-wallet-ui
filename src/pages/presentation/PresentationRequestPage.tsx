@@ -11,8 +11,8 @@ import type { CredentialSelection } from '../../types/presentation'
 import { flattenCredentialMatches } from '../../utils/presentation/matchingCredentialDisplay'
 
 /**
- * Proof Request — after a successful scan and POST /presentation/start.
- * Displays credential types returned by the backend for holder selection.
+ * Proof Request — credential picker after POST /presentation/start.
+ * Saves the holder's choice in presentation state and navigates to Proof Details.
  */
 export function PresentationRequestPage() {
   const navigate = useNavigate()
@@ -23,10 +23,10 @@ export function PresentationRequestPage() {
   const isSelecting = status === 'selecting'
 
   useEffect(() => {
-    if (!isSelecting) {
+    if (status === 'idle' || status === 'loading' || status === 'error') {
       navigate(routes.scan, { replace: true })
     }
-  }, [isSelecting, navigate])
+  }, [status, navigate])
 
   const handleBack = () => {
     reset()

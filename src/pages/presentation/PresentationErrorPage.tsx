@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import illuWallet from '../../assets/illu-wallet.png'
+import illuWalletError from '../../assets/illu-wallet-error.png'
 import { PageContainer } from '../../components/layout/PageContainer'
 import { routes } from '../../constants/routes'
 import { usePresentationState } from '../../state/presentation.state'
@@ -31,13 +31,11 @@ export function PresentationErrorScreen({
   return (
     <div className="flex min-h-screen items-center justify-center bg-white">
       <div className="flex flex-col items-center px-6 text-center">
-        <div className="relative mb-16 h-52 w-52">
-          <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
-          <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+        <div className="mb-16 flex flex-col items-center">
           <img
-            src={illuWallet}
+            src={illuWalletError}
             alt=""
-            className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+            className="h-[132px] w-[122px] object-contain image-optimize-contrast"
           />
         </div>
         <div className="max-w-md whitespace-pre-line text-base text-slate-700">
