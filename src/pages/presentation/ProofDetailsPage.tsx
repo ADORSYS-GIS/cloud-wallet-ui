@@ -8,20 +8,15 @@ type ProofDetailsPageProps = {
   credentialMatches: CredentialMatch[]
   onShare: () => void
   onDecline: () => void
-  isSubmitting?: boolean
+  isShareSubmitting?: boolean
 }
 
-/**
- * Pre-consent Proof Details screen (issue #86).
- * Figma happy path: claims list + Share / Decline.
- * Data source: POST /presentation/start → credential_matches.
- */
 export function ProofDetailsPage({
   verifier,
   credentialMatches,
   onShare,
   onDecline,
-  isSubmitting = false,
+  isShareSubmitting = false,
 }: ProofDetailsPageProps) {
   const claims = useMemo(
     () => flattenRequestedClaims(credentialMatches),
@@ -61,15 +56,15 @@ export function ProofDetailsPage({
         <button
           type="button"
           onClick={onShare}
-          disabled={isSubmitting}
+          disabled={isShareSubmitting}
           className="h-10 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Sharing…' : 'Share'}
+          Share
         </button>
         <button
           type="button"
           onClick={onDecline}
-          disabled={isSubmitting}
+          disabled={isShareSubmitting}
           className="h-10 w-full rounded-[4px] border border-slate-400 bg-transparent text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Decline
