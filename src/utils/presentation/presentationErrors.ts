@@ -1,6 +1,6 @@
 import { ApiError } from '../../api/client'
 import { ContractError } from '../../api/validation'
-import { PresentationError } from '../../api/presentation/start'
+import { PresentationError } from '../../api/presentation/errors'
 import type { PresentationError as PresentationErrorShape } from '../../types/presentation'
 
 export function toPresentationError(error: unknown): PresentationErrorShape {
@@ -63,8 +63,18 @@ export function presentationUserMessage(error: PresentationErrorShape): string {
     case 'request_uri_fetch_failed':
     case 'request_object_invalid':
       return 'This presentation request is invalid or has expired. Please ask the verifier for a new QR code.'
+    case 'invalid_credential_selection':
+      return 'The selected credential is not valid for this proof request. Please choose again.'
+    case 'transaction_data_not_acknowledged':
+      return 'Please review and confirm the transaction details before sharing your credentials.'
     case 'no_matching_credentials':
       return "You don't have a credential that satisfies this proof request."
+    case 'presentation_build_failed':
+      return 'We could not prepare your presentation. Please try again.'
+    case 'verifier_submission_failed':
+      return 'The verifier could not receive your presentation. Please try again.'
+    case 'session_not_found':
+      return 'This presentation session has expired. Please scan the QR code again.'
     case 'unauthorized':
       return 'Your wallet session has expired. Please register again and retry.'
     case 'internal_error':

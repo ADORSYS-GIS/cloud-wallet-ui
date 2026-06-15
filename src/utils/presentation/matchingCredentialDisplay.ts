@@ -40,6 +40,7 @@ export function resolveMatchingCredentialDisplay(
     logoUri: display.logo?.uri ?? null,
     description: display.description,
     backgroundColor: display.background_color,
+    backgroundImage: display.background_image?.uri,
     textColor: display.text_color,
   }
 }
