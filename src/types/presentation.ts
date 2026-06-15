@@ -14,6 +14,7 @@ export type PresentationStatus =
   | 'consenting'
   | 'submitting'
   | 'success'
+  | 'rejected'
   | 'error'
 
 export type PresentationFlow = 'cross_device' | 'same_device'
@@ -103,9 +104,36 @@ export type SelectedCredential = CredentialSelection
 /** Maps wallet credential ID → selected claim ids/paths for selective disclosure. */
 export type DisclosedClaimMap = Record<string, string[]>
 
+export type PresentationConsentStatus = 'completed' | 'rejected'
+
+/** Outcome of POST /presentation/{session_id}/consent. */
+export type PresentationConsentResponse = {
+  status: PresentationConsentStatus
+  redirect_uri: string | null
+  verifier_response: Record<string, unknown> | null
+}
+
+/** Accept branch of POST /presentation/{session_id}/consent (OpenAPI oneOf). */
+export type PresentationConsentAcceptRequest = {
+  accepted: true
+  selected_credentials: CredentialSelection[]
+  transaction_data_acknowledged?: boolean
+}
+
+/** Reject branch of POST /presentation/{session_id}/consent (OpenAPI oneOf). */
+export type PresentationConsentRejectRequest = {
+  accepted: false
+}
+
+export type PresentationConsentRequest =
+  | PresentationConsentAcceptRequest
+  | PresentationConsentRejectRequest
+
 export type PresentationResult = {
   success: boolean
-  redirect_uri?: string
+  status?: PresentationConsentStatus
+  redirect_uri?: string | null
+  verifier_response?: Record<string, unknown> | null
   state?: string
 }
 
@@ -114,16 +142,16 @@ export type PresentationErrorCode =
   | 'invalid_request'
   | 'invalid_presentation_request'
   | 'invalid_dcql_query'
-  | 'no_matching_credentials'
-  | 'vp_formats_not_supported'
   | 'invalid_client'
   | 'request_uri_fetch_failed'
   | 'request_object_invalid'
   | 'invalid_credential_selection'
   | 'transaction_data_not_acknowledged'
-  | 'session_not_found'
+  | 'no_matching_credentials'
+  | 'vp_formats_not_supported'
   | 'presentation_build_failed'
   | 'verifier_submission_failed'
+  | 'session_not_found'
   | 'invalid_session_state'
   | 'verifier_metadata_fetch_failed'
   | 'user_rejected'
