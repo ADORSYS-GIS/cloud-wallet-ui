@@ -1,5 +1,4 @@
-import illuWallet from '../../assets/illu-wallet.png'
-import xCirclePrimary from '../../assets/x-circle-primary.png'
+import illuWalletError from '../../assets/illu-wallet-error.png'
 import type { PresentationError } from '../../types/presentation'
 import { presentationUserMessage } from '../../utils/presentation/presentationErrors'
 
@@ -17,10 +16,8 @@ export function PresentationErrorCard({
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
       <div className="mb-12 flex flex-col items-center">
-        <img src={xCirclePrimary} alt="" className="h-10 w-10 object-contain" />
-        <div className="h-4" />
         <img
-          src={illuWallet}
+          src={illuWalletError}
           alt=""
           className="h-[132px] w-[122px] object-contain image-optimize-contrast"
         />

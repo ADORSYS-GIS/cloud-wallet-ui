@@ -1,5 +1,4 @@
-import illuWallet from '../../assets/illu-wallet.png'
-import xCirclePrimary from '../../assets/x-circle-primary.png'
+import illuWalletError from '../../assets/illu-wallet-error.png'
 import type { IssuanceApiError } from '../../types/issuance'
 import { issuanceUserMessage } from '../../utils/issuanceErrors'
 
@@ -21,10 +20,8 @@ export function IssuanceErrorCard({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
       <div className="flex flex-col items-center px-6 text-center">
         <div className="mb-16 flex flex-col items-center">
-          <img src={xCirclePrimary} alt="" className="h-10 w-10 object-contain" />
-          <div className="h-4" />
           <img
-            src={illuWallet}
+            src={illuWalletError}
             alt=""
             className="h-[132px] w-[122px] object-contain image-optimize-contrast"
           />
