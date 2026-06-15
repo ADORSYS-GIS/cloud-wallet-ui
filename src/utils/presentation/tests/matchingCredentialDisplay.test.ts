@@ -25,8 +25,23 @@ describe('resolveMatchingCredentialDisplay', () => {
       logoUri: 'https://issuer.example/logo.png',
       description: undefined,
       backgroundColor: undefined,
+      backgroundImage: undefined,
       textColor: undefined,
     })
+  })
+
+  it('resolves background_image from display metadata', () => {
+    const result = resolveMatchingCredentialDisplay({
+      credential_id: 'id',
+      display: {
+        name: 'EU Personal ID',
+        issuer_name: 'Issuer',
+        credential_type: 'type',
+        background_image: { uri: 'https://issuer.example/bg.png' },
+      },
+    })
+
+    expect(result.backgroundImage).toBe('https://issuer.example/bg.png')
   })
 })
 

@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { WalletLoadingOverlay } from '../../components/feedback/WalletLoadingOverlay'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
 import { routes } from '../../constants/routes'
-import { usePresentationSession } from '../../hooks/presentation/usePresentationSession'
+import { usePresentationSubmission } from '../../hooks/presentation/usePresentationSubmission'
 import { usePresentationState } from '../../state/presentation.state'
 import type { CredentialMatch } from '../../types/presentation'
 import { ProofDetailsPage } from './ProofDetailsPage'
@@ -26,21 +27,28 @@ function filterMatchesForSelection(
     .filter((match) => match.candidates.length > 0)
 }
 
-/**
- * Proof Details route — shows requested claims after credential selection (#86).
- */
 export function PresentationProofDetailsPage() {
   const navigate = useNavigate()
-  const { reset } = usePresentationSession()
   const presentation = usePresentationState()
+  const { isSharing, submitConsent } = usePresentationSubmission()
 
-  const isReviewing = presentation.status === 'reviewing'
+  const presentationStatus = presentation.status
+  const isOnProofDetails =
+    presentationStatus === 'reviewing' || presentationStatus === 'submitting'
 
   useEffect(() => {
-    if (!isReviewing) {
+    if (
+      presentationStatus === 'idle' ||
+      presentationStatus === 'success' ||
+      presentationStatus === 'rejected' ||
+      presentationStatus === 'error'
+    ) {
+      return
+    }
+    if (!isOnProofDetails) {
       navigate(routes.scan, { replace: true })
     }
-  }, [isReviewing, navigate])
+  }, [isOnProofDetails, navigate, presentationStatus])
 
   const displayMatches = useMemo(() => {
     const matches = presentation.credential_matches ?? []
@@ -56,28 +64,60 @@ export function PresentationProofDetailsPage() {
     return filterMatchesForSelection(matches, selectedByQuery)
   }, [presentation.credential_matches, presentation.selected_credentials])
 
+  const hasTransactionData = Boolean(
+    presentation.transaction_data && presentation.transaction_data.length > 0
+  )
+
   const handleBack = () => {
+    if (isSharing) return
+    presentation.setSelectedCredentials([])
     presentation.setStatus('selecting')
     navigate(routes.present)
   }
 
-  const handleDecline = () => {
-    reset()
-    navigate(routes.home)
-  }
+  const handleShare = useCallback(() => {
+    const sessionId = presentation.session_id
+    if (!sessionId) return
 
-  if (!isReviewing || !presentation.verifier || displayMatches.length === 0) {
+    void submitConsent({
+      sessionId,
+      accepted: true,
+      selectedCredentials: presentation.selected_credentials ?? [],
+      transactionDataAcknowledged: hasTransactionData ? true : undefined,
+    })
+  }, [
+    hasTransactionData,
+    presentation.selected_credentials,
+    presentation.session_id,
+    submitConsent,
+  ])
+
+  const handleDecline = useCallback(() => {
+    const sessionId = presentation.session_id
+    if (!sessionId) return
+
+    void submitConsent({
+      sessionId,
+      accepted: false,
+    })
+  }, [presentation.session_id, submitConsent])
+
+  if (!isOnProofDetails || !presentation.verifier || displayMatches.length === 0) {
     return null
   }
 
   return (
-    <PresentationPageShell title="Proof Details" onBack={handleBack}>
-      <ProofDetailsPage
-        verifier={presentation.verifier}
-        credentialMatches={displayMatches}
-        onShare={() => {}}
-        onDecline={handleDecline}
-      />
-    </PresentationPageShell>
+    <>
+      {isSharing && <WalletLoadingOverlay message="Sharing…" />}
+      <PresentationPageShell title="Proof Details" onBack={handleBack}>
+        <ProofDetailsPage
+          verifier={presentation.verifier}
+          credentialMatches={displayMatches}
+          onShare={handleShare}
+          onDecline={handleDecline}
+          isShareSubmitting={isSharing}
+        />
+      </PresentationPageShell>
+    </>
   )
 }
