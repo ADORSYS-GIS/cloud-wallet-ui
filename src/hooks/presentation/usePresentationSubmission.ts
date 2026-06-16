@@ -107,6 +107,13 @@ export function usePresentationSubmission(): UsePresentationSubmissionReturn {
           return
         }
 
+        if (response.status === 'rejected') {
+          const result = toPresentationResult('rejected', null, null)
+          presentation.setSubmissionResult(result)
+          navigate(routes.home, { replace: true })
+          return
+        }
+
         presentation.setSubmissionResult(
           toPresentationResult(
             response.status,

@@ -39,6 +39,17 @@ export function PresentationProofDetailsPage() {
     presentationStatus === 'reviewing' || presentationStatus === 'submitting'
 
   useEffect(() => {
+    if (presentation.expires_at && new Date(presentation.expires_at) <= new Date()) {
+      presentation.setError({
+        code: 'session_not_found',
+        message:
+          'This proof request is no longer valid. Presentation sessions expire after a short time for your security.',
+        error_description:
+          'Ask the verifier to generate a new QR code or link, then scan it again.',
+      })
+      navigate(routes.presentationError, { replace: true })
+      return
+    }
     if (
       presentationStatus === 'idle' ||
       presentationStatus === 'success' ||
@@ -50,7 +61,13 @@ export function PresentationProofDetailsPage() {
     if (!isOnProofDetails) {
       navigate(routes.scan, { replace: true })
     }
-  }, [isOnProofDetails, navigate, presentationStatus])
+  }, [
+    isOnProofDetails,
+    navigate,
+    presentationStatus,
+    presentation.expires_at,
+    presentation.setError,
+  ])
 
   const displayMatches = useMemo(() => {
     const matches = presentation.credential_matches ?? []

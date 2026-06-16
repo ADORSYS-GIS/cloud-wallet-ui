@@ -16,16 +16,33 @@ import type { CredentialSelection } from '../../types/presentation'
 export function PresentationRequestPage() {
   const navigate = useNavigate()
   const { reset } = usePresentationSession()
-  const { status, credential_matches, setSelectedCredentials, setStatus } =
-    usePresentationState()
+  const {
+    status,
+    credential_matches,
+    expires_at,
+    setSelectedCredentials,
+    setStatus,
+    setError,
+  } = usePresentationState()
 
   const isSelecting = status === 'selecting'
 
   useEffect(() => {
+    if (expires_at && new Date(expires_at) <= new Date()) {
+      setError({
+        code: 'session_not_found',
+        message:
+          'This proof request is no longer valid. Presentation sessions expire after a short time for your security.',
+        error_description:
+          'Ask the verifier to generate a new QR code or link, then scan it again.',
+      })
+      navigate(routes.presentationError, { replace: true })
+      return
+    }
     if (status === 'idle' || status === 'loading' || status === 'error') {
       navigate(routes.scan, { replace: true })
     }
-  }, [status, navigate])
+  }, [status, navigate, expires_at, setError])
 
   const handleBack = () => {
     reset()

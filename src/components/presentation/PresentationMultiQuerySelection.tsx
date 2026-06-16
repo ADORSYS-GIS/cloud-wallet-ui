@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import type { CredentialMatch, CredentialSelection } from '../../types/presentation'
 import { PresentationCredentialCard } from './PresentationCredentialCard'
 
@@ -23,27 +23,25 @@ export function PresentationMultiQuerySelection({
     return initial
   })
 
-  const handleSelect = useCallback((queryId: string, credentialId: string) => {
-    setSelections((prev) => ({ ...prev, [queryId]: credentialId }))
-  }, [])
+  const handleSelect = useCallback(
+    (queryId: string, credentialId: string) => {
+      setSelections((prev) => ({ ...prev, [queryId]: credentialId }))
 
-  const allRequiredSelected = useMemo(() => {
-    return matches.every((match) => {
-      if (!match.required) return true
-      return selections[match.query_id] !== null
-    })
-  }, [matches, selections])
-
-  const handleContinue = useCallback(() => {
-    const selected: CredentialSelection[] = []
-    for (const match of matches) {
-      const credentialId = selections[match.query_id]
-      if (credentialId) {
-        selected.push({ query_id: match.query_id, credential_id: credentialId })
+      const selected: CredentialSelection[] = []
+      for (const match of matches) {
+        if (match.query_id === queryId) {
+          selected.push({ query_id: queryId, credential_id: credentialId })
+        } else if (match.candidates.length === 1) {
+          selected.push({
+            query_id: match.query_id,
+            credential_id: match.candidates[0].credential_id,
+          })
+        }
       }
-    }
-    onContinue(selected)
-  }, [matches, selections, onContinue])
+      onContinue(selected)
+    },
+    [matches, onContinue]
+  )
 
   return (
     <div className="flex flex-1 flex-col px-4 pb-6 pt-10">
@@ -93,17 +91,6 @@ export function PresentationMultiQuerySelection({
             )}
           </div>
         ))}
-      </div>
-
-      <div className="mt-6 shrink-0">
-        <button
-          type="button"
-          onClick={handleContinue}
-          disabled={!allRequiredSelected}
-          className="h-10 w-full rounded-[4px] bg-[#99e827] text-[16px] font-normal text-slate-900 transition-colors duration-150 hover:bg-[#89d61f] active:bg-[#7dc31a] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Continue
-        </button>
       </div>
     </div>
   )

@@ -462,6 +462,22 @@ export function ScanPage() {
             </button>
           </>
         )}
+
+        {import.meta.env.VITE_MOCK_PRESENTATION === 'true' && !showFullscreenStatus && (
+          <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
+            <button
+              type="button"
+              onClick={() =>
+                void handleDecodedValue(
+                  'client_id=demo-verifier&request_uri=https://example.com/request'
+                )
+              }
+              className="rounded bg-white/90 px-3 py-1 text-xs font-medium text-slate-700 shadow"
+            >
+              Demo: Simulate presentation scan
+            </button>
+          </div>
+        )}
       </div>
     </PageContainer>
   )

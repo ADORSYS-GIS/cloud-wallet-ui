@@ -93,14 +93,6 @@ function App() {
                 }
               />
               <Route
-                path={routes.presentationError}
-                element={
-                  <RequireRegistration>
-                    <PresentationErrorPage />
-                  </RequireRegistration>
-                }
-              />
-              <Route
                 path={routes.credentialTypeDetails}
                 element={
                   <RequireRegistration>
