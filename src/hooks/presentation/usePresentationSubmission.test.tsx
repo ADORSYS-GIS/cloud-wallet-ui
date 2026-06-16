@@ -187,7 +187,7 @@ describe('usePresentationSubmission', () => {
     expect(result.current.presentation.submissionResult?.status).toBe('rejected')
   })
 
-  it('routes to error page with retry path for recoverable consent failures', async () => {
+  it('routes to error page when consent submission fails', async () => {
     mockedSubmitPresentationConsent.mockRejectedValueOnce(
       new ApiError(500, 'VP Token construction failed.', {
         errorCode: 'presentation_build_failed',

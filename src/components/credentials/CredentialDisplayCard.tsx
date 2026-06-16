@@ -1,4 +1,4 @@
-import { IssuerAvatar } from '../issuance/IssuerAvater'
+import { IssuerAvatar } from '../issuance/IssuerAvatar'
 
 type CredentialDisplay = {
   name?: string

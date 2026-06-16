@@ -30,6 +30,7 @@ const credentialMatch: CredentialMatch = {
 
 const mockNavigate = vi.fn()
 const mockSetStatus = vi.fn()
+const mockSetSelectedCredentials = vi.fn()
 const mockSubmitConsent = vi.fn()
 
 let mockPresentationStatus = 'idle'
@@ -67,6 +68,7 @@ vi.mock('../../../state/presentation.state', () => ({
     selected_credentials: mockSelectedCredentials,
     transaction_data: mockTransactionData,
     setStatus: mockSetStatus,
+    setSelectedCredentials: mockSetSelectedCredentials,
   }),
 }))
 
@@ -109,6 +111,7 @@ describe('PresentationProofDetailsPage', () => {
   beforeEach(() => {
     mockNavigate.mockReset()
     mockSetStatus.mockReset()
+    mockSetSelectedCredentials.mockReset()
     mockSubmitConsent.mockReset()
     mockPresentationStatus = 'idle'
     mockSessionId = 'prs_test'
@@ -251,6 +254,7 @@ describe('PresentationProofDetailsPage', () => {
     renderPage()
     await user.click(screen.getByRole('button', { name: 'Back' }))
 
+    expect(mockSetSelectedCredentials).toHaveBeenCalledWith([])
     expect(mockSetStatus).toHaveBeenCalledWith('selecting')
     expect(mockNavigate).toHaveBeenCalledWith(routes.present)
   })

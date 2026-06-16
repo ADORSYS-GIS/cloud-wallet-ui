@@ -7,7 +7,6 @@ import {
 import { routes } from '../../constants/routes'
 import { usePresentationState } from '../../state/presentation.state'
 import type { PresentationResult, SelectedCredential } from '../../types/presentation'
-import { consentSubmissionRetryPath } from '../../utils/presentation/consentErrorRetry'
 import { toPresentationError } from '../../utils/presentation/presentationErrors'
 
 export type PresentationSubmissionParams = {
@@ -119,11 +118,7 @@ export function usePresentationSubmission(): UsePresentationSubmissionReturn {
       } catch (error: unknown) {
         const apiError = toPresentationError(error)
         presentation.setError(apiError)
-        const retryPath = consentSubmissionRetryPath(apiError.code)
-        navigate(routes.presentationError, {
-          replace: true,
-          state: retryPath ? { retryPath } : undefined,
-        })
+        navigate(routes.presentationError, { replace: true })
       } finally {
         inFlightRef.current = false
         setIsSharing(false)

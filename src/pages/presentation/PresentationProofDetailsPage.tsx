@@ -72,6 +72,7 @@ export function PresentationProofDetailsPage() {
 
   const handleBack = () => {
     if (isSharing) return
+    presentation.setSelectedCredentials([])
     presentation.setStatus('selecting')
     navigate(routes.present)
   }

@@ -1,6 +1,5 @@
-import { IssuerAvatar } from '../issuance/IssuerAvater'
+import { CredentialDisplayCard } from '../credentials/CredentialDisplayCard'
 import type { SelectableCredential } from '../../utils/presentation/matchingCredentialDisplay'
-import { resolveMatchingCredentialDisplay } from '../../utils/presentation/matchingCredentialDisplay'
 
 type PresentationCredentialCardProps = {
   credential: SelectableCredential
@@ -13,6 +12,7 @@ export function PresentationCredentialCard({
   onClick,
   selected,
 }: PresentationCredentialCardProps) {
+<<<<<<< HEAD
   const { name, issuerName, logoUri } = resolveMatchingCredentialDisplay(credential)
 
   const baseClasses =
@@ -30,6 +30,15 @@ export function PresentationCredentialCard({
         </p>
         <p className="truncate text-sm leading-[21px] text-slate-500">{issuerName}</p>
       </div>
+=======
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full text-left transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
+    >
+      <CredentialDisplayCard display={credential.display} />
+>>>>>>> 6f6d0afbda5f1b7a66a3ca38a15f0218864fa6e5
     </button>
   )
 }

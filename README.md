@@ -96,6 +96,7 @@ You can also copy `.env.example` to `.env` (or `.env.local`) and adjust values.
 | `/present`                          | Presentation request review (verifier details).        |
 | `/present/details`                  | Proof details and consent screen (Share / Decline).    |
 | `/present/success`                  | Success state after presentation submission.           |
+| `/present/error`                    | Error state after a failed presentation submission.    |
 | `/credential-types`                 | Credential types offered by issuer.                    |
 | `/credential-types/:optionId`       | Selected credential type details and issuance actions. |
 | `/issuance/success/:credentialId?`  | Success state after issuance.                          |
@@ -122,13 +123,15 @@ All routes except `/registration` are protected and require a stored tenant ID.
 
 1. User scans a verifier QR code or receives a deep link on `/scan`.
 2. Wallet validates and submits the request to start a presentation session via `POST /presentation/start`.
-3. Backend resolves the request, evaluates the DCQL query against stored credentials, and returns verifier metadata and credential matches.
-4. User reviews verifier details, requested claims, and matched credentials on `/present/details`.
-5. User consents (Share) or declines the presentation.
-6. Backend builds and submits the VP Token to the verifier synchronously.
-7. On success:
-   - **Cross-device flow**: user is shown `/present/success` and the verifier has received the VP Token.
+3. Backend resolves the request, evaluates the DCQL query against stored credentials, and returns verifier metadata and credential matches grouped by query.
+4. User selects one credential per query on `/present` (auto-selected when only one candidate exists). Required and optional queries are indicated.
+5. User reviews verifier details, purpose, requested claims, matched credentials, and any transaction data on `/present/details`. Transaction data must be explicitly acknowledged before sharing.
+6. User consents (Share) or declines the presentation.
+7. Backend builds and submits the VP Token to the verifier synchronously.
+8. On success:
+   - **Cross-device flow**: user is shown `/present/success` and the verifier has received the VP Token. A verifier-provided `redirect_uri` is offered if present.
    - **Same-device flow**: the browser is redirected to the verifier's `redirect_uri`.
+9. On failure or decline: user is shown `/present/error` with a retry option where applicable.
 
 ## Project structure
 

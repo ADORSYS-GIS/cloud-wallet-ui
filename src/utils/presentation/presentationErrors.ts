@@ -2,6 +2,10 @@ import { ApiError } from '../../api/client'
 import { ContractError } from '../../api/validation'
 import { PresentationError } from '../../api/presentation/errors'
 import type { PresentationError as PresentationErrorShape } from '../../types/presentation'
+import {
+  presentationErrorContent,
+  resolvePresentationErrorVariant,
+} from './presentationErrorVariant'
 
 export function toPresentationError(error: unknown): PresentationErrorShape {
   if (error instanceof PresentationError) {
@@ -49,38 +53,10 @@ export function toPresentationError(error: unknown): PresentationErrorShape {
 }
 
 export function presentationUserMessage(error: PresentationErrorShape): string {
-  if (error.error_description?.trim()) {
-    return error.error_description.trim()
+  const variant = resolvePresentationErrorVariant(error)
+  const content = presentationErrorContent(variant, error)
+  if (content.guidance) {
+    return `${content.message}\n\n${content.guidance}`
   }
-
-  switch (error.code) {
-    case 'invalid_request':
-      return error.message
-    case 'invalid_dcql_query':
-      return 'The credential request in this proof is invalid. Please ask the verifier for a new QR code.'
-    case 'invalid_client':
-      return 'The verifier identity could not be validated. Please ask the verifier for a new QR code.'
-    case 'request_uri_fetch_failed':
-    case 'request_object_invalid':
-      return 'This presentation request is invalid or has expired. Please ask the verifier for a new QR code.'
-    case 'invalid_credential_selection':
-      return 'The selected credential is not valid for this proof request. Please choose again.'
-    case 'transaction_data_not_acknowledged':
-      return 'Please review and confirm the transaction details before sharing your credentials.'
-    case 'no_matching_credentials':
-      return "You don't have a credential that satisfies this proof request."
-    case 'presentation_build_failed':
-      return 'We could not prepare your presentation. Please try again.'
-    case 'verifier_submission_failed':
-      return 'The verifier could not receive your presentation. Please try again.'
-    case 'session_not_found':
-      return 'This presentation session has expired. Please scan the QR code again.'
-    case 'unauthorized':
-      return 'Your wallet session has expired. Please register again and retry.'
-    case 'internal_error':
-    default:
-      return (
-        error.message || 'Something went wrong while processing the presentation request.'
-      )
-  }
+  return content.message
 }

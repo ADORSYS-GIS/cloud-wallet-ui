@@ -22,10 +22,10 @@ export function PresentationRequestPage() {
   const isSelecting = status === 'selecting'
 
   useEffect(() => {
-    if (!isSelecting) {
+    if (status === 'idle' || status === 'loading' || status === 'error') {
       navigate(routes.scan, { replace: true })
     }
-  }, [isSelecting, navigate])
+  }, [status, navigate])
 
   const handleBack = () => {
     reset()
