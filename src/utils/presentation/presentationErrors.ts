@@ -1,7 +1,11 @@
 import { ApiError } from '../../api/client'
 import { ContractError } from '../../api/validation'
-import { PresentationError } from '../../api/presentation/start'
+import { PresentationError } from '../../api/presentation/errors'
 import type { PresentationError as PresentationErrorShape } from '../../types/presentation'
+import {
+  presentationErrorContent,
+  resolvePresentationErrorVariant,
+} from './presentationErrorVariant'
 
 export function toPresentationError(error: unknown): PresentationErrorShape {
   if (error instanceof PresentationError) {
@@ -49,25 +53,10 @@ export function toPresentationError(error: unknown): PresentationErrorShape {
 }
 
 export function presentationUserMessage(error: PresentationErrorShape): string {
-  if (error.error_description?.trim()) {
-    return error.error_description.trim()
+  const variant = resolvePresentationErrorVariant(error)
+  const content = presentationErrorContent(variant, error)
+  if (content.guidance) {
+    return `${content.message}\n\n${content.guidance}`
   }
-
-  switch (error.code) {
-    case 'invalid_request':
-      return error.message
-    case 'invalid_presentation_request':
-      return 'This presentation request is invalid or has expired. Please ask the verifier for a new QR code.'
-    case 'verifier_metadata_fetch_failed':
-      return "We couldn't load information about the verifier. Please try again."
-    case 'no_matching_credentials':
-      return "You don't have a credential that satisfies this proof request."
-    case 'unauthorized':
-      return 'Your wallet session has expired. Please register again and retry.'
-    case 'internal_error':
-    default:
-      return (
-        error.message || 'Something went wrong while processing the presentation request.'
-      )
-  }
+  return content.message
 }

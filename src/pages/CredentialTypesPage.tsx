@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Footer } from '../components/Footer'
-import { IssuerAvatar } from '../components/issuance/IssuerAvater'
+import { IssuerAvatar } from '../components/issuance/IssuerAvatar'
 import { PageContainer } from '../components/layout/PageContainer'
 import { credentialTypeDetailsPath, routes } from '../constants/routes'
 import { useCredentialOfferState } from '../state/issuance.state'

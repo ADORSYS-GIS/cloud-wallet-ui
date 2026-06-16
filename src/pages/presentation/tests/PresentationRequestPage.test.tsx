@@ -1,18 +1,37 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PresentationRequestPage } from '../PresentationRequestPage'
 import { routes } from '../../../constants/routes'
-import type { PresentationSessionState } from '../../../hooks/presentation/usePresentationSession'
+import type { CredentialMatch, CredentialSelection } from '../../../types/presentation'
+
+const credentialMatch: CredentialMatch = {
+  query_id: 'pid_request',
+  required: true,
+  candidates: [
+    {
+      credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+      display: {
+        name: 'Identity Credential',
+        issuer_name: 'Keycloak-demo Solution Adorsys',
+        credential_type: 'eu.europa.ec.eudi.pid.1',
+        logo: null,
+      },
+      requested_claims: [],
+    },
+  ],
+}
 
 const mockNavigate = vi.fn()
-const mockStartRequest = vi.fn()
 const mockReset = vi.fn()
+const mockSetSelectedCredentials = vi.fn()
+const mockSetStatus = vi.fn()
 
-let mockSessionState: PresentationSessionState = { status: 'idle' }
 let mockPresentationStatus = 'idle'
+let mockCredentialMatches: CredentialMatch[] | undefined
+let mockSelectedCredentials: CredentialSelection[] | undefined
 
 vi.mock('react-router-dom', async () => {
   const actual =
@@ -22,15 +41,23 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../../../hooks/presentation/usePresentationSession', () => ({
   usePresentationSession: () => ({
-    sessionState: mockSessionState,
-    startRequest: mockStartRequest,
+    sessionState: { status: 'idle' },
+    startRequest: vi.fn(),
     reset: mockReset,
   }),
+}))
+
+vi.mock('../../../components/Footer', () => ({
+  Footer: () => <nav data-testid="footer">Footer</nav>,
 }))
 
 vi.mock('../../../state/presentation.state', () => ({
   usePresentationState: () => ({
     status: mockPresentationStatus,
+    credential_matches: mockCredentialMatches,
+    selected_credentials: mockSelectedCredentials,
+    setSelectedCredentials: mockSetSelectedCredentials,
+    setStatus: mockSetStatus,
   }),
 }))
 
@@ -54,16 +81,9 @@ vi.mock('../../../components/presentation/PresentationPageShell', () => ({
   ),
 }))
 
-const validSearch =
-  '?client_id=https%3A%2F%2Fverifier.example' +
-  '&request_uri=https%3A%2F%2Fverifier.example%2Frequest' +
-  '&response_type=vp_token' +
-  '&nonce=nonce-123' +
-  '&scope=openid'
-
-function renderPage(search = validSearch) {
+function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[`${routes.present}${search}`]}>
+    <MemoryRouter initialEntries={[routes.present]}>
       <Routes>
         <Route path={routes.present} element={<PresentationRequestPage />} />
       </Routes>
@@ -76,68 +96,91 @@ describe('PresentationRequestPage', () => {
 
   beforeEach(() => {
     mockNavigate.mockReset()
-    mockStartRequest.mockReset()
     mockReset.mockReset()
-    mockSessionState = { status: 'idle' }
+    mockSetSelectedCredentials.mockReset()
+    mockSetStatus.mockReset()
     mockPresentationStatus = 'idle'
+    mockCredentialMatches = undefined
+    mockSelectedCredentials = undefined
   })
 
-  it('shows validation error when query params are missing', () => {
-    renderPage('')
-    expect(screen.getByText(/Missing required parameter: client_id/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Scan QR code' })).toBeTruthy()
-    expect(mockStartRequest).not.toHaveBeenCalled()
+  it('redirects to scan when opened without an active presentation session', () => {
+    const { container } = renderPage()
+    expect(container.firstChild).toBeNull()
+    expect(mockNavigate).toHaveBeenCalledWith(routes.scan, { replace: true })
   })
 
-  it('starts the presentation session for valid query params', async () => {
+  it('does not redirect to scan while transitioning to proof details', () => {
+    mockPresentationStatus = 'reviewing'
+
     renderPage()
-    await waitFor(() => {
-      expect(mockStartRequest).toHaveBeenCalledTimes(1)
-    })
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(routes.scan, { replace: true })
   })
 
-  it('shows loading state while the session is starting', () => {
-    mockSessionState = { status: 'loading' }
+  it('shows credential types returned by the backend', () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = [credentialMatch]
+
     renderPage()
-    expect(screen.getByText('Processing proof request…')).toBeTruthy()
+
+    expect(screen.getByText('Select a Credential')).toBeTruthy()
+    expect(screen.getByText('to present to')).toBeTruthy()
+    expect(screen.getByText('Identity Credential')).toBeTruthy()
+    expect(screen.getByText('Keycloak-demo Solution Adorsys')).toBeTruthy()
+    expect(screen.getByTestId('footer')).toBeTruthy()
   })
 
-  it('shows API error with retry action', async () => {
-    mockSessionState = {
-      status: 'error',
-      error: {
-        httpStatus: 404,
-        code: 'invalid_presentation_request',
-        message: 'POST /presentation/start failed with 404',
-      },
-    }
+  it('shows empty state when no credentials match the request', () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = []
+
     renderPage()
 
     expect(
-      screen.getByText(
-        'This presentation request is invalid or has expired. Please ask the verifier for a new QR code.'
-      )
+      screen.getByText(/don't have a credential that meets this proof request/i)
     ).toBeTruthy()
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: 'Try again' }))
-    expect(mockReset).toHaveBeenCalled()
-    expect(mockStartRequest).toHaveBeenCalled()
-  })
-
-  it('does not start a duplicate request when the flow is already in progress', async () => {
-    mockPresentationStatus = 'loading'
-    renderPage()
-
-    await waitFor(() => {
-      expect(mockStartRequest).not.toHaveBeenCalled()
-    })
   })
 
   it('resets and returns home when back is pressed', async () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = [credentialMatch]
+
     renderPage()
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Back' }))
     expect(mockReset).toHaveBeenCalled()
     expect(mockNavigate).toHaveBeenCalledWith(routes.home)
+  })
+
+  it('stores selection and navigates to proof details when a credential is chosen', async () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = [credentialMatch]
+
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Identity Credential/i }))
+
+    expect(mockSetSelectedCredentials).toHaveBeenCalledWith([
+      {
+        query_id: 'pid_request',
+        credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+      },
+    ])
+    expect(mockSetStatus).toHaveBeenCalledWith('reviewing')
+    expect(mockNavigate).toHaveBeenCalledWith(routes.presentationProofDetails)
+  })
+
+  it('shows the picker again after returning from proof details', () => {
+    mockPresentationStatus = 'selecting'
+    mockCredentialMatches = [credentialMatch]
+    mockSelectedCredentials = [
+      { query_id: 'pid_request', credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde' },
+    ]
+
+    renderPage()
+
+    expect(screen.getByText('Select a Credential')).toBeTruthy()
+    expect(screen.getByText('Identity Credential')).toBeTruthy()
   })
 })

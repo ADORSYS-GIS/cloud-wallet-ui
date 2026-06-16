@@ -1,4 +1,4 @@
-import illuWallet from '../../assets/illu-wallet.png'
+import illuWalletError from '../../assets/illu-wallet-error.png'
 import type { IssuanceApiError } from '../../types/issuance'
 import { issuanceUserMessage } from '../../utils/issuanceErrors'
 
@@ -19,13 +19,11 @@ export function IssuanceErrorCard({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
       <div className="flex flex-col items-center px-6 text-center">
-        <div className="relative mb-16 h-52 w-52">
-          <div className="absolute inset-0 rounded-full ring-[6px] ring-transparent" />
-          <div className="absolute inset-0 animate-spin rounded-full border-[8px] border-[#99e827] border-t-transparent border-r-transparent" />
+        <div className="mb-16 flex flex-col items-center">
           <img
-            src={illuWallet}
+            src={illuWalletError}
             alt=""
-            className="absolute inset-8 m-auto h-[calc(100%-4rem)] w-[calc(100%-4rem)] object-contain"
+            className="h-[132px] w-[122px] object-contain image-optimize-contrast"
           />
         </div>
         <div className="whitespace-pre-line text-base text-slate-700">{message}</div>

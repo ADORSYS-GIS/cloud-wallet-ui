@@ -477,7 +477,7 @@ function validateBackgroundImage(ctx: string, raw: unknown): BackgroundImage {
   }
 }
 
-function validateCredentialListItemDisplay(
+export function validateCredentialListItemDisplay(
   ctx: string,
   raw: unknown
 ): CredentialListItemDisplay {

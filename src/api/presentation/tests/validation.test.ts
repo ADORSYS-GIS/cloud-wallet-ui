@@ -1,106 +1,203 @@
 import { describe, expect, it } from 'vitest'
 import { ContractError } from '../../validation'
-import { validateStartPresentationResponse } from '../validation'
-
-const validRequest = {
-  client_id: 'https://verifier.example',
-  nonce: 'nonce-123',
-  response_type: 'vp_token',
-  response_mode: 'direct_post',
-  dcql_query: {
-    credentials: [{ id: 'identity', format: 'dc+sd-jwt' }],
-  },
-}
+import {
+  validatePresentationConsentResponse,
+  validateStartPresentationResponse,
+} from '../validation'
 
 const validResponse = {
-  request: validRequest,
+  session_id: 'prs_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni',
+  expires_at: '2026-04-08T14:35:00Z',
+  flow: 'cross_device',
   verifier: {
-    client_id: 'https://verifier.example',
     name: 'Keycloak-demo',
     logo_uri: 'https://verifier.example/logo.png',
+    verified: true,
+    verification_method: 'x509_san_dns',
   },
-  matching_credentials: [
+  purpose: 'Age verification',
+  credential_matches: [
     {
-      credentialId: 'cred-1',
-      queryId: 'identity',
-      format: 'dc+sd-jwt',
-      displayName: 'Identity Credential',
+      query_id: 'pid_request',
+      required: true,
+      candidates: [
+        {
+          credential_id: 'c3d4e5f6-7890-abcd-ef12-3456789abcde',
+          display: {
+            name: 'Identity Credential',
+            issuer_name: 'Keycloak-demo Solution Adorsys',
+            credential_type: 'eu.europa.ec.eudi.pid.1',
+            logo: {
+              uri: 'https://issuer.example/logo.png',
+              alt_text: 'Issuer logo',
+            },
+          },
+          requested_claims: [{ path: ['given_name'], display_name: 'Given name' }],
+        },
+      ],
     },
   ],
+  requires_consent: true,
 }
+
+describe('validatePresentationConsentResponse', () => {
+  const validCompletedCrossDevice = {
+    status: 'completed',
+    redirect_uri: null,
+    verifier_response: { redirect_uri: 'https://verifier.example.eu/success' },
+  }
+
+  const validCompletedSameDevice = {
+    status: 'completed',
+    redirect_uri: 'https://verifier.example.eu/callback#vp_token=abc',
+    verifier_response: null,
+  }
+
+  const validRejected = {
+    status: 'rejected',
+    redirect_uri: null,
+    verifier_response: null,
+  }
+
+  it('accepts completed cross-device response', () => {
+    expect(validatePresentationConsentResponse(validCompletedCrossDevice)).toEqual(
+      validCompletedCrossDevice
+    )
+  })
+
+  it('accepts completed same-device response', () => {
+    expect(validatePresentationConsentResponse(validCompletedSameDevice)).toEqual(
+      validCompletedSameDevice
+    )
+  })
+
+  it('accepts rejected response', () => {
+    expect(validatePresentationConsentResponse(validRejected)).toEqual(validRejected)
+  })
+
+  it('throws ContractError when status is missing', () => {
+    expect(() =>
+      validatePresentationConsentResponse({
+        redirect_uri: null,
+        verifier_response: null,
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('throws ContractError for unknown status', () => {
+    expect(() =>
+      validatePresentationConsentResponse({
+        status: 'pending',
+        redirect_uri: null,
+        verifier_response: null,
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('throws ContractError when redirect_uri is not string or null', () => {
+    expect(() =>
+      validatePresentationConsentResponse({
+        status: 'completed',
+        redirect_uri: 42,
+        verifier_response: null,
+      })
+    ).toThrow(ContractError)
+  })
+})
 
 describe('validateStartPresentationResponse', () => {
   it('accepts a valid response', () => {
     const result = validateStartPresentationResponse(validResponse)
-    expect(result.request.nonce).toBe('nonce-123')
+    expect(result.session_id).toBe('prs_7f3kQ2mXpLnVwRtYbHsD9cAeUjZo1Ni')
     expect(result.verifier.name).toBe('Keycloak-demo')
-    expect(result.matching_credentials).toHaveLength(1)
+    expect(result.credential_matches).toHaveLength(1)
+    expect(result.credential_matches[0].candidates[0].display.name).toBe(
+      'Identity Credential'
+    )
+    expect(result.credential_matches[0].candidates[0].display.issuer_name).toBe(
+      'Keycloak-demo Solution Adorsys'
+    )
   })
 
-  it('accepts scope instead of dcql_query', () => {
+  it('accepts an empty credential_matches array', () => {
     const result = validateStartPresentationResponse({
       ...validResponse,
-      request: {
-        client_id: validRequest.client_id,
-        nonce: validRequest.nonce,
-        response_type: validRequest.response_type,
-        response_mode: validRequest.response_mode,
-        scope: 'openid',
+      credential_matches: [],
+    })
+    expect(result.credential_matches).toEqual([])
+  })
+
+  it('throws ContractError when session_id is missing', () => {
+    expect(() =>
+      validateStartPresentationResponse({
+        ...validResponse,
+        session_id: undefined,
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('throws ContractError when verifier.name is missing', () => {
+    expect(() =>
+      validateStartPresentationResponse({
+        ...validResponse,
+        verifier: { verified: true },
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('throws ContractError when flow is invalid', () => {
+    expect(() =>
+      validateStartPresentationResponse({
+        ...validResponse,
+        flow: 'invalid',
+      })
+    ).toThrow(ContractError)
+  })
+
+  it('accepts OpenAPI verification_method values', () => {
+    const result = validateStartPresentationResponse({
+      ...validResponse,
+      verifier: {
+        ...validResponse.verifier,
+        verification_method: 'decentralized_identifier',
       },
     })
-    expect(result.request.scope).toBe('openid')
+    expect(result.verifier.verification_method).toBe('decentralized_identifier')
   })
 
-  it('accepts an empty matching_credentials array', () => {
-    const result = validateStartPresentationResponse({
-      ...validResponse,
-      matching_credentials: [],
-    })
-    expect(result.matching_credentials).toEqual([])
-  })
-
-  it('throws ContractError when request.nonce is missing', () => {
+  it('throws ContractError for unknown verification_method', () => {
     expect(() =>
       validateStartPresentationResponse({
         ...validResponse,
-        request: {
-          client_id: validRequest.client_id,
-          response_type: validRequest.response_type,
-          response_mode: validRequest.response_mode,
-          dcql_query: validRequest.dcql_query,
+        verifier: {
+          ...validResponse.verifier,
+          verification_method: 'x509',
         },
       })
     ).toThrow(ContractError)
   })
 
-  it('throws ContractError when request has neither scope nor dcql_query', () => {
+  it('throws ContractError when candidate credential_id is not a UUID', () => {
     expect(() =>
       validateStartPresentationResponse({
         ...validResponse,
-        request: {
-          client_id: validRequest.client_id,
-          nonce: validRequest.nonce,
-          response_type: validRequest.response_type,
-          response_mode: validRequest.response_mode,
-        },
-      })
-    ).toThrow(ContractError)
-  })
-
-  it('throws ContractError when verifier.client_id is missing', () => {
-    expect(() =>
-      validateStartPresentationResponse({
-        ...validResponse,
-        verifier: { name: 'Verifier' },
-      })
-    ).toThrow(ContractError)
-  })
-
-  it('throws ContractError when matching credential is missing credentialId', () => {
-    expect(() =>
-      validateStartPresentationResponse({
-        ...validResponse,
-        matching_credentials: [{ queryId: 'identity', format: 'dc+sd-jwt' }],
+        credential_matches: [
+          {
+            query_id: 'pid_request',
+            required: true,
+            candidates: [
+              {
+                credential_id: 'cred-1',
+                display: {
+                  name: 'Identity Credential',
+                  issuer_name: 'Issuer',
+                  credential_type: 'eu.europa.ec.eudi.pid.1',
+                },
+                requested_claims: [],
+              },
+            ],
+          },
+        ],
       })
     ).toThrow(ContractError)
   })

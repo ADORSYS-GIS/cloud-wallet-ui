@@ -15,7 +15,10 @@ import { IssuanceSuccessPage } from './pages/IssuanceSuccessPage'
 import { PresentationActivityDetailPage } from './pages/PresentationActivityDetailPage'
 import { PresentationActivityPage } from './pages/PresentationActivityPage'
 import { RegistrationPage } from './pages/RegistrationPage'
+import { PresentationErrorPage } from './pages/presentation/PresentationErrorPage'
+import { PresentationProofDetailsPage } from './pages/presentation/PresentationProofDetailsPage'
 import { PresentationRequestPage } from './pages/presentation/PresentationRequestPage'
+import { PresentationSuccessPage } from './pages/presentation/PresentationSuccessPage'
 import { getStoredTenantId } from './auth/tenant'
 
 function RequireRegistration({ children }: { children: ReactNode }) {
@@ -80,6 +83,30 @@ function App() {
                 element={
                   <RequireRegistration>
                     <PresentationActivityDetailPage />
+                  </RequireRegistration>
+                }
+              />
+              <Route
+                path={routes.presentationError}
+                element={
+                  <RequireRegistration>
+                    <PresentationErrorPage />
+                  </RequireRegistration>
+                }
+              />
+              <Route
+                path={routes.presentationProofDetails}
+                element={
+                  <RequireRegistration>
+                    <PresentationProofDetailsPage />
+                  </RequireRegistration>
+                }
+              />
+              <Route
+                path={routes.presentationSuccess}
+                element={
+                  <RequireRegistration>
+                    <PresentationSuccessPage />
                   </RequireRegistration>
                 }
               />
