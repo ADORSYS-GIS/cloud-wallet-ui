@@ -137,6 +137,7 @@ export type PresentationResult = {
   state?: string
 }
 
+/** OpenAPI-aligned error codes for presentation endpoints. */
 export type PresentationErrorCode =
   | 'invalid_request'
   | 'invalid_presentation_request'
@@ -147,30 +148,36 @@ export type PresentationErrorCode =
   | 'invalid_credential_selection'
   | 'transaction_data_not_acknowledged'
   | 'no_matching_credentials'
+  | 'vp_formats_not_supported'
   | 'presentation_build_failed'
   | 'verifier_submission_failed'
   | 'session_not_found'
   | 'invalid_session_state'
-  | 'invalid_credential_selection'
-  | 'transaction_data_not_acknowledged'
-  | 'presentation_build_failed'
-  | 'verifier_submission_failed'
+  | 'verifier_metadata_fetch_failed'
   | 'user_rejected'
   | 'submission_failed'
   | 'unauthorized'
   | 'internal_error'
   | (string & Record<never, never>)
 
+/**
+ * Dedicated error screen variants for {@link PresentationErrorPage}.
+ * Mapped from OpenAPI `error` codes and HTTP status per presentation contract.
+ */
+export type PresentationErrorVariant =
+  | 'network'
+  | 'expired'
+  | 'rejected'
+  | 'unsupported_credential'
+  | 'invalid_request'
+  | 'proof_generation'
+  | 'generic'
+
 export type PresentationError = {
   httpStatus?: number
   code: PresentationErrorCode
   message: string
   error_description?: string | null
-}
-
-/** Optional navigation state when routing to the presentation error page */
-export type PresentationErrorNavigationState = {
-  retryPath?: string
 }
 
 /**

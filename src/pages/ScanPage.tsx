@@ -8,10 +8,10 @@ import {
   CameraAccessDialog,
   type CameraAccessIssue,
 } from '../components/scanner/CameraAccessDialog'
-import { PresentationErrorCard } from '../components/presentation/PresentationErrorCard'
 import { credentialTypeDetailsPath, routes } from '../constants/routes'
 import { usePresentationSession } from '../hooks/presentation/usePresentationSession'
 import { useIssuanceSession } from '../hooks/useIssuanceSession'
+import { usePresentationState } from '../state/presentation.state'
 import type { IssuanceApiError } from '../types/issuance'
 import type { PresentationError } from '../types/presentation'
 import { issuanceUserMessage } from '../utils/issuanceErrors'
@@ -40,8 +40,6 @@ export function ScanPage() {
     apiError: IssuanceApiError
     userMessage: string
   } | null>(null)
-  const [localPresentationError, setLocalPresentationError] =
-    useState<PresentationError | null>(null)
   const [processingRequestType, setProcessingRequestType] = useState<
     'issuance' | 'presentation' | null
   >(null)
@@ -51,11 +49,17 @@ export function ScanPage() {
   } | null>(null)
 
   const { offerState, submitOffer, reset: resetOffer } = useIssuanceSession()
-  const {
-    sessionState: presentationSession,
-    startRequest: startPresentationRequest,
-    reset: resetPresentation,
-  } = usePresentationSession()
+  const { startRequest: startPresentationRequest, reset: resetPresentation } =
+    usePresentationSession()
+  const { setError: setPresentationError } = usePresentationState()
+
+  const goToPresentationError = useCallback(
+    (error: PresentationError) => {
+      setPresentationError(error)
+      navigate(routes.presentationError, { replace: true })
+    },
+    [navigate, setPresentationError]
+  )
 
   useEffect(() => {
     if (offerState.status === 'success' && offerState.session) {
@@ -88,7 +92,6 @@ export function ScanPage() {
 
       stopScanner()
       setLocalIssuanceError(null)
-      setLocalPresentationError(null)
       setProcessingRequestType(null)
 
       const requestType = detectRequestType(value)
@@ -119,29 +122,29 @@ export function ScanPage() {
           if (result.ok) {
             navigate(routes.present)
           } else {
-            setLocalPresentationError(result.error)
-            setScanStatus('done')
+            goToPresentationError(result.error)
           }
           scanInProgressRef.current = false
           return
         }
 
         if (presentationResult && !presentationResult.ok) {
-          setLocalPresentationError(presentationResult.error)
-          setScanStatus('done')
+          goToPresentationError(presentationResult.error)
           scanInProgressRef.current = false
           return
         }
       }
 
       if (requestType === 'presentation') {
-        setLocalPresentationError({
+        goToPresentationError({
           httpStatus: 400,
           code: 'invalid_request',
           message:
             'The scanned QR code does not contain a valid presentation request. Please try again.',
           error_description: null,
         })
+        scanInProgressRef.current = false
+        return
       } else {
         const apiError: IssuanceApiError = {
           httpStatus: 400,
@@ -161,7 +164,7 @@ export function ScanPage() {
       setScanStatus('done')
       scanInProgressRef.current = false
     },
-    [navigate, startPresentationRequest, stopScanner, submitOffer]
+    [goToPresentationError, navigate, startPresentationRequest, stopScanner, submitOffer]
   )
 
   useEffect(() => {
@@ -290,15 +293,9 @@ export function ScanPage() {
   const showIssuanceErrorCard =
     scanStatus === 'done' &&
     (offerState.status === 'error' || localIssuanceError !== null)
-  const showPresentationErrorCard =
-    scanStatus === 'done' &&
-    (localPresentationError !== null || presentationSession.status === 'error')
-  const presentationError =
-    localPresentationError ??
-    (presentationSession.status === 'error' ? presentationSession.error : null)
   const showProcessingOverlay =
     scanStatus === 'processing' || offerState.status === 'loading'
-  const showErrorCard = showIssuanceErrorCard || showPresentationErrorCard
+  const showErrorCard = showIssuanceErrorCard
   const showCameraAccessDialog = cameraAccessIssue !== null
   const showFullscreenStatus =
     showProcessingOverlay || showErrorCard || showCameraAccessDialog
@@ -318,7 +315,6 @@ export function ScanPage() {
     resetOffer()
     resetPresentation()
     setLocalIssuanceError(null)
-    setLocalPresentationError(null)
     setProcessingRequestType(null)
     setCameraAccessIssue(null)
     void startScan()
@@ -370,16 +366,6 @@ export function ScanPage() {
             }
             onRetry={handleErrorRetry}
           />
-        )}
-
-        {showPresentationErrorCard && presentationError && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
-            <PresentationErrorCard
-              error={presentationError}
-              onRetry={handleErrorRetry}
-              retryLabel="Scan again"
-            />
-          </div>
         )}
 
         {showCameraAccessDialog && cameraAccessIssue && (

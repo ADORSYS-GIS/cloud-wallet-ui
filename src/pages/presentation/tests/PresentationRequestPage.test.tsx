@@ -138,7 +138,7 @@ describe('PresentationRequestPage', () => {
     renderPage()
 
     expect(
-      screen.getByText(/don't have a credential that satisfies this proof request/i)
+      screen.getByText(/don't have a credential that meets this proof request/i)
     ).toBeTruthy()
   })
 
