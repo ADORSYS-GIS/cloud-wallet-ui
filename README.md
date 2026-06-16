@@ -1,7 +1,7 @@
 # Cloud Wallet UI
 
 Cloud Wallet UI is the frontend application for the EUDI Cloud Wallet experience.  
-It allows users to register a wallet tenant, scan credential offers, complete issuance flows, and view stored credentials.
+It allows users to register a wallet tenant, scan credential offers, complete issuance and presentation flows, and view stored credentials.
 
 ## Table of contents
 
@@ -11,6 +11,7 @@ It allows users to register a wallet tenant, scan credential offers, complete is
 - [Environment configuration](#environment-configuration)
 - [Application routes](#application-routes)
 - [Issuance flow](#issuance-flow)
+- [Presentation flow](#presentation-flow)
 - [Project structure](#project-structure)
 
 ## Technology stack
@@ -22,6 +23,7 @@ It allows users to register a wallet tenant, scan credential offers, complete is
 - ESLint (flat config)
 - Prettier
 - Vitest
+- Playwright (e2e testing)
 
 ## Getting started
 
@@ -48,6 +50,9 @@ The app runs with Vite's default development server and hot module replacement.
 - `npm run format` - Check formatting with Prettier.
 - `npm run format:write` - Write formatting updates.
 - `npm run test` - Run unit tests with Vitest.
+- `npm run build:e2e` - Type-check and build for end-to-end testing mode.
+- `npm run test:e2e` - Run end-to-end tests with Playwright.
+- `npm run preview` - Preview the production build locally.
 
 ## Environment configuration
 
@@ -66,6 +71,9 @@ The application uses Vite environment variables.
   Set to `true` to enable **`console.debug`** logging of all traffic from `apiGet` / `apiPost` and the issuance SSE stream (`useSseStream`): request method and path, redacted headers (`Authorization` is never logged in full), response status and JSON bodies, and parsed SSE events.  
   **Do not** enable in production builds. Leave unset (default) so no API traffic is logged.
 
+- `VITE_E2E` (optional)  
+  Set to `true` in e2e builds to enable test helpers (e.g., sample QR-code offers on the scan screen). **Do not** enable in production builds.
+
 Create `.env` in the project root:
 
 ```bash
@@ -73,22 +81,27 @@ VITE_API_BASE_URL=http://localhost:3000
 # Optional:
 # VITE_ALLOWED_CREDENTIAL_OFFER_HOSTS=issuer.example.com,wallet.example.org
 # VITE_DEBUG_API=true
+# VITE_E2E=true
 ```
 
 You can also copy `.env.example` to `.env` (or `.env.local`) and adjust values.
 
 ## Application routes
 
-| Route                              | Purpose                                                |
-| ---------------------------------- | ------------------------------------------------------ |
-| `/registration`                    | Initial tenant registration (first-time users).        |
-| `/`                                | Home screen and entry point to scanning.               |
-| `/scan`                            | QR scanner and credential-offer intake.                |
-| `/credential-types`                | Credential types offered by issuer.                    |
-| `/credential-types/:optionId`      | Selected credential type details and issuance actions. |
-| `/issuance/success/:credentialId?` | Success state after issuance.                          |
-| `/credentials`                     | Wallet credential list or empty state.                 |
-| `/credentials/:credentialId`       | Credential details with reveal/hide controls.          |
+| Route                               | Purpose                                                |
+| ----------------------------------- | ------------------------------------------------------ |
+| `/registration`                     | Initial tenant registration (first-time users).        |
+| `/`                                 | Home screen and entry point to scanning.               |
+| `/scan`                             | QR scanner and credential-offer / presentation intake. |
+| `/present`                          | Presentation request review (verifier details).        |
+| `/present/details`                  | Proof details and consent screen (Share / Decline).    |
+| `/present/success`                  | Success state after presentation submission.           |
+| `/credential-types`                 | Credential types offered by issuer.                    |
+| `/credential-types/:optionId`       | Selected credential type details and issuance actions. |
+| `/issuance/success/:credentialId?`  | Success state after issuance.                          |
+| `/credentials`                      | Wallet credential list or empty state.                 |
+| `/credentials/:credentialId`        | Credential details with reveal/hide controls.          |
+| `/credentials/:credentialId/remove` | Remove credential confirmation screen.                 |
 
 All routes except `/registration` are protected and require a stored tenant ID.
 
@@ -105,18 +118,31 @@ All routes except `/registration` are protected and require a stored tenant ID.
 6. SSE events update processing state until completion or failure.
 7. On success, user is redirected to `/issuance/success` and can open credential details.
 
+## Presentation flow
+
+1. User scans a verifier QR code or receives a deep link on `/scan`.
+2. Wallet validates and submits the request to start a presentation session via `POST /presentation/start`.
+3. Backend resolves the request, evaluates the DCQL query against stored credentials, and returns verifier metadata and credential matches.
+4. User reviews verifier details, requested claims, and matched credentials on `/present/details`.
+5. User consents (Share) or declines the presentation.
+6. Backend builds and submits the VP Token to the verifier synchronously.
+7. On success:
+   - **Cross-device flow**: user is shown `/present/success` and the verifier has received the VP Token.
+   - **Same-device flow**: the browser is redirected to the verifier's `redirect_uri`.
+
 ## Project structure
 
 ```txt
 src/
-  api/          # API clients and endpoint modules
-  auth/         # Tenant registration and auth initialization
-  components/   # Reusable UI components
-  constants/    # App constants (routes, keys)
-  hooks/        # Custom React hooks
-  pages/        # Page-level components
-  state/        # Issuance flow state store/provider
-  types/        # Shared TypeScript types
-  utils/        # Utility helpers and parsers
-  */tests/      # Unit tests grouped by feature
+  api/              # API clients and endpoint modules (grouped by feature)
+  auth/             # Tenant registration and auth initialization
+  components/       # Reusable UI components (grouped by feature)
+  constants/        # App constants (routes, keys)
+  e2e/              # End-to-end test helpers and sample data
+  hooks/            # Custom React hooks
+  pages/            # Page-level components (grouped by feature)
+  state/            # Issuance and presentation flow state stores/providers
+  types/            # Shared TypeScript types
+  utils/            # Utility helpers and parsers (grouped by feature)
+  */tests/          # Unit tests grouped by feature
 ```
