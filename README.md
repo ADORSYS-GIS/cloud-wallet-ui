@@ -96,7 +96,6 @@ You can also copy `.env.example` to `.env` (or `.env.local`) and adjust values.
 | `/present`                          | Presentation request review (verifier details).        |
 | `/present/details`                  | Proof details and consent screen (Share / Decline).    |
 | `/present/success`                  | Success state after presentation submission.           |
-| `/present/error`                    | Error state after a failed presentation submission.    |
 | `/credential-types`                 | Credential types offered by issuer.                    |
 | `/credential-types/:optionId`       | Selected credential type details and issuance actions. |
 | `/issuance/success/:credentialId?`  | Success state after issuance.                          |
