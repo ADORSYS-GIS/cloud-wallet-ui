@@ -201,13 +201,22 @@ describe('PresentationProofDetailsPage', () => {
     })
   })
 
-  it('includes transaction_data_acknowledged when transaction data is present', async () => {
+  it('disables Share when transaction data is present but not acknowledged', async () => {
     mockPresentationStatus = 'reviewing'
     mockTransactionData = [{ type: 'payment', credential_ids: [], display_data: {} }]
     const user = userEvent.setup()
 
     renderPage()
-    await user.click(screen.getByRole('button', { name: 'Share' }))
+
+    const shareButton = screen.getByRole('button', { name: 'Share' })
+    expect(shareButton).toHaveProperty('disabled', true)
+
+    // Acknowledge the transaction data
+    await user.click(screen.getByRole('checkbox'))
+
+    expect(shareButton).toHaveProperty('disabled', false)
+
+    await user.click(shareButton)
 
     expect(mockSubmitConsent).toHaveBeenCalledWith({
       sessionId: 'prs_test',

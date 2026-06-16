@@ -55,6 +55,9 @@ export function PresentationSuccessPage() {
     navigate(routes.home)
   }
 
+  const verifierRedirectUri =
+    presentation.submissionResult?.verifier_response?.redirect_uri
+
   return (
     <PageContainer fullWidth>
       <div className="flex min-h-screen w-full flex-col bg-[#ffffff] font-serif">
@@ -71,7 +74,15 @@ export function PresentationSuccessPage() {
           </h1>
         </section>
 
-        <div className="px-2 pb-2.5">
+        <div className="px-2 pb-2.5 space-y-2">
+          {typeof verifierRedirectUri === 'string' && (
+            <a
+              href={verifierRedirectUri}
+              className="flex h-9 w-full items-center justify-center rounded-[4px] bg-[#3f6f7e] text-[16px] font-normal text-white transition-colors duration-150 hover:bg-[#355d6a] active:bg-[#2c4f5a]"
+            >
+              Return to verifier
+            </a>
+          )}
           <button
             type="button"
             onClick={handleGoHome}

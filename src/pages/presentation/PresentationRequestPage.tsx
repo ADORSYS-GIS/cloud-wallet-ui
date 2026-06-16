@@ -1,18 +1,17 @@
 import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Footer } from '../../components/Footer'
-import { PresentationCredentialSelection } from '../../components/presentation/PresentationCredentialSelection'
+import { PresentationMultiQuerySelection } from '../../components/presentation/PresentationMultiQuerySelection'
 import { PresentationNoMatchingCredentials } from '../../components/presentation/PresentationNoMatchingCredentials'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
 import { routes } from '../../constants/routes'
 import { usePresentationSession } from '../../hooks/presentation/usePresentationSession'
 import { usePresentationState } from '../../state/presentation.state'
 import type { CredentialSelection } from '../../types/presentation'
-import { flattenCredentialMatches } from '../../utils/presentation/matchingCredentialDisplay'
 
 /**
  * Proof Request — after a successful scan and POST /presentation/start.
- * Displays credential types returned by the backend for holder selection.
+ * Displays credential matches grouped by query_id for holder selection.
  */
 export function PresentationRequestPage() {
   const navigate = useNavigate()
@@ -33,14 +32,14 @@ export function PresentationRequestPage() {
     navigate(routes.home)
   }
 
-  const handleCredentialSelect = (selected: CredentialSelection) => {
-    setSelectedCredentials([selected])
+  const handleContinue = (selections: CredentialSelection[]) => {
+    setSelectedCredentials(selections)
     setStatus('reviewing')
     navigate(routes.presentationProofDetails)
   }
 
-  const selectableCredentials = useMemo(
-    () => flattenCredentialMatches(credential_matches ?? []),
+  const hasAnyCandidates = useMemo(
+    () => (credential_matches ?? []).some((match) => match.candidates.length > 0),
     [credential_matches]
   )
 
@@ -51,12 +50,12 @@ export function PresentationRequestPage() {
   return (
     <PresentationPageShell title="Proof Request" onBack={handleBack}>
       <section className="flex flex-1 flex-col bg-[#e9ecef]">
-        {selectableCredentials.length === 0 ? (
+        {(credential_matches ?? []).length === 0 || !hasAnyCandidates ? (
           <PresentationNoMatchingCredentials onBack={handleBack} />
         ) : (
-          <PresentationCredentialSelection
-            credentials={selectableCredentials}
-            onSelect={handleCredentialSelect}
+          <PresentationMultiQuerySelection
+            matches={credential_matches ?? []}
+            onContinue={handleContinue}
           />
         )}
       </section>

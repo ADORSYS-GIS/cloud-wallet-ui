@@ -34,7 +34,7 @@ const credentialMatches: CredentialMatch[] = [
 describe('ProofDetailsPage', () => {
   afterEach(() => cleanup())
 
-  it('renders Figma headings and requested claims', () => {
+  it('renders headings, verifier info, and requested claims', () => {
     render(
       <ProofDetailsPage
         verifier={verifier}
@@ -46,8 +46,10 @@ describe('ProofDetailsPage', () => {
 
     expect(screen.getByText('Select a Claim')).toBeTruthy()
     expect(screen.getByText('to present to')).toBeTruthy()
-    expect(screen.getByText('is requesting the following credentials:')).toBeTruthy()
     expect(screen.getByText('Verifier App')).toBeTruthy()
+    expect(screen.getByText('Privacy policy')).toBeTruthy()
+    expect(screen.getByText('Credentials to share')).toBeTruthy()
+    expect(screen.getByText('Required')).toBeTruthy()
     expect(screen.getByText('Username')).toBeTruthy()
   })
 

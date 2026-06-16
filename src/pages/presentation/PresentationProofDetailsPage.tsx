@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { WalletLoadingOverlay } from '../../components/feedback/WalletLoadingOverlay'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
@@ -31,6 +31,8 @@ export function PresentationProofDetailsPage() {
   const navigate = useNavigate()
   const presentation = usePresentationState()
   const { isSharing, submitConsent } = usePresentationSubmission()
+
+  const [transactionDataAcknowledged, setTransactionDataAcknowledged] = useState(false)
 
   const presentationStatus = presentation.status
   const isOnProofDetails =
@@ -82,10 +84,13 @@ export function PresentationProofDetailsPage() {
       sessionId,
       accepted: true,
       selectedCredentials: presentation.selected_credentials ?? [],
-      transactionDataAcknowledged: hasTransactionData ? true : undefined,
+      transactionDataAcknowledged: hasTransactionData
+        ? transactionDataAcknowledged
+        : undefined,
     })
   }, [
     hasTransactionData,
+    transactionDataAcknowledged,
     presentation.selected_credentials,
     presentation.session_id,
     submitConsent,
@@ -101,6 +106,10 @@ export function PresentationProofDetailsPage() {
     })
   }, [presentation.session_id, submitConsent])
 
+  const handleAcknowledge = useCallback(() => {
+    setTransactionDataAcknowledged((prev) => !prev)
+  }, [])
+
   if (!isOnProofDetails || !presentation.verifier || displayMatches.length === 0) {
     return null
   }
@@ -112,6 +121,16 @@ export function PresentationProofDetailsPage() {
         <ProofDetailsPage
           verifier={presentation.verifier}
           credentialMatches={displayMatches}
+          purpose={presentation.purpose}
+          transactionData={presentation.transaction_data}
+          transactionAcknowledgment={
+            hasTransactionData
+              ? {
+                  acknowledged: transactionDataAcknowledged,
+                  onAcknowledge: handleAcknowledge,
+                }
+              : undefined
+          }
           onShare={handleShare}
           onDecline={handleDecline}
           isShareSubmitting={isSharing}

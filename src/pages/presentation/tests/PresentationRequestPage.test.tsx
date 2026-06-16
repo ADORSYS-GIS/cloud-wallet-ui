@@ -113,10 +113,11 @@ describe('PresentationRequestPage', () => {
 
     renderPage()
 
-    expect(screen.getByText('Select a Credential')).toBeTruthy()
-    expect(screen.getByText('to present to')).toBeTruthy()
+    expect(screen.getByText('Select Credentials')).toBeTruthy()
+    expect(screen.getByText('to present')).toBeTruthy()
     expect(screen.getByText('Identity Credential')).toBeTruthy()
     expect(screen.getByText('Keycloak-demo Solution Adorsys')).toBeTruthy()
+    expect(screen.getByText('Required')).toBeTruthy()
     expect(screen.getByTestId('footer')).toBeTruthy()
   })
 
@@ -142,13 +143,18 @@ describe('PresentationRequestPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(routes.home)
   })
 
-  it('stores selection and navigates to proof details when a credential is chosen', async () => {
+  it('auto-selects single-candidate queries and navigates to proof details on Continue', async () => {
     mockPresentationStatus = 'selecting'
     mockCredentialMatches = [credentialMatch]
 
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: /Identity Credential/i }))
+
+    // Single candidate is auto-selected; Continue button should be enabled
+    const continueButton = screen.getByRole('button', { name: 'Continue' })
+    expect(continueButton).toBeTruthy()
+
+    await user.click(continueButton)
 
     expect(mockSetSelectedCredentials).toHaveBeenCalledWith([
       {
