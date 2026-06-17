@@ -38,6 +38,22 @@ describe('Footer', () => {
     expect(credsLink.getAttribute('aria-current')).toBe('page')
   })
 
+  it('sets aria-current for activity link when activity route is active', () => {
+    render(
+      <MemoryRouter initialEntries={[routes.presentationActivity]}>
+        <Footer onScanClick={() => {}} scanDisabled={false} activeTab="activity" />
+      </MemoryRouter>
+    )
+
+    const activityLink = screen
+      .getAllByRole('link', { name: /activity/i })
+      .find((link) => link.getAttribute('aria-current') === 'page')
+    if (!activityLink) {
+      throw new Error('Expected activity link with aria-current=page')
+    }
+    expect(activityLink.getAttribute('href')).toBe(routes.presentationActivity)
+  })
+
   it('uses compact aria-label when labels are hidden', () => {
     render(
       <MemoryRouter initialEntries={[routes.home]}>

@@ -3,6 +3,8 @@ export const routes = {
   home: '/',
   scan: '/scan',
   present: '/present',
+  presentationActivity: '/activity',
+  presentationActivityDetail: '/activity/:activityId',
   presentationError: '/present/error',
   presentationProofDetails: '/present/details',
   presentationSuccess: '/present/success',
@@ -28,4 +30,8 @@ export function issuanceSuccessPath(credentialId?: string) {
   return credentialId
     ? `/issuance/success/${encodeURIComponent(credentialId)}`
     : '/issuance/success'
+}
+
+export function presentationActivityDetailPath(activityId: string) {
+  return `/activity/${encodeURIComponent(activityId)}`
 }

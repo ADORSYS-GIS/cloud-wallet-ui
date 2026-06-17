@@ -1,0 +1,12 @@
+export function PresentationActivityEmptyState() {
+  return (
+    <section className="flex min-h-full flex-col items-center justify-start bg-[#E9ECEF] px-4 pb-8 pt-10">
+      <div className="flex w-full max-w-3xl flex-col items-center gap-4">
+        <p className="text-center text-slate-900">There is no past activity to show.</p>
+        <p className="max-w-[830px] text-center leading-snug text-slate-900">
+          Present credentials to see past activities history.
+        </p>
+      </div>
+    </section>
+  )
+}
