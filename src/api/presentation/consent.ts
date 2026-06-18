@@ -7,7 +7,6 @@ import type {
   SelectedCredential,
 } from '../../types/presentation'
 import { validatePresentationConsentResponse } from './validation'
-import { isMockPresentationEnabled, mockSubmitPresentationConsent } from './mock'
 
 export function buildPresentationConsentRequest(
   accepted: false
@@ -52,10 +51,6 @@ export async function submitPresentationConsent(
   sessionId: string,
   body: PresentationConsentRequest
 ): Promise<PresentationConsentResponse> {
-  if (isMockPresentationEnabled()) {
-    return mockSubmitPresentationConsent()
-  }
-
   const raw = await apiPost<unknown, PresentationConsentRequest>(
     `/presentation/${encodeURIComponent(sessionId)}/consent`,
     body

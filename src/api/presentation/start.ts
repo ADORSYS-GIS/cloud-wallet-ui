@@ -4,7 +4,6 @@ import type {
   StartPresentationResponse,
 } from '../../types/presentation'
 import { validateStartPresentationResponse } from './validation'
-import { isMockPresentationEnabled, mockStartPresentation } from './mock'
 
 export { PresentationError } from './errors'
 
@@ -21,10 +20,6 @@ export { PresentationError } from './errors'
 export async function startPresentation(
   body: StartPresentationRequest
 ): Promise<StartPresentationResponse> {
-  if (isMockPresentationEnabled()) {
-    return mockStartPresentation()
-  }
-
   const raw = await apiPost<unknown, StartPresentationRequest>(
     '/presentation/start',
     body
