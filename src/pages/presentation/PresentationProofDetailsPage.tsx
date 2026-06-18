@@ -61,13 +61,7 @@ export function PresentationProofDetailsPage() {
     if (!isOnProofDetails) {
       navigate(routes.scan, { replace: true })
     }
-  }, [
-    isOnProofDetails,
-    navigate,
-    presentationStatus,
-    presentation.expires_at,
-    presentation.setError,
-  ])
+  }, [isOnProofDetails, navigate, presentation, presentationStatus])
 
   const displayMatches = useMemo(() => {
     const matches = presentation.credential_matches ?? []
