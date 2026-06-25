@@ -18,6 +18,7 @@ export function PresentationRequestPage() {
   const { reset } = usePresentationSession()
   const {
     status,
+    verifier,
     credential_matches,
     expires_at,
     setSelectedCredentials,
@@ -72,6 +73,7 @@ export function PresentationRequestPage() {
         ) : (
           <PresentationMultiQuerySelection
             matches={credential_matches ?? []}
+            verifierName={verifier?.name}
             onContinue={handleContinue}
           />
         )}

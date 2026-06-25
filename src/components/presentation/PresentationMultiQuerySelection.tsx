@@ -4,11 +4,13 @@ import { PresentationCredentialCard } from './PresentationCredentialCard'
 
 type PresentationMultiQuerySelectionProps = {
   matches: CredentialMatch[]
+  verifierName?: string
   onContinue: (selections: CredentialSelection[]) => void
 }
 
 export function PresentationMultiQuerySelection({
   matches,
+  verifierName,
   onContinue,
 }: PresentationMultiQuerySelectionProps) {
   const [selections, setSelections] = useState<Record<string, string | null>>(() => {
@@ -47,14 +49,16 @@ export function PresentationMultiQuerySelection({
     <div className="flex flex-1 flex-col px-4 pb-6 pt-10">
       <div className="mb-8 text-center">
         <h2 className="text-xl font-normal text-slate-900">Select Credentials</h2>
-        <p className="mt-1 text-base text-slate-600">to present</p>
+        <p className="mt-1 text-base text-slate-600">to present to</p>
+        {verifierName && (
+          <p className="mt-3 text-base font-semibold text-slate-900">{verifierName}</p>
+        )}
       </div>
 
       <div className="flex-1 space-y-6">
         {matches.map((match) => (
           <div key={match.query_id}>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-700">{match.query_id}</p>
+            <div className="mb-2 flex items-center justify-end">
               {match.required ? (
                 <span className="text-xs font-medium text-red-600">Required</span>
               ) : (
