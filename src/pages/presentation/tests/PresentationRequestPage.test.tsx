@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { PresentationRequestPage } from '../PresentationRequestPage'
 import { routes } from '../../../constants/routes'
-import type { CredentialMatch, CredentialSelection } from '../../../types/presentation'
+import type {
+  CredentialMatch,
+  CredentialSelection,
+  VerifierDisplay,
+} from '../../../types/presentation'
 
 const credentialMatch: CredentialMatch = {
   query_id: 'pid_request',
@@ -30,6 +34,7 @@ const mockSetSelectedCredentials = vi.fn()
 const mockSetStatus = vi.fn()
 
 let mockPresentationStatus = 'idle'
+let mockVerifier: VerifierDisplay | undefined
 let mockCredentialMatches: CredentialMatch[] | undefined
 let mockSelectedCredentials: CredentialSelection[] | undefined
 
@@ -54,6 +59,7 @@ vi.mock('../../../components/Footer', () => ({
 vi.mock('../../../state/presentation.state', () => ({
   usePresentationState: () => ({
     status: mockPresentationStatus,
+    verifier: mockVerifier,
     credential_matches: mockCredentialMatches,
     selected_credentials: mockSelectedCredentials,
     setSelectedCredentials: mockSetSelectedCredentials,
@@ -100,6 +106,7 @@ describe('PresentationRequestPage', () => {
     mockSetSelectedCredentials.mockReset()
     mockSetStatus.mockReset()
     mockPresentationStatus = 'idle'
+    mockVerifier = undefined
     mockCredentialMatches = undefined
     mockSelectedCredentials = undefined
   })
@@ -120,14 +127,22 @@ describe('PresentationRequestPage', () => {
 
   it('shows credential types returned by the backend', () => {
     mockPresentationStatus = 'selecting'
+    mockVerifier = {
+      name: 'keycloak-demo.solutions.adorsys.com',
+      verified: true,
+      verification_method: 'x509_hash',
+    }
     mockCredentialMatches = [credentialMatch]
 
     renderPage()
 
-    expect(screen.getByText('Select a Credential')).toBeTruthy()
+    expect(screen.getByText('Select Credentials')).toBeTruthy()
     expect(screen.getByText('to present to')).toBeTruthy()
+    expect(screen.getByText('keycloak-demo.solutions.adorsys.com')).toBeTruthy()
+    expect(screen.queryByText('pid_request')).toBeNull()
     expect(screen.getByText('Identity Credential')).toBeTruthy()
     expect(screen.getByText('Keycloak-demo Solution Adorsys')).toBeTruthy()
+    expect(screen.getByText('Required')).toBeTruthy()
     expect(screen.getByTestId('footer')).toBeTruthy()
   })
 
@@ -153,13 +168,19 @@ describe('PresentationRequestPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith(routes.home)
   })
 
-  it('stores selection and navigates to proof details when a credential is chosen', async () => {
+  it('navigates to proof details when a credential card is clicked', async () => {
     mockPresentationStatus = 'selecting'
     mockCredentialMatches = [credentialMatch]
 
     renderPage()
     const user = userEvent.setup()
-    await user.click(screen.getByRole('button', { name: /Identity Credential/i }))
+
+    const credentialCard = screen.getByRole('button', {
+      name: 'Identity Credential Keycloak-demo Solution Adorsys',
+    })
+    expect(credentialCard).toBeTruthy()
+
+    await user.click(credentialCard)
 
     expect(mockSetSelectedCredentials).toHaveBeenCalledWith([
       {
@@ -180,7 +201,7 @@ describe('PresentationRequestPage', () => {
 
     renderPage()
 
-    expect(screen.getByText('Select a Credential')).toBeTruthy()
+    expect(screen.getByText('Select Credentials')).toBeTruthy()
     expect(screen.getByText('Identity Credential')).toBeTruthy()
   })
 })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { WalletLoadingOverlay } from '../../components/feedback/WalletLoadingOverlay'
 import { PresentationPageShell } from '../../components/presentation/PresentationPageShell'
@@ -32,11 +32,24 @@ export function PresentationProofDetailsPage() {
   const presentation = usePresentationState()
   const { isSharing, submitConsent } = usePresentationSubmission()
 
+  const [transactionDataAcknowledged, setTransactionDataAcknowledged] = useState(false)
+
   const presentationStatus = presentation.status
   const isOnProofDetails =
     presentationStatus === 'reviewing' || presentationStatus === 'submitting'
 
   useEffect(() => {
+    if (presentation.expires_at && new Date(presentation.expires_at) <= new Date()) {
+      presentation.setError({
+        code: 'session_not_found',
+        message:
+          'This proof request is no longer valid. Presentation sessions expire after a short time for your security.',
+        error_description:
+          'Ask the verifier to generate a new QR code or link, then scan it again.',
+      })
+      navigate(routes.presentationError, { replace: true })
+      return
+    }
     if (
       presentationStatus === 'idle' ||
       presentationStatus === 'success' ||
@@ -48,7 +61,7 @@ export function PresentationProofDetailsPage() {
     if (!isOnProofDetails) {
       navigate(routes.scan, { replace: true })
     }
-  }, [isOnProofDetails, navigate, presentationStatus])
+  }, [isOnProofDetails, navigate, presentation, presentationStatus])
 
   const displayMatches = useMemo(() => {
     const matches = presentation.credential_matches ?? []
@@ -83,10 +96,13 @@ export function PresentationProofDetailsPage() {
       sessionId,
       accepted: true,
       selectedCredentials: presentation.selected_credentials ?? [],
-      transactionDataAcknowledged: hasTransactionData ? true : undefined,
+      transactionDataAcknowledged: hasTransactionData
+        ? transactionDataAcknowledged
+        : undefined,
     })
   }, [
     hasTransactionData,
+    transactionDataAcknowledged,
     presentation.selected_credentials,
     presentation.session_id,
     submitConsent,
@@ -102,6 +118,10 @@ export function PresentationProofDetailsPage() {
     })
   }, [presentation.session_id, submitConsent])
 
+  const handleAcknowledge = useCallback(() => {
+    setTransactionDataAcknowledged((prev) => !prev)
+  }, [])
+
   if (!isOnProofDetails || !presentation.verifier || displayMatches.length === 0) {
     return null
   }
@@ -113,6 +133,16 @@ export function PresentationProofDetailsPage() {
         <ProofDetailsPage
           verifier={presentation.verifier}
           credentialMatches={displayMatches}
+          purpose={presentation.purpose}
+          transactionData={presentation.transaction_data}
+          transactionAcknowledgment={
+            hasTransactionData
+              ? {
+                  acknowledged: transactionDataAcknowledged,
+                  onAcknowledge: handleAcknowledge,
+                }
+              : undefined
+          }
           onShare={handleShare}
           onDecline={handleDecline}
           isShareSubmitting={isSharing}
